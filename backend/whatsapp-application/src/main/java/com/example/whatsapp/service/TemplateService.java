@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -252,11 +253,6 @@ public class TemplateService {
             );
         }
     }
-    // ==========================================
-
-    // ==========================================
-    // SYNC TEMPLATES FROM META
-
     @Transactional
     public List<TemplateResponse> sync() {
 
@@ -268,93 +264,81 @@ public class TemplateService {
             throw new RuntimeException("Meta returned an empty template response");
         }
 
+        int synced = 0;
+        int skipped = 0;
+
         for (JsonNode template : templates) {
 
-            String name = template.path("name").asText();
-            String language = template.path("language").asText();
+            String name = template.path("name").asText("");
+            String language = template.path("language").asText("");
 
             if (name.isBlank() || language.isBlank()) {
                 log.warn("Skipping template with missing name or language: {}", template);
+                skipped++;
                 continue;
             }
 
-            log.info("Syncing template: {}", name);
+            try {
+                TemplateEntity entity = repo
+                        .findByNameAndLanguage(name, language)
+                        .orElseGet(TemplateEntity::new);
 
-            TemplateEntity entity = repo
-                    .findByNameAndLanguage(name, language)
-                    .orElseGet(TemplateEntity::new);
+                entity.setName(name);
+                entity.setLanguage(language);
+                entity.setCategory(template.path("category").asText("MARKETING"));
+                entity.setStatus(template.path("status").asText("PENDING"));
+                entity.setMetaTemplateId(template.path("id").asText(null));
+                entity.setRejectionReason(template.path("rejected_reason").asText(null));
 
-            entity.setName(name);
-            entity.setLanguage(language);
+                // reset parts that may have been removed in Meta
+                entity.setHeaderText(null);
+                entity.setFooterText(null);
+                entity.setButtonsJson(null);
+                entity.setBody("");
 
-            entity.setCategory(
-                    template.path("category").asText("MARKETING")
-            );
+                for (JsonNode component : template.path("components")) {
 
-            entity.setStatus(
-                    template.path("status").asText("PENDING")
-            );
+                    switch (component.path("type").asText()) {
 
-            entity.setMetaTemplateId(
-                    template.path("id").asText(null)
-            );
+                        case "BODY" ->
+                                entity.setBody(component.path("text").asText(""));
 
-            entity.setRejectionReason(
-                    template.path("rejected_reason").asText(null)
-            );
-
-            for (JsonNode component : template.path("components")) {
-
-                switch (component.path("type").asText()) {
-
-                    case "BODY" ->
-                            entity.setBody(
-                                    component.path("text").asText("")
-                            );
-
-                    case "HEADER" -> {
-
-                        if ("TEXT".equals(
-                                component.path("format").asText()
-                        )) {
-                            entity.setHeaderText(
-                                    component.path("text").asText(null)
-                            );
+                        case "HEADER" -> {
+                            // only TEXT headers; media headers (image/document/video) are not stored
+                            if ("TEXT".equals(component.path("format").asText())) {
+                                entity.setHeaderText(component.path("text").asText(null));
+                            }
                         }
-                    }
 
-                    case "FOOTER" ->
-                            entity.setFooterText(
-                                    component.path("text").asText(null)
-                            );
+                        case "FOOTER" ->
+                                entity.setFooterText(component.path("text").asText(null));
 
-                    case "BUTTONS" ->
-                            entity.setButtonsJson(
-                                    component.path("buttons").toString()
-                            );
+                        case "BUTTONS" ->
+                                entity.setButtonsJson(component.path("buttons").toString());
 
-                    default -> {
-                        log.debug(
-                                "Ignoring component type: {}",
-                                component.path("type").asText()
-                        );
+                        default ->
+                                log.debug("Ignoring component type: {}",
+                                        component.path("type").asText());
                     }
                 }
-            }
 
-            entity.setVariableCount(
-                    countVariables(entity.getBody())
-            );
+                entity.setVariableCount(countVariables(entity.getBody()));
 
-            try {
+                if (entity.getCreatedAt() == null) {
+                    entity.setCreatedAt(LocalDateTime.now());
+                }
+
                 repo.save(entity);
+                synced++;
+
             } catch (Exception ex) {
-                log.error("Failed to sync template: {}", name, ex);
-                throw ex;
+                // one bad template must not stop the others
+                log.error("Failed to sync template: {} ({})", name, language, ex);
+                skipped++;
             }
         }
 
-        log.info("Template synchronization completed");
+        log.info("Template synchronization completed. Synced: {}, skipped: {}", synced, skipped);
 
         return list(null);
     }
@@ -371,15 +355,10 @@ public class TemplateService {
         List<TemplateEntity> items =
                 (status == null || status.isBlank())
                         ? repo.findAllByOrderByCreatedAtDesc()
-                        : repo.findByStatusOrderByCreatedAtDesc(
-                        status.toUpperCase()
-                );
+                        : repo.findByStatusOrderByCreatedAtDesc(status.toUpperCase());
 
-        return items.stream()
-                .map(this::map)
-                .toList();
+        return items.stream().map(this::map).toList();
     }
-
     // ==========================================
     // WEBHOOK STATUS UPDATE
     // ==========================================
