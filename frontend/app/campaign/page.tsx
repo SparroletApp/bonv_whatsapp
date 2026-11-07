@@ -99,7 +99,7 @@ export default function CampaignsPage() {
         <div className="cmp-page">
             <div className="cmp-top">
                 <h1 style={{ margin: 0 }}>Campaigns</h1>
-                <Link href="/campaigns/create" className="cmp-btn">+ Create campaign</Link>
+                <Link href="/campaign/create" className="cmp-btn">+ Create campaign</Link>
             </div>
 
             {error && <div className="cmp-alert">{error}</div>}
