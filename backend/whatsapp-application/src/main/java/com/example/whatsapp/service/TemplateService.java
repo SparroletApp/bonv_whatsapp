@@ -1,3 +1,4 @@
+
 package com.example.whatsapp.service;
 
 import com.example.whatsapp.client.WhatsappClient;
@@ -10,7 +11,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,150 +23,458 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class TemplateService {
 
-    private static final Pattern VAR = Pattern.compile("\\{\\{(\\d+)}}");
+    private static final Pattern VAR =
+            Pattern.compile("\\{\\{(\\d+)}}");
 
     private final TemplateRepository repo;
     private final WhatsappClient client;
     private final ObjectMapper mapper;
 
+    // ==========================================
+    // CREATE TEMPLATE
+    // ==========================================
+
     @Transactional
     public TemplateResponse create(TemplateCreateRequestDto r) {
+
+        log.info("Starting WhatsApp template creation");
+
+        if (r == null) {
+            throw new IllegalArgumentException("Template request cannot be empty");
+        }
+
+        if (r.name() == null || r.name().isBlank()) {
+            throw new IllegalArgumentException("Template name is required");
+        }
+
+        if (r.language() == null || r.language().isBlank()) {
+            throw new IllegalArgumentException("Template language is required");
+        }
+
+        if (r.body() == null || r.body().isBlank()) {
+            throw new IllegalArgumentException("Template body is required");
+        }
+
         String name = r.name().trim().toLowerCase();
-        if (repo.existsByNameAndLanguage(name, r.language())) {
-            throw new IllegalArgumentException("A template with this name and language already exists");
+        String language = r.language().trim();
+
+        log.info("Template name: {}, language: {}", name, language);
+
+        if (repo.existsByNameAndLanguage(name, language)) {
+            throw new IllegalArgumentException(
+                    "A template with this name and language already exists"
+            );
         }
 
         int vars = countVariables(r.body());
-        List<String> examples = r.bodyExamples() == null ? List.of() : r.bodyExamples();
+
+        List<String> examples = r.bodyExamples() == null
+                ? List.of()
+                : r.bodyExamples();
+
         if (vars > 0 && examples.size() < vars) {
-            throw new IllegalArgumentException("Provide an example value for each variable ({{1}}..{{" + vars + "}})");
+            throw new IllegalArgumentException(
+                    "Provide an example value for each variable"
+            );
         }
+
+        // ==========================================
+        // BUILD META PAYLOAD
+        // ==========================================
 
         ObjectNode payload = mapper.createObjectNode();
+
         payload.put("name", name);
-        payload.put("language", r.language());
+        payload.put("language", language);
         payload.put("category", r.category());
+
         ArrayNode components = payload.putArray("components");
 
+        // HEADER
+
         if (r.headerText() != null && !r.headerText().isBlank()) {
-            ObjectNode h = components.addObject();
-            h.put("type", "HEADER");
-            h.put("format", "TEXT");
-            h.put("text", r.headerText());
+
+            ObjectNode header = components.addObject();
+
+            header.put("type", "HEADER");
+            header.put("format", "TEXT");
+            header.put("text", r.headerText());
         }
+
+        // BODY
 
         ObjectNode body = components.addObject();
+
         body.put("type", "BODY");
         body.put("text", r.body());
+
         if (vars > 0) {
-            ArrayNode row = body.putObject("example").putArray("body_text").addArray();
-            for (int i = 0; i < vars; i++) row.add(examples.get(i));
+
+            ArrayNode row = body
+                    .putObject("example")
+                    .putArray("body_text")
+                    .addArray();
+
+            for (int i = 0; i < vars; i++) {
+                row.add(examples.get(i));
+            }
         }
+
+        // FOOTER
 
         if (r.footerText() != null && !r.footerText().isBlank()) {
-            ObjectNode f = components.addObject();
-            f.put("type", "FOOTER");
-            f.put("text", r.footerText());
+
+            ObjectNode footer = components.addObject();
+
+            footer.put("type", "FOOTER");
+            footer.put("text", r.footerText());
         }
 
-        ArrayNode btnArray = mapper.createArrayNode();
+        // BUTTONS
+
+        ArrayNode buttonArray = mapper.createArrayNode();
+
         if (r.buttons() != null) {
-            for (TemplateButtonDto b : r.buttons()) {
-                ObjectNode bn = btnArray.addObject();
-                bn.put("type", b.type());
-                bn.put("text", b.text());
-                if ("URL".equals(b.type())) bn.put("url", b.url());
-                if ("PHONE_NUMBER".equals(b.type())) bn.put("phone_number", b.phoneNumber());
-            }
-        }
-        if (!btnArray.isEmpty()) {
-            ObjectNode bc = components.addObject();
-            bc.put("type", "BUTTONS");
-            bc.set("buttons", btnArray);
-        }
 
-        JsonNode res = client.createTemplate(payload);   // throws with Meta's error message if invalid
+            for (TemplateButtonDto button : r.buttons()) {
 
-        TemplateEntity e = new TemplateEntity();
-        e.setName(name);
-        e.setLanguage(r.language());
-        e.setCategory(r.category());
-        e.setHeaderText(r.headerText());
-        e.setBody(r.body());
-        e.setFooterText(r.footerText());
-        e.setButtonsJson(btnArray.isEmpty() ? null : btnArray.toString());
-        e.setVariableCount(vars);
-        e.setMetaTemplateId(res.path("id").asText(null));
-        e.setStatus(res.path("status").asText("PENDING"));
-        return map(repo.save(e));
-    }
+                ObjectNode btn = buttonArray.addObject();
 
-    /** Pull every template from Meta and upsert locally. */
-    @Transactional
-    public List<TemplateResponse> sync() {
-        for (JsonNode t : client.listTemplates()) {
-            String name = t.path("name").asText();
-            String lang = t.path("language").asText();
+                btn.put("type", button.type());
+                btn.put("text", button.text());
 
-            TemplateEntity e = repo.findByNameAndLanguage(name, lang).orElseGet(TemplateEntity::new);
-            e.setName(name);
-            e.setLanguage(lang);
-            e.setCategory(t.path("category").asText("MARKETING"));
-            e.setStatus(t.path("status").asText("PENDING"));
-            e.setMetaTemplateId(t.path("id").asText(null));
-            e.setRejectionReason(t.path("rejected_reason").asText(null));
+                if ("URL".equals(button.type())) {
+                    btn.put("url", button.url());
+                }
 
-            for (JsonNode c : t.path("components")) {
-                switch (c.path("type").asText()) {
-                    case "BODY" -> e.setBody(c.path("text").asText(""));
-                    case "HEADER" -> {
-                        if ("TEXT".equals(c.path("format").asText())) e.setHeaderText(c.path("text").asText(null));
-                    }
-                    case "FOOTER" -> e.setFooterText(c.path("text").asText(null));
-                    case "BUTTONS" -> e.setButtonsJson(c.path("buttons").toString());
-                    default -> { }
+                if ("PHONE_NUMBER".equals(button.type())) {
+                    btn.put("phone_number", button.phoneNumber());
                 }
             }
-            e.setVariableCount(countVariables(e.getBody()));
-            repo.save(e);
         }
+
+        if (!buttonArray.isEmpty()) {
+
+            ObjectNode buttonComponent = components.addObject();
+
+            buttonComponent.put("type", "BUTTONS");
+            buttonComponent.set("buttons", buttonArray);
+        }
+
+        log.info("Meta template payload prepared for: {}", name);
+
+        // ==========================================
+        // SEND TEMPLATE TO META
+        // ==========================================
+
+        JsonNode metaResponse;
+
+        try {
+
+            metaResponse = client.createTemplate(payload);
+
+            log.info("Meta template response received: {}", metaResponse);
+
+        } catch (Exception ex) {
+
+            log.error("Meta template creation failed", ex);
+
+            throw new RuntimeException(
+                    "Meta template creation failed: " + ex.getMessage(),
+                    ex
+            );
+        }
+
+        if (metaResponse == null || !metaResponse.hasNonNull("id")) {
+
+            log.error("Meta returned an unexpected template response: {}", metaResponse);
+
+            throw new RuntimeException(
+                    "Meta did not return a valid template ID"
+            );
+        }
+
+        // ==========================================
+        // SAVE TEMPLATE TO DATABASE
+        // ==========================================
+
+        TemplateEntity entity = new TemplateEntity();
+
+        entity.setName(name);
+        entity.setLanguage(language);
+        entity.setCategory(r.category());
+        entity.setHeaderText(r.headerText());
+        entity.setBody(r.body());
+        entity.setFooterText(r.footerText());
+
+        entity.setButtonsJson(
+                buttonArray.isEmpty() ? null : buttonArray.toString()
+        );
+
+        entity.setVariableCount(vars);
+
+        entity.setMetaTemplateId(
+                metaResponse.path("id").asText()
+        );
+
+        entity.setStatus(
+                metaResponse.path("status").asText("PENDING")
+        );
+
+        try {
+
+            TemplateEntity saved = repo.saveAndFlush(entity);
+
+            log.info(
+                    "Template saved successfully. Local ID: {}, Meta ID: {}",
+                    saved.getId(),
+                    saved.getMetaTemplateId()
+            );
+
+            return map(saved);
+
+        } catch (Exception ex) {
+
+            log.error(
+                    "Meta accepted template, but PostgreSQL save failed. Meta ID: {}",
+                    entity.getMetaTemplateId(),
+                    ex
+            );
+
+            throw new RuntimeException(
+                    "Template was submitted to Meta, but database saving failed: "
+                            + ex.getMessage(),
+                    ex
+            );
+        }
+    }
+
+    // ==========================================
+    // SYNC TEMPLATES FROM META
+    // ==========================================
+
+    @Transactional
+    public List<TemplateResponse> sync() {
+
+        log.info("Starting template synchronization from Meta");
+
+        List<JsonNode> templates = client.listTemplates();
+
+        if (templates == null) {
+            throw new RuntimeException("Meta returned an empty template response");
+        }
+
+        for (JsonNode template : templates) {
+
+            String name = template.path("name").asText();
+            String language = template.path("language").asText();
+
+            if (name.isBlank() || language.isBlank()) {
+                log.warn("Skipping template with missing name or language: {}", template);
+                continue;
+            }
+
+            log.info("Syncing template: {}", name);
+
+            TemplateEntity entity = repo
+                    .findByNameAndLanguage(name, language)
+                    .orElseGet(TemplateEntity::new);
+
+            entity.setName(name);
+            entity.setLanguage(language);
+
+            entity.setCategory(
+                    template.path("category").asText("MARKETING")
+            );
+
+            entity.setStatus(
+                    template.path("status").asText("PENDING")
+            );
+
+            entity.setMetaTemplateId(
+                    template.path("id").asText(null)
+            );
+
+            entity.setRejectionReason(
+                    template.path("rejected_reason").asText(null)
+            );
+
+            for (JsonNode component : template.path("components")) {
+
+                switch (component.path("type").asText()) {
+
+                    case "BODY" ->
+                            entity.setBody(
+                                    component.path("text").asText("")
+                            );
+
+                    case "HEADER" -> {
+
+                        if ("TEXT".equals(
+                                component.path("format").asText()
+                        )) {
+                            entity.setHeaderText(
+                                    component.path("text").asText(null)
+                            );
+                        }
+                    }
+
+                    case "FOOTER" ->
+                            entity.setFooterText(
+                                    component.path("text").asText(null)
+                            );
+
+                    case "BUTTONS" ->
+                            entity.setButtonsJson(
+                                    component.path("buttons").toString()
+                            );
+
+                    default -> {
+                        log.debug(
+                                "Ignoring component type: {}",
+                                component.path("type").asText()
+                        );
+                    }
+                }
+            }
+
+            entity.setVariableCount(
+                    countVariables(entity.getBody())
+            );
+
+            try {
+                repo.save(entity);
+            } catch (Exception ex) {
+                log.error("Failed to sync template: {}", name, ex);
+                throw ex;
+            }
+        }
+
+        log.info("Template synchronization completed");
+
         return list(null);
     }
 
+    // ==========================================
+    // LIST TEMPLATES
+    // ==========================================
+
     @Transactional(readOnly = true)
     public List<TemplateResponse> list(String status) {
-        List<TemplateEntity> items = (status == null || status.isBlank())
-                ? repo.findAllByOrderByCreatedAtDesc()
-                : repo.findByStatusOrderByCreatedAtDesc(status.toUpperCase());
-        return items.stream().map(this::map).toList();
+
+        log.info("Fetching templates. Status filter: {}", status);
+
+        List<TemplateEntity> items =
+                (status == null || status.isBlank())
+                        ? repo.findAllByOrderByCreatedAtDesc()
+                        : repo.findByStatusOrderByCreatedAtDesc(
+                        status.toUpperCase()
+                );
+
+        return items.stream()
+                .map(this::map)
+                .toList();
     }
 
-    /** Called from the webhook when Meta approves / rejects a template. */
+    // ==========================================
+    // WEBHOOK STATUS UPDATE
+    // ==========================================
+
     @Transactional
-    public void applyWebhookStatus(String metaId, String name, String event, String reason) {
-        TemplateEntity e = metaId == null ? null : repo.findByMetaTemplateId(metaId).orElse(null);
-        List<TemplateEntity> targets = e != null ? List.of(e) : (name == null ? List.<TemplateEntity>of() : repo.findByName(name));
-        for (TemplateEntity t : targets) {
-            t.setStatus(event == null ? t.getStatus() : event.toUpperCase());
-            t.setRejectionReason("NONE".equalsIgnoreCase(reason) ? null : reason);
-            repo.save(t);
+    public void applyWebhookStatus(
+            String metaId,
+            String name,
+            String event,
+            String reason
+    ) {
+
+        log.info(
+                "Updating template status. Meta ID: {}, Name: {}, Event: {}",
+                metaId,
+                name,
+                event
+        );
+
+        TemplateEntity entity = metaId == null
+                ? null
+                : repo.findByMetaTemplateId(metaId).orElse(null);
+
+        List<TemplateEntity> targets =
+                entity != null
+                        ? List.of(entity)
+                        : (name == null
+                        ? List.of()
+                        : repo.findByName(name));
+
+        for (TemplateEntity template : targets) {
+
+            if (event != null && !event.isBlank()) {
+                template.setStatus(event.toUpperCase());
+            }
+
+            template.setRejectionReason(
+                    "NONE".equalsIgnoreCase(reason)
+                            ? null
+                            : reason
+            );
+
+            repo.save(template);
+
+            log.info(
+                    "Template status updated. Name: {}, Status: {}",
+                    template.getName(),
+                    template.getStatus()
+            );
         }
     }
 
+    // ==========================================
+    // COUNT VARIABLES
+    // ==========================================
+
     public static int countVariables(String body) {
-        if (body == null) return 0;
-        Matcher m = VAR.matcher(body);
+
+        if (body == null || body.isBlank()) {
+            return 0;
+        }
+
+        Matcher matcher = VAR.matcher(body);
+
         int max = 0;
-        while (m.find()) max = Math.max(max, Integer.parseInt(m.group(1)));
+
+        while (matcher.find()) {
+
+            int number = Integer.parseInt(matcher.group(1));
+
+            max = Math.max(max, number);
+        }
+
         return max;
     }
 
-    private TemplateResponse map(TemplateEntity e) {
-        return new TemplateResponse(e.getId(), e.getName(), e.getLanguage(), e.getCategory(),
-                e.getHeaderText(), e.getBody(), e.getFooterText(), e.getButtonsJson(),
-                e.getVariableCount(), e.getStatus(), e.getRejectionReason(), e.getCreatedAt());
+    // ==========================================
+    // ENTITY TO RESPONSE
+    // ==========================================
+
+    private TemplateResponse map(TemplateEntity entity) {
+
+        return new TemplateResponse(
+                entity.getId(),
+                entity.getName(),
+                entity.getLanguage(),
+                entity.getCategory(),
+                entity.getHeaderText(),
+                entity.getBody(),
+                entity.getFooterText(),
+                entity.getButtonsJson(),
+                entity.getVariableCount(),
+                entity.getStatus(),
+                entity.getRejectionReason(),
+                entity.getCreatedAt()
+        );
     }
 }
