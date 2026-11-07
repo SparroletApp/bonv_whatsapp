@@ -262,7 +262,7 @@ public class TemplateService {
 
         log.info("Starting template synchronization from Meta");
 
-        List<JsonNode> templates = client.listTemplates();
+        ArrayNode templates = client.listTemplates();
 
         if (templates == null) {
             throw new RuntimeException("Meta returned an empty template response");
