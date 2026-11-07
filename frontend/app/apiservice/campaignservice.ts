@@ -34,10 +34,10 @@ export interface CampaignMessage {
 }
 
 const campaignService = {
-    create: (req: CampaignCreateRequest) => api.post<CampaignResponse>("/api/campaigns", req),
-    list: () => api.get<CampaignResponse[]>("/api/campaigns"),
-    get: (id: number) => api.get<CampaignResponse>(`/api/campaigns/${id}`),
-    messages: (id: number) => api.get<CampaignMessage[]>(`/api/campaigns/${id}/messages`),
+    create: (req: CampaignCreateRequest) => api.post<CampaignResponse>("/campaigns", req),
+    list: () => api.get<CampaignResponse[]>("/campaigns"),
+    get: (id: number) => api.get<CampaignResponse>(`/campaigns/${id}`),
+    messages: (id: number) => api.get<CampaignMessage[]>(`/campaigns/${id}/messages`),
 };
 
 export default campaignService;
