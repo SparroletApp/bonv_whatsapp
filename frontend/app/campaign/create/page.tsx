@@ -35,8 +35,29 @@ export default function CampaignCreatePage() {
     const [info, setInfo] = useState("");
 
     const template = templates.find((t) => t.id === templateId);
+const [syncing, setSyncing] = useState(false);
 
-    const loadTemplates = () => templateService.list("APPROVED").then(setTemplates);
+// all statuses, so pending/rejected ones are visible too
+const loadTemplates = () => templateService.list().then(setTemplates);
+
+const refreshFromMeta = async (silent = false) => {
+    setSyncing(true);
+    try {
+        await templateService.sync();      // pulls from Meta into your DB
+        await loadTemplates();
+        if (!silent) setInfo("Templates refreshed from Meta.");
+    } catch (e) {
+        await loadTemplates().catch(() => {});   // fall back to what's saved
+        setError("Could not refresh from Meta: " + apiError(e));
+    } finally {
+        setSyncing(false);
+    }
+};
+
+useEffect(() => {
+    categoryInsightService.list().then(setCategories).catch((e) => setError(apiError(e)));
+    refreshFromMeta(true);                 // sync on page open
+}, []);
 
     useEffect(() => {
         categoryInsightService.list().then(setCategories).catch((e) => setError(apiError(e)));
