@@ -1,3 +1,6 @@
+
+"use client";
+
 import { useEffect, useRef, useState } from "react";
 import { apiError } from "../utils/apiError";
 import inboxService, { Conversation, InboxMessage } from "../apiservice/inboxservice";

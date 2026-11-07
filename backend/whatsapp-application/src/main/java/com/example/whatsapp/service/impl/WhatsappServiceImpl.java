@@ -31,7 +31,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WhatsappServiceImpl implements WhatsappService {
 
-    private final WhatsappRepository whatsappRepository;
+    private final WhatsappRepository whatsappRepository;6
     private final WhatsappConfig whatsappConfig;
     private final ObjectMapper objectMapper;
 
