@@ -39,7 +39,7 @@ public class GlobalExceptionHandler {
 
         log.error("Unexpected backend exception: ", ex);
 
-        return ResponseEntitys
+        return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of(
                         "status", 500,
