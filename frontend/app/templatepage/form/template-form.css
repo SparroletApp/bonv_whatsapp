@@ -1,0 +1,741 @@
+
+/* =========================================
+   TEMPLATE FORM - PREMIUM GREEN THEME
+   Primary: #064e45
+========================================= */
+
+.tf-wrapper {
+    --tf-primary: #064e45;
+    --tf-primary-dark: #043b34;
+    --tf-primary-light: #e8f3f0;
+    --tf-primary-soft: #f2f8f6;
+    --tf-accent: #83b9a9;
+    --tf-text: #202d2a;
+    --tf-muted: #818d89;
+    --tf-border: #e5ece9;
+    --tf-white: #ffffff;
+    --tf-danger: #dc5555;
+
+    width: 100%;
+    padding: 24px 0 40px;
+    color: var(--tf-text);
+    font-family: inherit;
+}
+
+.tf-wrapper * {
+    box-sizing: border-box;
+}
+
+/* =========================================
+   PAGE HEADING
+========================================= */
+
+.tf-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.tf-eyebrow,
+.tf-step {
+    display: inline-block;
+    color: var(--tf-primary);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+}
+
+.tf-heading h2 {
+    margin: 8px 0;
+    color: var(--tf-primary);
+    font-size: 28px;
+    font-weight: 750;
+    letter-spacing: -0.8px;
+}
+
+.tf-heading p,
+.tf-card-heading p,
+.tf-preview-heading p {
+    margin: 0;
+    color: var(--tf-muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.tf-heading-icon {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background: var(--tf-primary);
+    color: white;
+    font-size: 23px;
+    box-shadow: 0 7px 18px rgba(6, 78, 69, 0.16);
+}
+
+/* =========================================
+   MAIN GRID
+========================================= */
+
+.tf-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.85fr);
+    align-items: start;
+    gap: 24px;
+}
+
+.tf-form-card {
+    min-width: 0;
+    padding: 28px;
+    background: var(--tf-white);
+    border: 1px solid var(--tf-border);
+    border-radius: 18px;
+    box-shadow: 0 5px 25px rgba(6, 78, 69, 0.045);
+}
+
+/* =========================================
+   SECTION HEADINGS
+========================================= */
+
+.tf-card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 24px;
+}
+
+.tf-card-heading h3,
+.tf-preview-heading h3 {
+    margin: 7px 0 5px;
+    color: var(--tf-primary);
+    font-size: 18px;
+    font-weight: 750;
+}
+
+.tf-section-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--tf-primary-light);
+    color: var(--tf-primary);
+    font-size: 18px;
+}
+
+/* =========================================
+   FORM FIELDS
+========================================= */
+
+.tf-field {
+    position: relative;
+    min-width: 0;
+    margin-bottom: 19px;
+}
+
+.tf-field label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 8px;
+    color: #344740;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.tf-field label > span:not(.tf-optional) {
+    color: var(--tf-danger);
+}
+
+.tf-field input,
+.tf-field select,
+.tf-field textarea {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--tf-border);
+    border-radius: 10px;
+    background: #fbfdfc;
+    color: var(--tf-text);
+    padding: 12px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s ease,
+                box-shadow 0.2s ease,
+                background 0.2s ease;
+}
+
+.tf-field input,
+.tf-field select {
+    height: 44px;
+}
+
+.tf-field textarea {
+    min-height: 125px;
+    resize: vertical;
+    line-height: 1.7;
+}
+
+.tf-field input::placeholder,
+.tf-field textarea::placeholder {
+    color: #aab6b1;
+}
+
+.tf-field input:focus,
+.tf-field select:focus,
+.tf-field textarea:focus {
+    border-color: var(--tf-primary);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(6, 78, 69, 0.09);
+}
+
+.tf-field small {
+    display: block;
+    margin-top: 7px;
+    color: var(--tf-muted);
+    font-size: 10px;
+}
+
+.tf-field-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 15px;
+}
+
+.tf-optional {
+    margin-left: 5px;
+    padding: 3px 7px;
+    border-radius: 5px;
+    background: var(--tf-primary-light);
+    color: var(--tf-primary) !important;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.tf-character-count {
+    margin-top: 5px;
+    text-align: right;
+    color: #9ba9a3;
+    font-size: 10px;
+}
+
+.tf-divider {
+    height: 1px;
+    margin: 27px 0;
+    background: var(--tf-border);
+}
+
+/* =========================================
+   ERROR MESSAGE
+========================================= */
+
+.tf-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 22px;
+    padding: 13px 15px;
+    border: 1px solid #f5d5d5;
+    border-radius: 10px;
+    background: #fff7f7;
+    color: #c74747;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.tf-error i {
+    margin-top: 1px;
+    font-size: 15px;
+}
+
+/* =========================================
+   VARIABLE BUTTON
+========================================= */
+
+.tf-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.tf-label-row label {
+    margin-bottom: 0;
+}
+
+.tf-variable-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 11px;
+    border: 1px solid #d3e5df;
+    border-radius: 8px;
+    background: var(--tf-primary-light);
+    color: var(--tf-primary);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tf-variable-btn:hover {
+    background: var(--tf-primary);
+    color: white;
+    border-color: var(--tf-primary);
+}
+
+.tf-textarea-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 7px;
+    color: var(--tf-muted);
+    font-size: 10px;
+}
+
+/* =========================================
+   VARIABLE EXAMPLES
+========================================= */
+
+.tf-variables {
+    margin-bottom: 20px;
+    padding: 18px;
+    border: 1px solid #dcebe5;
+    border-radius: 12px;
+    background: var(--tf-primary-soft);
+}
+
+.tf-variable-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.tf-variable-heading h4 {
+    margin: 0 0 5px;
+    color: var(--tf-primary);
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.tf-variable-heading p {
+    margin: 0;
+    color: var(--tf-muted);
+    font-size: 11px;
+}
+
+.tf-count {
+    padding: 5px 9px;
+    border-radius: 20px;
+    background: #dcece6;
+    color: var(--tf-primary);
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.tf-variables .tf-field:last-child {
+    margin-bottom: 0;
+}
+
+/* =========================================
+   BUTTON INFORMATION
+========================================= */
+
+.tf-button-info {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border: 1px solid #dcebe5;
+    border-radius: 9px;
+    background: var(--tf-primary-soft);
+    color: var(--tf-primary);
+    font-size: 11px;
+}
+
+.tf-button-info i {
+    font-size: 15px;
+}
+
+/* =========================================
+   INTERACTIVE BUTTON CARDS
+========================================= */
+
+.tf-button-card {
+    margin-bottom: 14px;
+    padding: 17px;
+    border: 1px solid var(--tf-border);
+    border-radius: 12px;
+    background: #fff;
+    transition: border-color 0.2s ease,
+                box-shadow 0.2s ease;
+}
+
+.tf-button-card:hover {
+    border-color: #bdd7ce;
+    box-shadow: 0 4px 14px rgba(6, 78, 69, 0.055);
+}
+
+.tf-button-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.tf-button-card-header > span {
+    color: var(--tf-primary);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+.tf-button-card-header button {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #f0dede;
+    border-radius: 8px;
+    background: #fff7f7;
+    color: #d35a5a;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tf-button-card-header button:hover {
+    background: #d95353;
+    color: #fff;
+    border-color: #d95353;
+}
+
+.tf-button-card .tf-field:last-child {
+    margin-bottom: 0;
+}
+
+/* =========================================
+   ADD BUTTON
+========================================= */
+
+.tf-add-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    border: 1px dashed #9cbeb1;
+    border-radius: 10px;
+    background: var(--tf-primary-soft);
+    color: var(--tf-primary);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tf-add-button:hover {
+    border-color: var(--tf-primary);
+    background: var(--tf-primary-light);
+}
+
+.tf-add-button i {
+    font-size: 16px;
+}
+
+/* =========================================
+   SUBMIT SECTION
+========================================= */
+
+.tf-submit-area {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 28px;
+    padding-top: 23px;
+    border-top: 1px solid var(--tf-border);
+}
+
+.tf-submit-area > div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.tf-submit-title {
+    color: var(--tf-primary);
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.tf-submit-description {
+    color: var(--tf-muted);
+    font-size: 10px;
+}
+
+.tf-submit-btn {
+    min-height: 45px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 22px;
+    border: 1px solid var(--tf-primary);
+    border-radius: 9px;
+    background: var(--tf-primary);
+    color: white;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 5px 14px rgba(6, 78, 69, 0.15);
+    transition: all 0.2s ease;
+}
+
+.tf-submit-btn:hover:not(:disabled) {
+    background: var(--tf-primary-dark);
+    border-color: var(--tf-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(6, 78, 69, 0.2);
+}
+
+.tf-submit-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.tf-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: tf-spin 0.7s linear infinite;
+}
+
+@keyframes tf-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* =========================================
+   PREVIEW COLUMN
+========================================= */
+
+.tf-preview-column {
+    min-width: 0;
+}
+
+.tf-preview-sticky {
+    position: sticky;
+    top: 25px;
+}
+
+.tf-preview-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 17px;
+}
+
+.tf-preview-heading > i {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    background: var(--tf-primary-light);
+    color: var(--tf-primary);
+    font-size: 17px;
+}
+
+.tf-preview-card {
+    overflow: hidden;
+    padding: 17px;
+    border: 1px solid var(--tf-border);
+    border-radius: 15px;
+    background: #fff;
+    box-shadow: 0 5px 20px rgba(6, 78, 69, 0.04);
+}
+
+/* =========================================
+   META REVIEW INFO
+========================================= */
+
+.tf-review-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    margin-top: 17px;
+    padding: 17px;
+    border: 1px solid #dcebe5;
+    border-radius: 12px;
+    background: var(--tf-primary-soft);
+}
+
+.tf-review-icon {
+    width: 35px;
+    height: 35px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--tf-primary);
+    color: #fff;
+    font-size: 17px;
+}
+
+.tf-review-info h4 {
+    margin: 1px 0 6px;
+    color: var(--tf-primary);
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.tf-review-info p {
+    margin: 0;
+    color: #6d7e76;
+    font-size: 11px;
+    line-height: 1.7;
+}
+
+/* =========================================
+   QUICK TIP
+========================================= */
+
+.tf-preview-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-top: 13px;
+    padding: 15px;
+    border: 1px solid var(--tf-border);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.tf-preview-tip > i {
+    color: #b58a35;
+    font-size: 18px;
+}
+
+.tf-preview-tip strong {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--tf-text);
+    font-size: 11px;
+}
+
+.tf-preview-tip p {
+    margin: 0;
+    color: var(--tf-muted);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+/* =========================================
+   RESPONSIVE DESIGN
+========================================= */
+
+@media (max-width: 1100px) {
+    .tf-layout {
+        grid-template-columns: minmax(0, 1.3fr) minmax(270px, 0.8fr);
+        gap: 18px;
+    }
+
+    .tf-form-card {
+        padding: 22px;
+    }
+}
+
+@media (max-width: 850px) {
+    .tf-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .tf-preview-sticky {
+        position: static;
+    }
+
+    .tf-preview-column {
+        margin-top: 5px;
+    }
+}
+
+@media (max-width: 576px) {
+    .tf-wrapper {
+        padding: 15px 0 30px;
+    }
+
+    .tf-heading {
+        margin-bottom: 20px;
+    }
+
+    .tf-heading h2 {
+        font-size: 22px;
+    }
+
+    .tf-heading p {
+        font-size: 11px;
+    }
+
+    .tf-heading-icon {
+        width: 45px;
+        height: 45px;
+        font-size: 19px;
+    }
+
+    .tf-form-card {
+        padding: 17px;
+        border-radius: 13px;
+    }
+
+    .tf-field-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .tf-card-heading h3,
+    .tf-preview-heading h3 {
+        font-size: 16px;
+    }
+
+    .tf-submit-area {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .tf-submit-btn {
+        width: 100%;
+    }
+
+    .tf-variable-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .tf-textarea-footer {
+        font-size: 9px;
+    }
+
+    .tf-button-card {
+        padding: 13px;
+    }
+}

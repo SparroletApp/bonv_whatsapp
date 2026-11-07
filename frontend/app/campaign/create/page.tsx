@@ -4,8 +4,9 @@ import campaignService from "@/app/apiservice/campaignservice";
 import categoryInsightService, { CategorySummary } from "@/app/apiservice/categoryinsightservice";
 import templateService, { TemplateResponse } from "@/app/apiservice/templateservice";
 import Modal from "@/app/component/Modal";
-import TemplateForm from "@/app/component/TemplateForm";
+
 import TemplatePreview from "@/app/component/TemplatePreview";
+import TemplateForm from "@/app/templatepage/form/page";
 import { apiError } from "@/app/utils/apiError";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";

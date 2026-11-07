@@ -5,8 +5,8 @@ import { apiError } from "../utils/apiError";
 
 import TemplatePreview from "../component/TemplatePreview";
 import Modal from "../component/Modal";
-import TemplateForm from "../component/TemplateForm";
 import templateService, { TemplateResponse } from "../apiservice/templateservice";
+import TemplateForm from "./form/page";
 
 export default function TemplatesPage() {
     const [items, setItems] = useState<TemplateResponse[]>([]);
