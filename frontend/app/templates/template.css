@@ -277,7 +277,6 @@
 @keyframes tpl-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes tpl-slide { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
-/* ---------- mobile ---------- */
 @media (max-width: 600px) {
     .tpl-page { padding: 16px 12px 40px; }
     .tpl-grid { grid-template-columns: 1fr; }

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,4 +44,13 @@ public interface WhatsappRepository extends JpaRepository<WhatsappEntity, Long> 
     @Query("update WhatsappEntity m set m.agentRead = true " +
             "where m.recipientPhone = :phone and m.direction = 'INBOUND' and m.agentRead = false")
     int markConversationRead(@Param("phone") String phone);
+
+    @Query("""
+       select count(distinct i.recipientPhone) from WhatsappEntity i
+       where i.direction = 'INBOUND'
+         and i.createdAt >= :since
+         and i.recipientPhone in (select m.recipientPhone from WhatsappEntity m
+                                  where m.campaignId = :cid)
+       """)
+    long countReplies(@Param("cid") Long cid, @Param("since") LocalDateTime since);
 }

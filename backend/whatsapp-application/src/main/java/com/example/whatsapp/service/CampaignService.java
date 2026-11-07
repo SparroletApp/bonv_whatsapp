@@ -25,20 +25,44 @@ public class CampaignService {
 
     @Transactional
     public CampaignResponse create(CampaignCreateRequest req) {
+
+        if (req.name() == null || req.name().isBlank()) {
+            throw new IllegalArgumentException("Campaign name is required");
+        }
+        if (req.categoryIds() == null || req.categoryIds().isEmpty()) {
+            throw new IllegalArgumentException("Select at least one category");
+        }
+
         TemplateEntity tpl = templateRepo.findById(req.templateId())
                 .orElseThrow(() -> new IllegalArgumentException("Template not found"));
-        if (!"APPROVED".equals(tpl.getStatus())) {
-            throw new IllegalArgumentException("Template is not approved yet (status: " + tpl.getStatus() + ")");
+
+        if (!"APPROVED".equalsIgnoreCase(tpl.getStatus())) {
+            throw new IllegalArgumentException(
+                    "Template is not approved yet (status: " + tpl.getStatus() + ")");
         }
+
+        int varCount = tpl.getVariableCount();
 
         List<String> mapping = req.variableMapping() == null ? List.of() : req.variableMapping();
-        if (mapping.size() < tpl.getVariableCount()) {
-            throw new IllegalArgumentException("Map all " + tpl.getVariableCount() + " template variables");
+        if (mapping.size() < varCount) {
+            throw new IllegalArgumentException("Map all " + varCount + " template variables");
         }
 
-        List<ContactEntity> contacts = contactRepo.findByCategoryIdIn(req.categoryIds());
+        // load contacts, drop invalid numbers, send once per phone number
+        Set<String> seen = new HashSet<>();
+        List<ContactEntity> contacts = new ArrayList<>();
+        List<String> phones = new ArrayList<>();
+
+        for (ContactEntity ct : contactRepo.findByCategoryIdIn(req.categoryIds())) {
+            String phone = PhoneUtil.normalize(ct.getPhone());
+            if (phone == null || phone.isBlank()) continue;      // invalid number
+            if (!seen.add(phone)) continue;                      // duplicate across categories
+            contacts.add(ct);
+            phones.add(phone);
+        }
+
         if (contacts.isEmpty()) {
-            throw new IllegalArgumentException("Selected categories have no contacts");
+            throw new IllegalArgumentException("Selected categories have no contacts with a valid phone number");
         }
 
         CampaignEntity c = new CampaignEntity();
@@ -52,13 +76,17 @@ public class CampaignService {
         c = campaignRepo.save(c);
 
         List<WhatsappEntity> rows = new ArrayList<>();
-        for (ContactEntity ct : contacts) {
+        for (int idx = 0; idx < contacts.size(); idx++) {
+            ContactEntity ct = contacts.get(idx);
+
             List<String> params = new ArrayList<>();
-            for (int i = 0; i < tpl.getVariableCount(); i++) params.add(resolve(mapping.get(i), ct));
+            for (int i = 0; i < varCount; i++) {
+                params.add(resolve(mapping.get(i), ct));
+            }
 
             WhatsappEntity m = new WhatsappEntity();
             m.setRecipientName(ct.getName());
-            m.setRecipientPhone(PhoneUtil.normalize(ct.getPhone()));
+            m.setRecipientPhone(phones.get(idx));
             m.setTemplateName(tpl.getName());
             m.setLanguageCode(tpl.getLanguage());
             m.setMessageType("TEMPLATE");
@@ -95,33 +123,45 @@ public class CampaignService {
 
     private CampaignResponse toResponse(CampaignEntity c) {
         Map<String, Long> n = new HashMap<>();
-        for (Object[] r : messageRepo.statusCounts(c.getId())) n.put((String) r[0], (Long) r[1]);
+        for (Object[] r : messageRepo.statusCounts(c.getId())) {
+            n.put(String.valueOf(r[0]), ((Number) r[1]).longValue());   // safe for Long / BigInteger
+        }
 
-        long pending = n.getOrDefault("PENDING", 0L) + n.getOrDefault("PROCESSING", 0L);
-        long read = n.getOrDefault("READ", 0L);
-        long delivered = read + n.getOrDefault("DELIVERED", 0L);
-        long sent = delivered + n.getOrDefault("SENT", 0L);
-        long failed = n.getOrDefault("FAILED", 0L);
+        long pending   = n.getOrDefault("PENDING", 0L) + n.getOrDefault("PROCESSING", 0L);
+        long read      = n.getOrDefault("READ", 0L);
+        long delivered = read + n.getOrDefault("DELIVERED", 0L);   // includes read
+        long sent      = delivered + n.getOrDefault("SENT", 0L);   // includes delivered + read
+        long failed    = n.getOrDefault("FAILED", 0L);
+
+        long replied = c.getCreatedAt() == null
+                ? 0L
+                : messageRepo.countReplies(c.getId(), c.getCreatedAt());
 
         return new CampaignResponse(c.getId(), c.getName(), c.getTemplateName(), c.getStatus(),
-                c.getTotalCount(), pending, sent, delivered, read, failed,
+                c.getTotalCount(), pending, sent, delivered, read, failed, replied,
                 c.getCreatedAt(), c.getCompletedAt());
     }
 
     private String resolve(String src, ContactEntity c) {
-        if (src == null) return "-";
-        if (src.startsWith("TEXT:")) return src.substring(5);
-        return switch (src) {
-            case "NAME" -> c.getName();
+        if (src == null || src.isBlank()) return "-";
+        if (src.startsWith("TEXT:")) {
+            String t = src.substring(5);
+            return t.isBlank() ? "-" : t;
+        }
+        String v = switch (src) {
+            case "NAME"  -> c.getName();
             case "PHONE" -> c.getPhone();
-            case "EMAIL" -> c.getEmail() == null ? "-" : c.getEmail();
-            default -> src;
+            case "EMAIL" -> c.getEmail();
+            default      -> src;
         };
+        return (v == null || v.isBlank()) ? "-" : v;      // Meta rejects empty parameters
     }
 
     private String render(String body, List<String> params) {
-        String out = body;
-        for (int i = 0; i < params.size(); i++) out = out.replace("{{" + (i + 1) + "}}", params.get(i));
+        String out = body == null ? "" : body;
+        for (int i = 0; i < params.size(); i++) {
+            out = out.replace("{{" + (i + 1) + "}}", params.get(i));
+        }
         return out;
     }
 

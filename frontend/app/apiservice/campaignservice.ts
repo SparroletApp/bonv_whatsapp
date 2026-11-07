@@ -4,20 +4,21 @@ export interface CampaignCreateRequest {
     name: string;
     templateId: number;
     categoryIds: number[];
-    variableMapping: string[]; 
+    variableMapping: string[];
 }
 
 export interface CampaignResponse {
     id: number;
     name: string;
     templateName: string;
-    status: "RUNNING" | "COMPLETED";
+    status: "RUNNING" | "COMPLETED" | "FAILED";
     total: number;
     pending: number;
-    sent: number;
-    delivered: number;
+    sent: number;        // cumulative: includes delivered and read
+    delivered: number;   // cumulative: includes read
     read: number;
     failed: number;
+    replied: number;
     createdAt: string;
     completedAt: string | null;
 }
@@ -38,6 +39,7 @@ const campaignService = {
     list: () => api.get<CampaignResponse[]>("/campaigns"),
     get: (id: number) => api.get<CampaignResponse>(`/campaigns/${id}`),
     messages: (id: number) => api.get<CampaignMessage[]>(`/campaigns/${id}/messages`),
+    resume: (id: number) => api.post<CampaignResponse>(`/campaigns/${id}/resume`, {}),
 };
 
 export default campaignService;
