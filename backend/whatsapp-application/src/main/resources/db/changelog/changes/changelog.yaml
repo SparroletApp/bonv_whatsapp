@@ -1,0 +1,67 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-user-table
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/create_user_table.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: create_category_table
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/create_category_table.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: create_contacts_table
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/create_contacts_table.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_contacts_add_unique_phone
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_contacts_add_unique_phone.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: create_whatsapp_table
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/create_whatsapp_table.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_whatsapp_table
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_whatsapp_table.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: create_whatsapp_template
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/create_whatsapp_template.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: create_campaign_table
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/create_campaign_table.sql
+            relativeToChangelogFile: true
+
+
+

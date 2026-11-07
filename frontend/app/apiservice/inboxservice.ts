@@ -1,0 +1,32 @@
+import api from "./apiservice";
+
+export interface Conversation {
+    phone: string;
+    name: string;
+    lastMessage: string;
+    lastMessageAt: string;
+    lastDirection: "INBOUND" | "OUTBOUND";
+    unreadCount: number;
+}
+
+export interface InboxMessage {
+    id: number;
+    direction: "INBOUND" | "OUTBOUND";
+    text: string;
+    status: string;
+    templateName: string | null;
+    messageType: string;
+    errorMessage: string | null;
+    createdAt: string;
+}
+
+const inboxService = {
+    conversations: () => api.get<Conversation[]>("/inbox/conversations"),
+    messages: (phone: string) =>
+        api.get<InboxMessage[]>(`/inbox/conversations/${phone}/messages`),
+    markRead: (phone: string) => api.post<void>(`/inbox/conversations/${phone}/read`, {}),
+    reply: (phone: string, message: string) =>
+        api.post<InboxMessage>(`/inbox/conversations/${phone}/reply`, { message }),
+};
+
+export default inboxService;

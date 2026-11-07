@@ -1,0 +1,244 @@
+
+.category-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 18, 35, 0.55);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    z-index: 9999;
+    animation: categoryOverlayFade 0.2s ease;
+}
+
+.create-category-modal {
+    width: 100%;
+    max-width: 480px;
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 20px 70px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+    animation: categoryModalSlide 0.25s ease;
+}
+
+.category-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 25px 26px;
+    border-bottom: 1px solid #eeeeF4;
+}
+
+.category-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.category-modal-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 13px;
+    background: #e8f3f1;
+    color: #064e45;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 23px;
+}
+
+.category-modal-title h2 {
+    font-size: 19px;
+    font-weight: 700;
+    color: #20212b;
+    margin: 0 0 5px;
+}
+
+.category-modal-title p {
+    font-size: 13px;
+    color: #858797;
+    margin: 0;
+}
+
+.category-modal-close {
+    width: 35px;
+    height: 35px;
+    border: none;
+    background: #f5f5f8;
+    color: #777987;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.category-modal-close:hover {
+    background: #e8f3f1;
+    color: #064e45;
+}
+
+.category-modal-body {
+    padding: 27px 26px 30px;
+}
+
+.category-modal-body label {
+    display: block;
+    color: #30313d;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 11px;
+}
+
+.required-star {
+    color: #e54848;
+    margin-left: 4px;
+}
+
+.category-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 50px;
+    padding: 0 15px;
+    border: 1px solid #e4e4ed;
+    border-radius: 10px;
+    background: #ffffff;
+    transition: 0.2s;
+}
+
+.category-input-wrapper:focus-within {
+    border-color: #064e45;
+    box-shadow: 0 0 0 3px rgba(6, 78, 69, 0.09);
+}
+
+.category-input-wrapper i {
+    color: #88899a;
+    font-size: 18px;
+}
+
+.category-input-wrapper input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: #30313d;
+    font-size: 14px;
+}
+
+.category-input-wrapper input::placeholder {
+    color: #b1b2bd;
+}
+
+.category-input-hint {
+    font-size: 12px;
+    color: #9293a1;
+    margin: 10px 0 0;
+}
+
+.category-error {
+    color: #e54848;
+    font-size: 12px;
+    margin: 9px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.category-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 11px;
+    padding: 19px 26px;
+    border-top: 1px solid #eeeeF4;
+    background: #fcfcfe;
+}
+
+.category-cancel-btn,
+.category-submit-btn {
+    height: 43px;
+    padding: 0 19px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.category-cancel-btn {
+    border: 1px solid #e5e5ed;
+    background: #ffffff;
+    color: #656675;
+}
+
+.category-cancel-btn:hover {
+    background: #e8f3f1;
+    border-color: #d5e6e2;
+    color: #064e45;
+}
+
+.category-submit-btn {
+    border: none;
+    background: #064e45;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(6, 78, 69, 0.2);
+}
+
+.category-submit-btn:hover {
+    background: #043d36;
+    transform: translateY(-1px);
+}
+
+.category-submit-btn:disabled,
+.category-cancel-btn:disabled,
+.category-modal-close:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+
+.category-spinner {
+    width: 15px;
+    height: 15px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: categorySpin 0.7s linear infinite;
+}
+
+
+@keyframes categorySpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes categoryOverlayFade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes categoryModalSlide {
+    from {
+        opacity: 0;
+        transform: translateY(15px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+

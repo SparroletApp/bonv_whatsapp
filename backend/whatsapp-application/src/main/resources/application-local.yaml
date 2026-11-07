@@ -1,0 +1,57 @@
+
+spring:
+  application:
+    name: fsm
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bonv_whatsapp
+    username: postgres
+    password: root
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+
+jwt:
+  secret: "V7qN2xK9mR4tY8pL6sW3cF1hJ5zD9bG7uA2eX6nP4vQ8"
+
+
+file:
+  upload-dir: C:/upload
+
+whatsapp:
+  cloud:
+    access-token: ${WHATSAPP_ACCESS_TOKEN}
+    phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID}
+    business-account-id: ${WHATSAPP_BUSINESS_ACCOUNT_ID}
+    app-secret: ${WHATSAPP_APP_SECRET}
+    verify-token: ${WHATSAPP_VERIFY_TOKEN}
+    api-version: ${WHATSAPP_API_VERSION}
+    base-url: https://graph.facebook.com

@@ -1,0 +1,445 @@
+
+.add-contact {
+    width: 100%;
+    padding: 25px;
+    color: #20332e;
+}
+
+.add-contact-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.add-contact-header h2 {
+    font-size: 25px;
+    font-weight: 700;
+    margin: 0 0 7px;
+    color: #173a32;
+}
+
+.add-contact-header p {
+    margin: 0;
+    color: #82918b;
+    font-size: 14px;
+}
+
+.add-contact-card {
+    background: #ffffff;
+    border: 1px solid #e9efec;
+    border-radius: 14px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 18px rgba(20, 50, 40, 0.035);
+}
+
+.add-contact-card-heading {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 20px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #edf1ef;
+}
+
+.add-contact-heading-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 11px;
+    background: #e8f5f1;
+    color: #064e45;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 21px;
+}
+
+.add-contact-heading-icon.excel-icon {
+    background: #e5f5eb;
+    color: #16834c;
+}
+
+.add-contact-card-heading h3 {
+    margin: 0 0 5px;
+    color: #203b32;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.add-contact-card-heading p {
+    margin: 0;
+    color: #87958f;
+    font-size: 13px;
+}
+
+.add-contact-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+}
+
+.add-contact-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.add-contact-form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #344c43;
+}
+
+.add-contact-form-group label span {
+    color: #e34b4b;
+}
+
+.add-contact-form-group input,
+.add-contact-form-group select {
+    width: 100%;
+    height: 45px;
+    padding: 0 13px;
+    background: #fff;
+    border: 1px solid #dfe8e3;
+    border-radius: 8px;
+    outline: none;
+    color: #344c43;
+    font-size: 13px;
+    box-sizing: border-box;
+    transition: 0.2s;
+}
+
+.add-contact-form-group input:focus,
+.add-contact-form-group select:focus {
+    border-color: #064e45;
+    box-shadow: 0 0 0 3px rgba(6, 78, 69, 0.08);
+}
+
+.add-contact-form-group input::placeholder {
+    color: #a2ada7;
+}
+
+.add-contact-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid #edf1ef;
+}
+
+.add-contact-reset-btn,
+.add-contact-submit-btn,
+.add-contact-template-btn {
+    height: 43px;
+    padding: 0 19px;
+    border: none;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.add-contact-reset-btn {
+    background: #f0f3f1;
+    color: #52645b;
+}
+
+.add-contact-reset-btn:hover {
+    background: #e5eae7;
+}
+
+.add-contact-submit-btn {
+    background: #064e45;
+    color: #ffffff;
+}
+
+.add-contact-submit-btn:hover {
+    background: #043a33;
+    transform: translateY(-1px);
+}
+
+.add-contact-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.add-contact-excel-info {
+    background: #f1f8f4;
+    border: 1px solid #e0eee5;
+    border-radius: 9px;
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 22px;
+}
+
+.add-contact-excel-info > div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #526a5d;
+    font-size: 13px;
+}
+
+.add-contact-excel-info > div i {
+    color: #16834c;
+    font-size: 17px;
+}
+
+.add-contact-template-btn {
+    background: #ffffff;
+    color: #16834c;
+    border: 1px solid #cfe5d7;
+    white-space: nowrap;
+}
+
+.add-contact-template-btn:hover {
+    background: #e5f4ea;
+}
+
+.add-contact-upload-area {
+    min-height: 190px;
+    border: 2px dashed #cbded3;
+    background: #fbfdfb;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: 0.2s;
+    text-align: center;
+    padding: 25px;
+}
+
+.add-contact-upload-area:hover {
+    border-color: #16834c;
+    background: #f3faf5;
+}
+
+.add-contact-upload-icon {
+    width: 53px;
+    height: 53px;
+    border-radius: 50%;
+    background: #e5f5eb;
+    color: #16834c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 27px;
+    margin-bottom: 12px;
+}
+
+.add-contact-upload-area h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #29483a;
+    margin: 0 0 7px;
+}
+
+.add-contact-upload-area p {
+    color: #74887d;
+    font-size: 13px;
+    margin: 0 0 7px;
+}
+
+.add-contact-upload-area > span {
+    color: #a0aaa4;
+    font-size: 11px;
+}
+
+.add-contact-selected-file {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f5faf6;
+    border: 1px solid #e0eee5;
+    border-radius: 9px;
+    padding: 14px;
+    margin-top: 17px;
+}
+
+.add-contact-file-info {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    min-width: 0;
+}
+
+.add-contact-file-info > i {
+    font-size: 28px;
+    color: #16834c;
+}
+
+.add-contact-file-info div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.add-contact-file-info strong {
+    color: #29483a;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.add-contact-file-info span {
+    color: #819188;
+    font-size: 12px;
+}
+
+.add-contact-selected-file > button {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 7px;
+    background: #fcebea;
+    color: #d94c4c;
+    cursor: pointer;
+}
+
+.add-contact-excel-errors {
+    margin-top: 15px;
+    padding: 15px;
+    border: 1px solid #f2d8d5;
+    background: #fff8f7;
+    border-radius: 9px;
+    color: #a33c35;
+    font-size: 12px;
+}
+
+.add-contact-excel-errors strong {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.add-contact-excel-errors ul {
+    margin: 10px 0;
+    padding-left: 20px;
+    line-height: 1.8;
+}
+
+.add-contact-excel-errors p {
+    margin: 0;
+}
+.add-contact-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.add-contact-back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #ffffff;
+    color: #064e45;
+    border: 1px solid #064e45;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.add-contact-back-btn:hover {
+    background: #064e45;
+    color: #ffffff;
+    box-shadow: 0 5px 14px rgba(6, 78, 69, 0.15);
+}
+
+.add-contact-back-btn i {
+    font-size: 16px;
+}
+
+@media (max-width: 576px) {
+    .add-contact-header {
+        align-items: flex-start;
+    }
+
+    .add-contact-back-btn {
+        padding: 9px 13px;
+        white-space: nowrap;
+    }
+}
+
+.add-contact-upload-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid #edf1ef;
+}
+
+.add-contact-upload-actions > div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.add-contact-upload-actions strong {
+    color: #16834c;
+    font-size: 14px;
+}
+
+.add-contact-upload-actions span {
+    color: #87958f;
+    font-size: 12px;
+}
+
+@media (max-width: 768px) {
+    .add-contact {
+        padding: 15px;
+    }
+
+    .add-contact-card {
+        padding: 18px;
+    }
+
+    .add-contact-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .add-contact-excel-info {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .add-contact-header h2 {
+        font-size: 21px;
+    }
+
+    .add-contact-upload-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .add-contact-upload-actions button {
+        width: 100%;
+    }
+
+    .add-contact-form-actions button {
+        flex: 1;
+    }
+}

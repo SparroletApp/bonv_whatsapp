@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: fsm
+
+  profiles:
+    active: local
+
+  liquibase:
+    enabled: true
