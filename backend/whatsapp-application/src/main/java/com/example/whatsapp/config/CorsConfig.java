@@ -20,7 +20,8 @@ public class CorsConfig {
         // Allow frontend origin
         configuration.setAllowedOrigins(
                 Arrays.asList(
-                        "http://localhost:3000/"
+                        "http://localhost:3000/",
+                        "https://bonv-frontend.onrender.com/"
                 )
         );
 
