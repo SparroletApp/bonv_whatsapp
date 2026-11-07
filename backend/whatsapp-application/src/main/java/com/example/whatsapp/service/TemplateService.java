@@ -252,10 +252,10 @@ public class TemplateService {
             );
         }
     }
+    // ==========================================
 
     // ==========================================
     // SYNC TEMPLATES FROM META
-    // ==========================================
 
     @Transactional
     public List<TemplateResponse> sync() {

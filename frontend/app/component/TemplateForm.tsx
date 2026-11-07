@@ -45,21 +45,103 @@ export default function TemplateForm({ onCreated }: { onCreated: (t: TemplateRes
 
     const submit = async () => {
         setError("");
-        if (!/^[a-z0-9_]+$/.test(name)) return setError("Name: lowercase letters, numbers, underscore only");
-        if (!body.trim()) return setError("Body is required");
-        if (varCount > 0 && examples.slice(0, varCount).filter(Boolean).length < varCount)
-            return setError("Provide an example value for every variable");
+
+        const cleanName = name.trim();
+        const cleanBody = body.trim();
+
+        if (!/^[a-z0-9_]+$/.test(cleanName)) {
+            return setError(
+                "Name: lowercase letters, numbers, and underscores only"
+            );
+        }
+
+        if (!cleanBody) {
+            return setError("Body is required");
+        }
+
+        // Extract all variable numbers
+        const matches = [...cleanBody.matchAll(/\{\{(\d+)\}\}/g)];
+        const variableNumbers = matches.map((m) => Number(m[1]));
+
+        // Validate sequential variables
+        const uniqueNumbers = [...new Set(variableNumbers)].sort(
+            (a, b) => a - b
+        );
+
+        for (let i = 0; i < uniqueNumbers.length; i++) {
+            if (uniqueNumbers[i] !== i + 1) {
+                return setError(
+                    "Variables must be sequential: {{1}}, {{2}}, {{3}}..."
+                );
+            }
+        }
+
+        const count = uniqueNumbers.length;
+
+        // Validate body start/end variables
+        if (/^\s*\{\{\d+\}\}/.test(cleanBody)) {
+            return setError("Body cannot start with a variable");
+        }
+
+        if (/\{\{\d+\}\}\s*$/.test(cleanBody)) {
+            return setError("Body cannot end with a variable");
+        }
+
+        // Validate examples
+        if (
+            count > 0 &&
+            Array.from({ length: count }).some(
+                (_, i) => !examples[i]?.trim()
+            )
+        ) {
+            return setError(
+                "Provide an example value for every variable"
+            );
+        }
+
+        // Validate buttons
+        for (const button of buttons) {
+            if (!button.text.trim()) {
+                return setError("Every button must have button text");
+            }
+
+            if (button.type === "URL") {
+                if (!button.url?.trim()) {
+                    return setError("URL button requires a URL");
+                }
+
+                try {
+                    const url = new URL(button.url);
+                    if (!["http:", "https:"].includes(url.protocol)) {
+                        return setError("URL must start with http:// or https://");
+                    }
+                } catch {
+                    return setError("Please enter a valid button URL");
+                }
+            }
+
+            if (
+                button.type === "PHONE_NUMBER" &&
+                !button.phoneNumber?.trim()
+            ) {
+                return setError("Phone button requires a phone number");
+            }
+        }
 
         setSaving(true);
+
         try {
             const created = await templateService.create({
-                name, language, category,
-                headerText: headerText || undefined,
-                body,
-                footerText: footerText || undefined,
-                bodyExamples: examples.slice(0, varCount),
+                name: cleanName,
+                language,
+                category,
+                headerText: headerText.trim() || undefined,
+                body: cleanBody,
+                footerText: footerText.trim() || undefined,
+                bodyExamples: examples.slice(0, count),
                 buttons: buttons.filter((b) => b.text.trim()),
             });
+
             onCreated(created);
         } catch (e) {
             setError(apiError(e));
@@ -75,7 +157,7 @@ export default function TemplateForm({ onCreated }: { onCreated: (t: TemplateRes
 
                 <label>Template name</label>
                 <input value={name} onChange={(e) => setName(e.target.value.toLowerCase().replace(/\s/g, "_"))}
-                       placeholder="diwali_offer_2026" />
+                    placeholder="diwali_offer_2026" />
 
                 <div className="wa-row">
                     <div style={{ flex: 1 }}>
@@ -98,11 +180,11 @@ export default function TemplateForm({ onCreated }: { onCreated: (t: TemplateRes
 
                 <label>Body <button type="button" className="wa-btn-link" onClick={addVariable}>+ variable</button></label>
                 <textarea rows={5} value={body} maxLength={1024} onChange={(e) => setBody(e.target.value)}
-                          placeholder="Hi {{1}}, our festive offer starts today!" />
+                    placeholder="Hi {{1}}, our festive offer starts today!" />
 
                 {Array.from({ length: varCount }).map((_, i) => (
                     <input key={i} placeholder={`Example for {{${i + 1}}}`} value={examples[i] || ""}
-                           onChange={(e) => setExample(i, e.target.value)} />
+                        onChange={(e) => setExample(i, e.target.value)} />
                 ))}
 
                 <label>Footer (optional)</label>
@@ -117,13 +199,13 @@ export default function TemplateForm({ onCreated }: { onCreated: (t: TemplateRes
                             <option value="PHONE_NUMBER">Phone</option>
                         </select>
                         <input placeholder="Button text" value={b.text} maxLength={25}
-                               onChange={(e) => updateButton(i, { text: e.target.value })} />
+                            onChange={(e) => updateButton(i, { text: e.target.value })} />
                         {b.type === "URL" && <input placeholder="https://..." value={b.url || ""}
-                               onChange={(e) => updateButton(i, { url: e.target.value })} />}
+                            onChange={(e) => updateButton(i, { url: e.target.value })} />}
                         {b.type === "PHONE_NUMBER" && <input placeholder="+919876543210" value={b.phoneNumber || ""}
-                               onChange={(e) => updateButton(i, { phoneNumber: e.target.value })} />}
+                            onChange={(e) => updateButton(i, { phoneNumber: e.target.value })} />}
                         <button type="button" className="wa-btn-link"
-                                onClick={() => setButtons(buttons.filter((_, idx) => idx !== i))}>✕</button>
+                            onClick={() => setButtons(buttons.filter((_, idx) => idx !== i))}>✕</button>
                     </div>
                 ))}
                 {buttons.length < 3 && <button type="button" className="wa-btn-link" onClick={addButton}>+ add button</button>}
@@ -136,8 +218,8 @@ export default function TemplateForm({ onCreated }: { onCreated: (t: TemplateRes
             <div>
                 <label>Preview</label>
                 <TemplatePreview headerText={headerText} body={body || "Your message…"}
-                                 footerText={footerText} values={examples}
-                                 buttonsJson={JSON.stringify(buttons.filter((b) => b.text))} />
+                    footerText={footerText} values={examples}
+                    buttonsJson={JSON.stringify(buttons.filter((b) => b.text))} />
                 <p className="wa-hint">
                     Meta reviews every template (usually minutes, sometimes 24h). Variables must be
                     sequential ({"{{1}}"}, {"{{2}}"}…) and the body cannot start or end with a variable.
