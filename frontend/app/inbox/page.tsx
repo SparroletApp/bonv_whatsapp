@@ -16,7 +16,6 @@ export default function InboxPage() {
     const loadConvs = () => inboxService.conversations().then(setConvs).catch(() => {});
     const loadMsgs = (phone: string) => inboxService.messages(phone).then(setMsgs).catch(() => {});
 
-    // poll every 5s (swap for WebSocket/SSE later if you want true real-time)
     useEffect(() => {
         loadConvs();
         const t = setInterval(() => {

@@ -1,99 +1,191 @@
+"use client";
 
 import "./dashboard.css";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import campaignService, { CampaignResponse } from "@/app/apiservice/campaignservice";
+import templateService, { TemplateResponse } from "@/app/apiservice/templateservice";
+import inboxService, { Conversation } from "@/app/apiservice/inboxservice";
+import categoryInsightService, { CategorySummary } from "@/app/apiservice/categoryinsightservice";
+
+// change these if your page paths are different
+const ROUTES = {
+    campaigns: "/campaign",
+    createCampaign: "/campaign/create",
+    templates: "/templatepage",
+    inbox: "/inbox",
+    contacts: "/contacts",
+};
+
+const RANGES = [
+    { label: "Last 7 Days", days: 7 },
+    { label: "Last 30 Days", days: 30 },
+    { label: "Last 90 Days", days: 90 },
+    { label: "All time", days: 0 },
+];
+
+const num = (n: number) => n.toLocaleString("en-IN");
+
+const fmtDate = (d: string | null) =>
+    d ? new Date(d).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "-";
 
 function Dashboard() {
+    const nav = useRouter();
+
+    const [campaigns, setCampaigns] = useState<CampaignResponse[]>([]);
+    const [templates, setTemplates] = useState<TemplateResponse[]>([]);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [categories, setCategories] = useState<CategorySummary[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState("");
+    const [days, setDays] = useState(30);
+
+    const load = useCallback(async () => {
+        setRefreshing(true);
+        const [c, t, i, k] = await Promise.allSettled([
+            campaignService.list(),
+            templateService.list(),
+            inboxService.conversations(),
+            categoryInsightService.list(),
+        ]);
+
+        // one failing source must not blank the whole dashboard
+        if (c.status === "fulfilled") setCampaigns(c.value);
+        if (t.status === "fulfilled") setTemplates(t.value);
+        if (i.status === "fulfilled") setConversations(i.value);
+        if (k.status === "fulfilled") setCategories(k.value);
+
+        const failed = [c, t, i, k].filter((r) => r.status === "rejected").length;
+        setError(failed ? `${failed} of 4 data sources could not be loaded.` : "");
+        setLoading(false);
+        setRefreshing(false);
+    }, []);
+
+    useEffect(() => {
+        load();
+        const timer = setInterval(load, 15000);
+        return () => clearInterval(timer);
+    }, [load]);
+
+    // campaigns inside the selected date range
+    const inRange = useMemo(() => {
+        if (!days) return campaigns;
+        const since = Date.now() - days * 24 * 60 * 60 * 1000;
+        return campaigns.filter((c) => new Date(c.createdAt).getTime() >= since);
+    }, [campaigns, days]);
+
+    const totals = useMemo(() => {
+        const sum = (f: (c: CampaignResponse) => number) =>
+            inRange.reduce((s, c) => s + (f(c) || 0), 0);
+        const sent = sum((c) => c.sent);
+        const delivered = sum((c) => c.delivered);
+        const failed = sum((c) => c.failed);
+        return {
+            sent,
+            delivered,
+            failed,
+            read: sum((c) => c.read),
+            pending: sum((c) => c.pending),
+            deliveryPct: sent ? Math.round((delivered / sent) * 100) : 0,
+        };
+    }, [inRange]);
+
+    const contacts = useMemo(
+        () => categories.reduce((s, c) => s + (c.contactCount || 0), 0),
+        [categories]
+    );
+    const unread = useMemo(
+        () => conversations.reduce((s, c) => s + (c.unreadCount || 0), 0),
+        [conversations]
+    );
+    const unreadChats = conversations.filter((c) => c.unreadCount > 0).length;
+
+    const approved = templates.filter((t) => t.status === "APPROVED").length;
+    const pendingTpl = templates.filter((t) => t.status === "PENDING").length;
+
+    const recent = useMemo(
+        () => [...campaigns].sort((a, b) => b.id - a.id).slice(0, 5),
+        [campaigns]
+    );
+
     const stats = [
         {
             title: "Total Contacts",
-            value: "12,450",
-            change: "+12.5%",
+            value: num(contacts),
             icon: "bi-people",
             type: "green",
-            description: "Compared to last month",
+            description: `Across ${categories.length} categor${categories.length === 1 ? "y" : "ies"}`,
+            badge: `${categories.length} categories`,
         },
         {
             title: "Messages Sent",
-            value: "48,290",
-            change: "+18.2%",
+            value: num(totals.sent),
             icon: "bi-send",
             type: "blue",
-            description: "Compared to last month",
+            description: `${inRange.length} campaign${inRange.length === 1 ? "" : "s"} in this period`,
+            badge: `${num(totals.pending)} pending`,
         },
         {
             title: "Messages Delivered",
-            value: "45,820",
-            change: "+9.8%",
+            value: num(totals.delivered),
             icon: "bi-check2-circle",
             type: "purple",
-            description: "Compared to last month",
+            description: `${num(totals.read)} read by contacts`,
+            badge: `${totals.deliveryPct}%`,
         },
         {
             title: "Unread Messages",
-            value: "128",
-            change: "12 new",
+            value: num(unread),
             icon: "bi-chat-dots",
             type: "orange",
             description: "Awaiting your response",
+            badge: `${unreadChats} chat${unreadChats === 1 ? "" : "s"}`,
         },
     ];
 
-    const activities = [
-        {
-            name: "Welcome Campaign",
-            type: "Broadcast",
-            date: "Today, 10:30 AM",
-            status: "Completed",
-            sent: "2,450",
-        },
-        {
-            name: "New Product Update",
-            type: "Template",
-            date: "Today, 09:15 AM",
-            status: "Completed",
-            sent: "1,820",
-        },
-        {
-            name: "Customer Follow-up",
-            type: "Broadcast",
-            date: "Yesterday, 04:20 PM",
-            status: "In Progress",
-            sent: "850",
-        },
-        {
-            name: "Order Confirmation",
-            type: "Template",
-            date: "Yesterday, 11:45 AM",
-            status: "Completed",
-            sent: "1,250",
-        },
-    ];
+    const failedPct = totals.sent + totals.failed
+        ? Math.round((totals.failed / (totals.sent + totals.failed)) * 100)
+        : 0;
+    const circlePct = totals.sent + totals.failed
+        ? Math.round((totals.delivered / (totals.sent + totals.failed)) * 100)
+        : 0;
 
     return (
         <section className="dashboard">
+            {/* ---------- header ---------- */}
             <div className="dashboard-header">
                 <div>
-                    <span className="dashboard-subtitle">
-                        OVERVIEW
-                    </span>
+                    <span className="dashboard-subtitle">OVERVIEW</span>
                     <h1>Dashboard</h1>
-                    <p>
-                        Welcome back! Here's what's happening with your WhatsApp account.
-                    </p>
+                    <p>Welcome back! Here's what's happening with your WhatsApp account.</p>
                 </div>
 
                 <div className="dashboard-header-actions">
-                    <button className="dashboard-date-btn">
-                        <i className="bi bi-calendar3"></i>
-                        Last 30 Days
-                        <i className="bi bi-chevron-down"></i>
-                    </button>
+                    <select
+                        className="dashboard-date-btn dashboard-range"
+                        value={days}
+                        onChange={(e) => setDays(Number(e.target.value))}
+                    >
+                        {RANGES.map((r) => (
+                            <option key={r.days} value={r.days}>{r.label}</option>
+                        ))}
+                    </select>
 
-                    <button className="dashboard-refresh-btn" aria-label="Refresh">
-                        <i className="bi bi-arrow-clockwise"></i>
+                    <button
+                        className="dashboard-refresh-btn"
+                        aria-label="Refresh"
+                        onClick={load}
+                        disabled={refreshing}
+                    >
+                        <i className={`bi bi-arrow-clockwise ${refreshing ? "spin" : ""}`}></i>
                     </button>
                 </div>
             </div>
 
+            {error && <div className="dashboard-error">{error}</div>}
+
+            {/* ---------- stat cards ---------- */}
             <div className="dashboard-stats">
                 {stats.map((item) => (
                     <div className="stat-card" key={item.title}>
@@ -101,104 +193,59 @@ function Dashboard() {
                             <div className={`stat-icon ${item.type}`}>
                                 <i className={`bi ${item.icon}`}></i>
                             </div>
-
-                            <span className="stat-change">
-                                <i className="bi bi-arrow-up-right"></i>
-                                {item.change}
-                            </span>
+                            <span className="stat-change">{item.badge}</span>
                         </div>
 
                         <div className="stat-info">
                             <p>{item.title}</p>
-                            <h2>{item.value}</h2>
+                            <h2>{loading ? "…" : item.value}</h2>
                             <span>{item.description}</span>
                         </div>
                     </div>
                 ))}
             </div>
+
+            {/* ---------- create buttons + quick actions ---------- */}
             <div className="dashboard-middle">
                 <div className="dashboard-panel analytics-panel">
                     <div className="panel-header">
                         <div>
-                            <h3>Message Analytics</h3>
-                            <p>Overview of your message performance</p>
+                            <h3>Get Started</h3>
+                            <p>Create something new for your customers</p>
                         </div>
+                    </div>
 
-                        <button className="panel-menu-btn" aria-label="More options">
-                            <i className="bi bi-three-dots"></i>
+                    <div className="create-actions">
+                        <button className="create-card campaign" onClick={() => nav.push(ROUTES.createCampaign)}>
+                            <div className="create-card-icon">
+                                <i className="bi bi-megaphone"></i>
+                            </div>
+                            <h4>Create Campaign</h4>
+                            <p>Send an approved template to a group of contacts.</p>
+                            <span className="create-card-meta">
+                                {campaigns.length} campaign{campaigns.length === 1 ? "" : "s"} so far
+                            </span>
+                            <span className="create-card-cta">
+                                + New campaign <i className="bi bi-arrow-right"></i>
+                            </span>
+                        </button>
+
+                        <button className="create-card template" onClick={() => nav.push(ROUTES.templates)}>
+                            <div className="create-card-icon">
+                                <i className="bi bi-file-earmark-plus"></i>
+                            </div>
+                            <h4>Create Template</h4>
+                            <p>Design a message and submit it to Meta for approval.</p>
+                            <span className="create-card-meta">
+                                {templates.length} total · {approved} approved · {pendingTpl} pending
+                            </span>
+                            <span className="create-card-cta">
+                                + New template <i className="bi bi-arrow-right"></i>
+                            </span>
                         </button>
                     </div>
-
-                    <div className="analytics-summary">
-                        <div>
-                            <span>Total Messages</span>
-                            <h2>48,290</h2>
-                        </div>
-
-                        <div className="analytics-legend">
-                            <span><i className="legend-dot sent-dot"></i> Sent</span>
-                            <span><i className="legend-dot delivered-dot"></i> Delivered</span>
-                            <span><i className="legend-dot read-dot"></i> Read</span>
-                        </div>
-                    </div>
-
-                    <div className="analytics-chart">
-                        <div className="chart-y-axis">
-                            <span>5k</span>
-                            <span>4k</span>
-                            <span>3k</span>
-                            <span>2k</span>
-                            <span>1k</span>
-                            <span>0</span>
-                        </div>
-
-                        <div className="chart-content">
-                            <div className="chart-grid">
-                                {[1, 2, 3, 4, 5, 6].map((item) => (
-                                    <span key={item}></span>
-                                ))}
-                            </div>
-
-                            <div className="chart-bars">
-                                {[
-                                    [42, 35, 28],
-                                    [55, 46, 38],
-                                    [38, 32, 25],
-                                    [70, 58, 48],
-                                    [62, 52, 43],
-                                    [85, 72, 60],
-                                    [58, 49, 39],
-                                    [92, 80, 68],
-                                    [72, 61, 50],
-                                    [100, 87, 75],
-                                    [82, 70, 58],
-                                    [90, 78, 65],
-                                ].map((values, index) => (
-                                    <div className="chart-bar-group" key={index}>
-                                        {values.map((height, i) => (
-                                            <div
-                                                key={i}
-                                                className={`chart-bar bar-${i}`}
-                                                style={{ height: `${height}%` }}
-                                            ></div>
-                                        ))}
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="chart-x-axis">
-                                {["01", "03", "05", "07", "09", "11", "13", "15", "17", "19", "21", "23"].map((day) => (
-                                    <span key={day}>{day}</span>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="chart-footer">
-                        <span>Message activity throughout the month</span>
-                        <span>November 2026</span>
-                    </div>
                 </div>
+
                 <div className="dashboard-panel quick-actions-panel">
                     <div className="panel-header">
                         <div>
@@ -208,61 +255,55 @@ function Dashboard() {
                     </div>
 
                     <div className="quick-actions-list">
-                        <button className="quick-action">
-                            <div className="quick-action-icon green">
-                                <i className="bi bi-person-plus"></i>
-                            </div>
+                        <button className="quick-action" onClick={() => nav.push(ROUTES.contacts)}>
+                            <div className="quick-action-icon green"><i className="bi bi-person-plus"></i></div>
                             <div>
-                                <h4>Add Contact</h4>
-                                <p>Add a new customer</p>
+                                <h4>Contacts</h4>
+                                <p>{num(contacts)} saved contacts</p>
                             </div>
                             <i className="bi bi-arrow-up-right action-arrow"></i>
                         </button>
 
-                        <button className="quick-action">
-                            <div className="quick-action-icon blue">
-                                <i className="bi bi-megaphone"></i>
-                            </div>
+                        <button className="quick-action" onClick={() => nav.push(ROUTES.campaigns)}>
+                            <div className="quick-action-icon blue"><i className="bi bi-megaphone"></i></div>
                             <div>
-                                <h4>Create Broadcast</h4>
-                                <p>Send messages in bulk</p>
+                                <h4>All Campaigns</h4>
+                                <p>View counts and recipients</p>
                             </div>
                             <i className="bi bi-arrow-up-right action-arrow"></i>
                         </button>
 
-                        <button className="quick-action">
-                            <div className="quick-action-icon purple">
-                                <i className="bi bi-file-earmark-plus"></i>
-                            </div>
+                        <button className="quick-action" onClick={() => nav.push(ROUTES.templates)}>
+                            <div className="quick-action-icon purple"><i className="bi bi-file-earmark-text"></i></div>
                             <div>
-                                <h4>Create Template</h4>
-                                <p>Create a message template</p>
+                                <h4>All Templates</h4>
+                                <p>{templates.length} in your account</p>
                             </div>
                             <i className="bi bi-arrow-up-right action-arrow"></i>
                         </button>
 
-                        <button className="quick-action">
-                            <div className="quick-action-icon orange">
-                                <i className="bi bi-chat-left-text"></i>
-                            </div>
+                        <button className="quick-action" onClick={() => nav.push(ROUTES.inbox)}>
+                            <div className="quick-action-icon orange"><i className="bi bi-chat-left-text"></i></div>
                             <div>
                                 <h4>Open Inbox</h4>
-                                <p>View customer conversations</p>
+                                <p>{unread} unread message{unread === 1 ? "" : "s"}</p>
                             </div>
                             <i className="bi bi-arrow-up-right action-arrow"></i>
                         </button>
                     </div>
                 </div>
             </div>
+
+            {/* ---------- recent activity + delivery ---------- */}
             <div className="dashboard-bottom">
                 <div className="dashboard-panel recent-activity-panel">
                     <div className="panel-header">
                         <div>
                             <h3>Recent Activity</h3>
-                            <p>Latest WhatsApp activities</p>
+                            <p>Latest campaigns</p>
                         </div>
 
-                        <button className="view-all-btn">
+                        <button className="view-all-btn" onClick={() => nav.push(ROUTES.campaigns)}>
                             View All <i className="bi bi-arrow-right"></i>
                         </button>
                     </div>
@@ -272,7 +313,7 @@ function Dashboard() {
                             <thead>
                                 <tr>
                                     <th>NAME</th>
-                                    <th>TYPE</th>
+                                    <th>TEMPLATE</th>
                                     <th>DATE</th>
                                     <th>MESSAGES</th>
                                     <th>STATUS</th>
@@ -280,8 +321,14 @@ function Dashboard() {
                             </thead>
 
                             <tbody>
-                                {activities.map((item) => (
-                                    <tr key={item.name}>
+                                {!loading && recent.length === 0 && (
+                                    <tr><td colSpan={5} className="activity-empty">
+                                        No campaigns yet. Create your first campaign above.
+                                    </td></tr>
+                                )}
+
+                                {recent.map((item) => (
+                                    <tr key={item.id} className="activity-row" onClick={() => nav.push(ROUTES.campaigns)}>
                                         <td>
                                             <div className="activity-name">
                                                 <div className="activity-icon">
@@ -290,14 +337,16 @@ function Dashboard() {
                                                 <strong>{item.name}</strong>
                                             </div>
                                         </td>
-                                        <td>{item.type}</td>
-                                        <td>{item.date}</td>
-                                        <td>{item.sent}</td>
+                                        <td>{item.templateName}</td>
+                                        <td>{fmtDate(item.createdAt)}</td>
+                                        <td>{num(item.sent)} / {num(item.total)}</td>
                                         <td>
                                             <span className={`activity-status ${
-                                                item.status === "Completed" ? "completed" : "progress"
+                                                item.status === "COMPLETED" ? "completed"
+                                                    : item.status === "FAILED" ? "failed" : "progress"
                                             }`}>
-                                                {item.status}
+                                                {item.status === "COMPLETED" ? "Completed"
+                                                    : item.status === "FAILED" ? "Failed" : "In Progress"}
                                             </span>
                                         </td>
                                     </tr>
@@ -316,9 +365,14 @@ function Dashboard() {
                     </div>
 
                     <div className="delivery-chart">
-                        <div className="delivery-circle">
+                        <div
+                            className="delivery-circle"
+                            style={{
+                                background: `conic-gradient(#25d366 ${circlePct * 3.6}deg, #fde2e2 0deg)`,
+                            }}
+                        >
                             <div className="delivery-circle-inner">
-                                <h2>95%</h2>
+                                <h2>{circlePct}%</h2>
                                 <span>Delivered</span>
                             </div>
                         </div>
@@ -327,17 +381,15 @@ function Dashboard() {
                     <div className="delivery-details">
                         <div>
                             <span><i className="legend-dot sent-dot"></i> Delivered</span>
-                            <strong>45,820</strong>
+                            <strong>{num(totals.delivered)}</strong>
                         </div>
                         <div>
-                            <span><i className="legend-dot failed-dot"></i> Failed</span>
-                            <strong>2,470</strong>
+                            <span><i className="legend-dot failed-dot"></i> Failed ({failedPct}%)</span>
+                            <strong>{num(totals.failed)}</strong>
                         </div>
                     </div>
                 </div>
-
             </div>
-
         </section>
     );
 }
