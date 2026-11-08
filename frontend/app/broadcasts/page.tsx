@@ -248,7 +248,7 @@ const router = useRouter();
                                                             category.id.toString()
                                                         );
 
-                                                        router.push("/broadcast/view");
+                                                        router.push("/broadcasts/view");
                                                     }}
                                                 >
                                                     <i className="bi bi-eye"></i>
