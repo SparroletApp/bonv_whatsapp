@@ -170,6 +170,22 @@ public class ContactServiceImpl implements ContactService {
         contactRepository.saveAll(contacts);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ContactResponseDto> getContactsByBroadcastId(Long broadcastId) {
+
+        BroadCastEntity broadcast = broadcastRepository.findById(broadcastId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Broadcast not found"
+                ));
+
+        return contactRepository.findAllByBroadcast_Id(broadcast.getId())
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
     private ContactResponseDto mapToResponse(ContactEntity contact) {
 
         ContactResponseDto response = new ContactResponseDto();

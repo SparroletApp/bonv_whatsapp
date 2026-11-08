@@ -41,6 +41,10 @@ export interface ApiErrorResponse {
     message: string;
 }
 
+export interface BroadcastIdDto {
+    id: number;
+}
+
 const contactService = {
 
     // Create Contact
@@ -99,7 +103,19 @@ const contactService = {
             data
         );
     },
+
+    // Get Contacts By Broadcast ID
+getContactsByBroadcastId: async (
+    data: BroadcastIdDto
+): Promise<ContactResponseDto[]> => {
+    return await api.post<ContactResponseDto[]>(
+        "/contacts/get-by-broadcast",
+        data
+    );
+},
 };
+
+
 
 
 export default contactService;

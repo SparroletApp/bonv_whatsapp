@@ -1,7 +1,13 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import type { FormEvent } from "react";
 import Swal from "sweetalert2";
 
@@ -19,6 +25,11 @@ export default function BroadcastView() {
     const [broadcastId, setBroadcastId] = useState<number | null>(null);
     const [broadcastIdLoaded, setBroadcastIdLoaded] = useState(false);
 
+    // Assigned contacts
+    const [assignedContacts, setAssignedContacts] = useState<ContactResponseDto[]>([]);
+    const [assignedLoading, setAssignedLoading] = useState(true);
+
+    // Available contacts
     const [contacts, setContacts] = useState<ContactResponseDto[]>([]);
     const [categories, setCategories] = useState<CategoryResponseDto[]>([]);
 
@@ -27,11 +38,15 @@ export default function BroadcastView() {
     const [search, setSearch] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
 
-    const [loading, setLoading] = useState(true);
+    const [showAddContacts, setShowAddContacts] = useState(false);
+
+    const [loading, setLoading] = useState(false);
     const [assigning, setAssigning] = useState(false);
     const [error, setError] = useState("");
 
-    // Get broadcast ID from localStorage
+    const addContactsRef = useRef<HTMLDivElement>(null);
+
+    // Get broadcast ID
     useEffect(() => {
         const storedBroadcastId = localStorage.getItem("broadcastId");
 
@@ -50,7 +65,7 @@ export default function BroadcastView() {
         setBroadcastIdLoaded(true);
     }, []);
 
-    // Toast notification
+    // Toast
     const showToast = (
         icon: "success" | "error" | "warning",
         title: string
@@ -66,7 +81,47 @@ export default function BroadcastView() {
         });
     };
 
-    // Fetch contacts and categories
+    // Fetch contacts already assigned to this broadcast
+    const fetchAssignedContacts = useCallback(async () => {
+        if (!broadcastId) return;
+
+        try {
+            setAssignedLoading(true);
+
+            const response =
+                await contactService.getContactsByBroadcastId({
+                    id: broadcastId,
+                });
+
+            setAssignedContacts(response || []);
+        } catch (err: any) {
+            const message =
+                err?.response?.data?.message ||
+                err?.response?.data ||
+                err?.message ||
+                "Unable to load assigned contacts.";
+
+            showToast(
+                "error",
+                typeof message === "string"
+                    ? message
+                    : "Unable to load assigned contacts."
+            );
+        } finally {
+            setAssignedLoading(false);
+        }
+    }, [broadcastId]);
+
+    // Fetch assigned contacts when broadcast ID is available
+    useEffect(() => {
+        if (broadcastIdLoaded && broadcastId) {
+            fetchAssignedContacts();
+        } else if (broadcastIdLoaded) {
+            setAssignedLoading(false);
+        }
+    }, [broadcastIdLoaded, broadcastId, fetchAssignedContacts]);
+
+    // Fetch all contacts and categories only when Add Contacts is clicked
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
@@ -96,13 +151,46 @@ export default function BroadcastView() {
         }
     }, []);
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    // Open Add Contacts section and scroll to it
+    const handleOpenAddContacts = async () => {
+        setShowAddContacts(true);
 
-    // Filter contacts
+        // Scroll after the section becomes visible
+        setTimeout(() => {
+            addContactsRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+            });
+        }, 100);
+
+        // Fetch only when opening for the first time
+        if (contacts.length === 0) {
+            await fetchData();
+        }
+    };
+
+    // Hide Add Contacts section
+    const handleCloseAddContacts = () => {
+        setShowAddContacts(false);
+        setSelectedContacts([]);
+        setSearch("");
+        setSelectedCategory("all");
+    };
+
+    // Exclude contacts already assigned to this broadcast
+    const availableContacts = useMemo(() => {
+        const assignedIds = new Set(
+            assignedContacts.map((contact) => contact.id)
+        );
+
+        return contacts.filter(
+            (contact) => !assignedIds.has(contact.id)
+        );
+    }, [contacts, assignedContacts]);
+
+    // Filter available contacts
     const filteredContacts = useMemo(() => {
-        return contacts.filter((contact) => {
+        return availableContacts.filter((contact) => {
             const searchText = search.toLowerCase();
 
             const matchesSearch =
@@ -116,9 +204,9 @@ export default function BroadcastView() {
 
             return matchesSearch && matchesCategory;
         });
-    }, [contacts, search, selectedCategory]);
+    }, [availableContacts, search, selectedCategory]);
 
-    // Check selection status
+    // Selection status
     const allFilteredSelected =
         filteredContacts.length > 0 &&
         filteredContacts.every((contact) =>
@@ -130,7 +218,7 @@ export default function BroadcastView() {
             selectedContacts.includes(contact.id)
         );
 
-    // Select / deselect individual contact
+    // Individual selection
     const handleContactSelect = (id: number) => {
         setSelectedContacts((previous) =>
             previous.includes(id)
@@ -139,7 +227,7 @@ export default function BroadcastView() {
         );
     };
 
-    // Select / deselect all filtered contacts
+    // Select all
     const handleSelectAll = () => {
         const filteredIds = filteredContacts.map(
             (contact) => contact.id
@@ -161,17 +249,14 @@ export default function BroadcastView() {
         setSelectedContacts([]);
     };
 
-    // Assign selected contacts to broadcast
+    // Assign contacts
     const handleAssignContacts = async (
         e: FormEvent<HTMLFormElement>
     ) => {
         e.preventDefault();
 
         if (!broadcastId) {
-            showToast(
-                "error",
-                "Broadcast ID is missing. Please open a valid broadcast."
-            );
+            showToast("error", "Broadcast ID is missing.");
             return;
         }
 
@@ -197,14 +282,20 @@ export default function BroadcastView() {
         try {
             setAssigning(true);
 
+            const assignedCount = selectedContacts.length;
+
             await contactService.assignContactsToBroadcast({
                 broadcastId,
                 contactIds: selectedContacts,
             });
 
-            const assignedCount = selectedContacts.length;
-
             setSelectedContacts([]);
+
+            // Refresh assigned contacts after successful assignment
+            await fetchAssignedContacts();
+
+            // Close Add Contacts section
+            setShowAddContacts(false);
 
             showToast(
                 "success",
@@ -245,8 +336,7 @@ export default function BroadcastView() {
                     <h1>Manage Broadcast Contacts</h1>
 
                     <p>
-                        Select contacts by category and assign them to your
-                        broadcast list.
+                        View and manage the contacts assigned to your broadcast.
                     </p>
                 </div>
 
@@ -274,352 +364,475 @@ export default function BroadcastView() {
                         </h3>
 
                         <p>
-                            Choose contacts to add to this broadcast.
+                            Contacts assigned to this broadcast.
                         </p>
                     </div>
                 </div>
 
                 <div className="broadcast-info-total">
-                    <span>Available Contacts</span>
-                    <strong>{contacts.length}</strong>
+                    <span>Assigned Contacts</span>
+                    <strong>{assignedContacts.length}</strong>
                 </div>
             </div>
 
-            {/* Selection Statistics */}
-            <div className="broadcast-contact-stats">
-                <div className="broadcast-contact-stat">
-                    <div className="broadcast-contact-stat-icon">
-                        <i className="bi bi-people"></i>
+            {/* Assigned Contacts Section */}
+            <div className="broadcast-contact-container assigned-contact-container">
+
+                <div className="broadcast-contact-header">
+                    <div>
+                        <h3>
+                            <i className="bi bi-people-fill"></i>
+                            Assigned Contacts
+                        </h3>
+
+                        <p>
+                            All contacts currently belonging to this broadcast.
+                        </p>
                     </div>
 
-                    <div>
-                        <span>Total Contacts</span>
-                        <h3>{contacts.length}</h3>
+                    <div className="assigned-contact-actions">
+                        <button
+                            type="button"
+                            className="broadcast-contact-refresh"
+                            onClick={fetchAssignedContacts}
+                            disabled={assignedLoading || !broadcastId}
+                            title="Refresh assigned contacts"
+                        >
+                            <i className={`bi bi-arrow-clockwise ${
+                                assignedLoading ? "broadcast-view-spin" : ""
+                            }`}></i>
+                        </button>
+
+                        <button
+                            type="button"
+                            className="broadcast-add-contact-btn"
+                            onClick={handleOpenAddContacts}
+                            disabled={!broadcastId}
+                        >
+                            <i className="bi bi-plus-lg"></i>
+                            Add Contacts
+                        </button>
                     </div>
                 </div>
 
-                <div className="broadcast-contact-stat">
-                    <div className="broadcast-contact-stat-icon selected">
-                        <i className="bi bi-check2-square"></i>
-                    </div>
-
-                    <div>
-                        <span>Selected Contacts</span>
-                        <h3>{selectedContacts.length}</h3>
-                    </div>
+                <div className="assigned-contact-count">
+                    <i className="bi bi-check-circle-fill"></i>
+                    {assignedContacts.length} contact(s) assigned
                 </div>
 
-                <div className="broadcast-contact-stat">
-                    <div className="broadcast-contact-stat-icon category">
-                        <i className="bi bi-grid"></i>
+                {assignedLoading ? (
+                    <div className="broadcast-contact-state">
+                        <div className="broadcast-view-loader"></div>
+                        <p>Loading assigned contacts...</p>
                     </div>
+                ) : assignedContacts.length === 0 ? (
+                    <div className="broadcast-contact-empty">
+                        <div>
+                            <i className="bi bi-people"></i>
+                        </div>
 
-                    <div>
-                        <span>Categories</span>
-                        <h3>{categories.length}</h3>
+                        <h3>No Contacts Assigned Yet</h3>
+
+                        <p>
+                            Start adding contacts to this broadcast using the
+                            Add Contacts button.
+                        </p>
+
+                        <button
+                            type="button"
+                            className="broadcast-add-contact-btn"
+                            onClick={handleOpenAddContacts}
+                            disabled={!broadcastId}
+                        >
+                            <i className="bi bi-plus-lg"></i>
+                            Add Your First Contacts
+                        </button>
                     </div>
-                </div>
+                ) : (
+                    <div className="broadcast-contact-table-wrapper">
+                        <table className="broadcast-contact-table">
+                            <thead>
+                                <tr>
+                                    <th>Contact</th>
+                                    <th>Phone Number</th>
+                                    <th>Email</th>
+                                    <th>Category</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {assignedContacts.map((contact) => (
+                                    <tr key={contact.id}>
+                                        <td>
+                                            <div className="broadcast-contact-name">
+                                                <div className="broadcast-contact-avatar">
+                                                    {contact.name
+                                                        ?.charAt(0)
+                                                        .toUpperCase()}
+                                                </div>
+
+                                                <div>
+                                                    <strong>{contact.name}</strong>
+                                                    <small>ID: #{contact.id}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <div className="broadcast-contact-detail">
+                                                <i className="bi bi-telephone"></i>
+                                                {contact.phone}
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <div className="broadcast-contact-detail">
+                                                <i className="bi bi-envelope"></i>
+                                                {contact.email || "—"}
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <span className="broadcast-contact-category">
+                                                {contact.categoryName || "Uncategorized"}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
-            {/* Contact Selection */}
-            <form onSubmit={handleAssignContacts}>
-                <div className="broadcast-contact-container">
-
-                    {/* Contact Header */}
+            {/* Add Contacts Section - Hidden by Default */}
+            {showAddContacts && (
+                <div
+                    className="broadcast-contact-container add-contact-section"
+                    ref={addContactsRef}
+                >
                     <div className="broadcast-contact-header">
                         <div>
                             <h3>
-                                <i className="bi bi-person-lines-fill"></i>
+                                <i className="bi bi-person-plus-fill"></i>
                                 Add Contacts
                             </h3>
 
                             <p>
-                                Select the contacts you want to include in
-                                this broadcast.
+                                Select contacts to add to this broadcast.
                             </p>
                         </div>
 
-                        <button
-                            type="button"
-                            className="broadcast-contact-refresh"
-                            onClick={fetchData}
-                            disabled={loading || assigning}
-                            title="Refresh contacts"
-                        >
-                            <i
-                                className={`bi bi-arrow-clockwise ${
-                                    loading ? "broadcast-view-spin" : ""
-                                }`}
-                            ></i>
-                        </button>
-                    </div>
-
-                    {/* Filters */}
-                    <div className="broadcast-contact-filters">
-
-                        {/* Search */}
-                        <div className="broadcast-contact-search">
-                            <i className="bi bi-search"></i>
-
-                            <input
-                                type="text"
-                                placeholder="Search name, phone or email..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-
-                            {search && (
-                                <button
-                                    type="button"
-                                    onClick={() => setSearch("")}
-                                >
-                                    <i className="bi bi-x-lg"></i>
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Category Filter */}
-                        <div className="broadcast-category-filter">
-                            <i className="bi bi-funnel"></i>
-
-                            <select
-                                value={selectedCategory}
-                                onChange={(e) =>
-                                    setSelectedCategory(e.target.value)
-                                }
+                        <div className="assigned-contact-actions">
+                            <button
+                                type="button"
+                                className="broadcast-contact-refresh"
+                                onClick={fetchData}
+                                disabled={loading || assigning}
+                                title="Refresh contacts"
                             >
-                                <option value="all">
-                                    All Categories
-                                </option>
-
-                                {categories.map((category) => (
-                                    <option
-                                        key={category.id}
-                                        value={category.id.toString()}
-                                    >
-                                        {category.categoryName}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Selection Toolbar */}
-                    <div className="broadcast-selection-toolbar">
-                        <div className="broadcast-select-all">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={allFilteredSelected}
-                                    ref={(element) => {
-                                        if (element) {
-                                            element.indeterminate =
-                                                someFilteredSelected &&
-                                                !allFilteredSelected;
-                                        }
-                                    }}
-                                    onChange={handleSelectAll}
-                                    disabled={
-                                        loading ||
-                                        filteredContacts.length === 0
-                                    }
-                                />
-
-                                <span>Select All</span>
-                            </label>
-
-                            <span className="broadcast-filtered-count">
-                                {filteredContacts.length} contacts found
-                            </span>
-                        </div>
-
-                        <button
-                            type="button"
-                            className="broadcast-clear-selection"
-                            onClick={clearSelection}
-                            disabled={selectedContacts.length === 0}
-                        >
-                            <i className="bi bi-x-circle"></i>
-                            Clear Selection
-                        </button>
-                    </div>
-
-                    {/* Error */}
-                    {error && (
-                        <div className="broadcast-contact-error">
-                            <i className="bi bi-exclamation-circle-fill"></i>
-                            {error}
+                                <i className={`bi bi-arrow-clockwise ${
+                                    loading ? "broadcast-view-spin" : ""
+                                }`}></i>
+                            </button>
 
                             <button
                                 type="button"
-                                onClick={() => setError("")}
+                                className="broadcast-close-add-btn"
+                                onClick={handleCloseAddContacts}
+                                disabled={assigning}
                             >
                                 <i className="bi bi-x-lg"></i>
+                                Close
                             </button>
                         </div>
-                    )}
+                    </div>
 
-                    {/* Loading and Contacts */}
-                    {loading ? (
-                        <div className="broadcast-contact-state">
-                            <div className="broadcast-view-loader"></div>
-                            <p>Loading contacts...</p>
-                        </div>
-                    ) : filteredContacts.length === 0 ? (
-                        <div className="broadcast-contact-empty">
+                    {/* Statistics */}
+                    <div className="broadcast-contact-stats">
+                        <div className="broadcast-contact-stat">
+                            <div className="broadcast-contact-stat-icon">
+                                <i className="bi bi-people"></i>
+                            </div>
                             <div>
-                                <i className="bi bi-person-x"></i>
+                                <span>Available Contacts</span>
+                                <h3>{availableContacts.length}</h3>
+                            </div>
+                        </div>
+
+                        <div className="broadcast-contact-stat">
+                            <div className="broadcast-contact-stat-icon selected">
+                                <i className="bi bi-check2-square"></i>
+                            </div>
+                            <div>
+                                <span>Selected Contacts</span>
+                                <h3>{selectedContacts.length}</h3>
+                            </div>
+                        </div>
+
+                        <div className="broadcast-contact-stat">
+                            <div className="broadcast-contact-stat-icon category">
+                                <i className="bi bi-grid"></i>
+                            </div>
+                            <div>
+                                <span>Categories</span>
+                                <h3>{categories.length}</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form onSubmit={handleAssignContacts}>
+
+                        {/* Filters */}
+                        <div className="broadcast-contact-filters">
+
+                            <div className="broadcast-contact-search">
+                                <i className="bi bi-search"></i>
+
+                                <input
+                                    type="text"
+                                    placeholder="Search name, phone or email..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                />
+
+                                {search && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSearch("")}
+                                    >
+                                        <i className="bi bi-x-lg"></i>
+                                    </button>
+                                )}
                             </div>
 
-                            <h3>No Contacts Found</h3>
+                            <div className="broadcast-category-filter">
+                                <i className="bi bi-funnel"></i>
 
-                            <p>
-                                {search || selectedCategory !== "all"
-                                    ? "Try changing your search or category filter."
-                                    : "Create contacts first to add them to this broadcast."}
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="broadcast-contact-table-wrapper">
-                            <table className="broadcast-contact-table">
-                                <thead>
-                                    <tr>
-                                        <th className="broadcast-check-column">
-                                            Select
-                                        </th>
-                                        <th>Contact</th>
-                                        <th>Phone Number</th>
-                                        <th>Email</th>
-                                        <th>Category</th>
-                                    </tr>
-                                </thead>
+                                <select
+                                    value={selectedCategory}
+                                    onChange={(e) =>
+                                        setSelectedCategory(e.target.value)
+                                    }
+                                >
+                                    <option value="all">All Categories</option>
 
-                                <tbody>
-                                    {filteredContacts.map((contact) => {
-                                        const isSelected =
-                                            selectedContacts.includes(
-                                                contact.id
-                                            );
-
-                                        return (
-                                            <tr
-                                                key={contact.id}
-                                                className={
-                                                    isSelected
-                                                        ? "broadcast-contact-selected-row"
-                                                        : ""
-                                                }
-                                                onClick={() =>
-                                                    handleContactSelect(
-                                                        contact.id
-                                                    )
-                                                }
-                                            >
-                                                <td>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={() =>
-                                                            handleContactSelect(
-                                                                contact.id
-                                                            )
-                                                        }
-                                                        onClick={(e) =>
-                                                            e.stopPropagation()
-                                                        }
-                                                    />
-                                                </td>
-
-                                                <td>
-                                                    <div className="broadcast-contact-name">
-                                                        <div className="broadcast-contact-avatar">
-                                                            {contact.name
-                                                                ?.charAt(0)
-                                                                .toUpperCase()}
-                                                        </div>
-
-                                                        <div>
-                                                            <strong>
-                                                                {contact.name}
-                                                            </strong>
-                                                            <small>
-                                                                ID: #{contact.id}
-                                                            </small>
-                                                        </div>
-                                                    </div>
-                                                </td>
-
-                                                <td>
-                                                    <div className="broadcast-contact-detail">
-                                                        <i className="bi bi-telephone"></i>
-                                                        {contact.phone}
-                                                    </div>
-                                                </td>
-
-                                                <td>
-                                                    <div className="broadcast-contact-detail">
-                                                        <i className="bi bi-envelope"></i>
-                                                        {contact.email || "—"}
-                                                    </div>
-                                                </td>
-
-                                                <td>
-                                                    <span className="broadcast-contact-category">
-                                                        {contact.categoryName ||
-                                                            "Uncategorized"}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* Footer */}
-                    <div className="broadcast-contact-footer">
-                        <div className="broadcast-footer-selection">
-                            <div className="broadcast-footer-check-icon">
-                                <i className="bi bi-check2-circle"></i>
+                                    {categories.map((category) => (
+                                        <option
+                                            key={category.id}
+                                            value={category.id.toString()}
+                                        >
+                                            {category.categoryName}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
+                        </div>
 
-                            <div>
-                                <strong>
-                                    {selectedContacts.length} Contacts Selected
-                                </strong>
-                                <span>
-                                    Ready to add to your broadcast
+                        {/* Selection Toolbar */}
+                        <div className="broadcast-selection-toolbar">
+                            <div className="broadcast-select-all">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={allFilteredSelected}
+                                        ref={(element) => {
+                                            if (element) {
+                                                element.indeterminate =
+                                                    someFilteredSelected &&
+                                                    !allFilteredSelected;
+                                            }
+                                        }}
+                                        onChange={handleSelectAll}
+                                        disabled={
+                                            loading ||
+                                            filteredContacts.length === 0
+                                        }
+                                    />
+
+                                    <span>Select All</span>
+                                </label>
+
+                                <span className="broadcast-filtered-count">
+                                    {filteredContacts.length} contacts found
                                 </span>
                             </div>
+
+                            <button
+                                type="button"
+                                className="broadcast-clear-selection"
+                                onClick={clearSelection}
+                                disabled={selectedContacts.length === 0}
+                            >
+                                <i className="bi bi-x-circle"></i>
+                                Clear Selection
+                            </button>
                         </div>
 
-                        <button
-                            type="submit"
-                            className="broadcast-assign-btn"
-                            disabled={
-                                assigning ||
-                                loading ||
-                                selectedContacts.length === 0 ||
-                                !broadcastId
-                            }
-                        >
-                            {assigning ? (
-                                <>
-                                    <span className="broadcast-assign-loader"></span>
-                                    Assigning...
-                                </>
-                            ) : (
-                                <>
-                                    <i className="bi bi-person-plus-fill"></i>
-                                    Assign Contacts
-                                    <i className="bi bi-arrow-right"></i>
-                                </>
-                            )}
-                        </button>
-                    </div>
+                        {/* Error */}
+                        {error && (
+                            <div className="broadcast-contact-error">
+                                <i className="bi bi-exclamation-circle-fill"></i>
+                                {error}
+
+                                <button
+                                    type="button"
+                                    onClick={() => setError("")}
+                                >
+                                    <i className="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Contacts Table */}
+                        {loading ? (
+                            <div className="broadcast-contact-state">
+                                <div className="broadcast-view-loader"></div>
+                                <p>Loading contacts...</p>
+                            </div>
+                        ) : filteredContacts.length === 0 ? (
+                            <div className="broadcast-contact-empty">
+                                <div>
+                                    <i className="bi bi-person-x"></i>
+                                </div>
+
+                                <h3>No Available Contacts Found</h3>
+
+                                <p>
+                                    {search || selectedCategory !== "all"
+                                        ? "Try changing your search or category filter."
+                                        : "All contacts may already be assigned to this broadcast."}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="broadcast-contact-table-wrapper">
+                                <table className="broadcast-contact-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Select</th>
+                                            <th>Contact</th>
+                                            <th>Phone Number</th>
+                                            <th>Email</th>
+                                            <th>Category</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        {filteredContacts.map((contact) => {
+                                            const isSelected =
+                                                selectedContacts.includes(contact.id);
+
+                                            return (
+                                                <tr
+                                                    key={contact.id}
+                                                    className={
+                                                        isSelected
+                                                            ? "broadcast-contact-selected-row"
+                                                            : ""
+                                                    }
+                                                    onClick={() =>
+                                                        handleContactSelect(contact.id)
+                                                    }
+                                                >
+                                                    <td>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={() =>
+                                                                handleContactSelect(contact.id)
+                                                            }
+                                                            onClick={(e) =>
+                                                                e.stopPropagation()
+                                                            }
+                                                        />
+                                                    </td>
+
+                                                    <td>
+                                                        <div className="broadcast-contact-name">
+                                                            <div className="broadcast-contact-avatar">
+                                                                {contact.name
+                                                                    ?.charAt(0)
+                                                                    .toUpperCase()}
+                                                            </div>
+
+                                                            <div>
+                                                                <strong>{contact.name}</strong>
+                                                                <small>ID: #{contact.id}</small>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    <td>
+                                                        <div className="broadcast-contact-detail">
+                                                            <i className="bi bi-telephone"></i>
+                                                            {contact.phone}
+                                                        </div>
+                                                    </td>
+
+                                                    <td>
+                                                        <div className="broadcast-contact-detail">
+                                                            <i className="bi bi-envelope"></i>
+                                                            {contact.email || "—"}
+                                                        </div>
+                                                    </td>
+
+                                                    <td>
+                                                        <span className="broadcast-contact-category">
+                                                            {contact.categoryName || "Uncategorized"}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {/* Footer */}
+                        <div className="broadcast-contact-footer">
+                            <div className="broadcast-footer-selection">
+                                <div className="broadcast-footer-check-icon">
+                                    <i className="bi bi-check2-circle"></i>
+                                </div>
+
+                                <div>
+                                    <strong>
+                                        {selectedContacts.length} Contacts Selected
+                                    </strong>
+                                    <span>
+                                        Ready to add to your broadcast
+                                    </span>
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="broadcast-assign-btn"
+                                disabled={
+                                    assigning ||
+                                    loading ||
+                                    selectedContacts.length === 0 ||
+                                    !broadcastId
+                                }
+                            >
+                                {assigning ? (
+                                    <>
+                                        <span className="broadcast-assign-loader"></span>
+                                        Assigning...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="bi bi-person-plus-fill"></i>
+                                        Assign Contacts
+                                        <i className="bi bi-arrow-right"></i>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            )}
         </div>
     );
 }

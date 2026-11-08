@@ -14,4 +14,5 @@ public interface ContactRepository extends JpaRepository<ContactEntity, Long> {
     List<ContactEntity> findByCategoryIdIn(java.util.Collection<Long> categoryIds);
     List<ContactEntity> findByCategoryId(Long categoryId);
     long countByCategoryId(Long categoryId);
+    List<ContactEntity> findAllByBroadcast_Id(Long broadcastId);
 }
