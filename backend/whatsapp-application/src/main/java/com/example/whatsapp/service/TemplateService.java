@@ -1,4 +1,3 @@
-
 package com.example.whatsapp.service;
 
 import com.example.whatsapp.client.WhatsappClient;
@@ -18,8 +17,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,8 +31,16 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class TemplateService {
 
-    private static final Pattern VAR =
-            Pattern.compile("\\{\\{(\\d+)}}");
+    // {{1}}, {{2}} ...
+    private static final Pattern VAR = Pattern.compile("\\{\\{(\\d+)}}");
+    // any {{ ... }} placeholder, used to reject unsupported ones
+    private static final Pattern ANY_VAR = Pattern.compile("\\{\\{([^}]*)}}");
+    private static final Pattern START_VAR = Pattern.compile("^\\{\\{\\d+}}");
+    private static final Pattern END_VAR = Pattern.compile("\\{\\{\\d+}}$");
+    private static final Pattern NAME_OK = Pattern.compile("^[a-z0-9_]+$");
+    private static final Pattern PHONE_OK = Pattern.compile("^\\+?[0-9]{8,15}$");
+
+    private static final Set<String> BUTTON_TYPES = Set.of("QUICK_REPLY", "URL", "PHONE_NUMBER");
 
     private final TemplateRepository repo;
     private final WhatsappClient client;
@@ -37,9 +48,10 @@ public class TemplateService {
 
     // ==========================================
     // CREATE TEMPLATE
+    // No @Transactional on purpose: the call to Meta must not hold a database
+    // connection open. saveAndFlush runs in its own short transaction.
     // ==========================================
 
-    @Transactional
     public TemplateResponse create(TemplateCreateRequestDto r) {
 
         log.info("Starting WhatsApp template creation");
@@ -47,40 +59,131 @@ public class TemplateService {
         if (r == null) {
             throw new IllegalArgumentException("Template request cannot be empty");
         }
-
         if (r.name() == null || r.name().isBlank()) {
             throw new IllegalArgumentException("Template name is required");
         }
-
         if (r.language() == null || r.language().isBlank()) {
             throw new IllegalArgumentException("Template language is required");
         }
-
         if (r.body() == null || r.body().isBlank()) {
             throw new IllegalArgumentException("Template body is required");
         }
 
         String name = r.name().trim().toLowerCase();
         String language = r.language().trim();
+        String body = r.body().trim();
+        String headerText = clean(r.headerText());
+        String footerText = clean(r.footerText());
+
+        String category = (r.category() == null || r.category().isBlank())
+                ? "MARKETING"
+                : r.category().trim().toUpperCase();
+
+        if (!NAME_OK.matcher(name).matches()) {
+            throw new IllegalArgumentException(
+                    "Template name must contain lowercase letters, numbers and underscores only");
+        }
+        if (name.length() > 512) {
+            throw new IllegalArgumentException("Template name is too long (max 512 characters)");
+        }
+        if (!category.equals("MARKETING") && !category.equals("UTILITY")) {
+            throw new IllegalArgumentException("Category must be MARKETING or UTILITY");
+        }
+        if (body.length() > 1024) {
+            throw new IllegalArgumentException("Message body is too long (max 1024 characters)");
+        }
+        if (headerText != null && headerText.length() > 60) {
+            throw new IllegalArgumentException("Header is too long (max 60 characters)");
+        }
+        if (footerText != null && footerText.length() > 60) {
+            throw new IllegalArgumentException("Footer is too long (max 60 characters)");
+        }
+        if (headerText != null && headerText.contains("{{")) {
+            throw new IllegalArgumentException("Variables are not supported in the header");
+        }
+        if (footerText != null && footerText.contains("{{")) {
+            throw new IllegalArgumentException("Variables are not supported in the footer");
+        }
 
         log.info("Template name: {}, language: {}", name, language);
 
         if (repo.existsByNameAndLanguage(name, language)) {
             throw new IllegalArgumentException(
-                    "A template with this name and language already exists"
-            );
+                    "A template with this name and language already exists");
         }
 
-        int vars = countVariables(r.body());
+        // ---------- variables ----------
 
-        List<String> examples = r.bodyExamples() == null
-                ? List.of()
-                : r.bodyExamples();
+        validateBodyVariables(body);
+        int vars = countVariables(body);
 
+        List<String> examples = new ArrayList<>();
+        if (r.bodyExamples() != null) {
+            for (String e : r.bodyExamples()) {
+                if (e != null && !e.isBlank()) {
+                    examples.add(e.trim());
+                }
+            }
+        }
         if (vars > 0 && examples.size() < vars) {
-            throw new IllegalArgumentException(
-                    "Provide an example value for each variable"
-            );
+            throw new IllegalArgumentException("Provide an example value for each variable");
+        }
+
+        // ---------- buttons ----------
+
+        List<TemplateButtonDto> buttons = r.buttons() == null ? List.of() : r.buttons();
+
+        if (buttons.size() > 3) {
+            throw new IllegalArgumentException("A template can have at most 3 buttons");
+        }
+
+        ArrayNode buttonArray = mapper.createArrayNode();
+
+        for (TemplateButtonDto button : buttons) {
+
+            String type = button.type() == null ? "" : button.type().trim().toUpperCase();
+            String text = button.text() == null ? "" : button.text().trim();
+
+            if (!BUTTON_TYPES.contains(type)) {
+                throw new IllegalArgumentException("Unsupported button type: " + button.type());
+            }
+            if (text.isEmpty()) {
+                throw new IllegalArgumentException("Every button must have button text");
+            }
+            if (text.length() > 25) {
+                throw new IllegalArgumentException("Button text is too long (max 25 characters): " + text);
+            }
+
+            ObjectNode btn = buttonArray.addObject();
+            btn.put("type", type);
+            btn.put("text", text);
+
+            if (type.equals("URL")) {
+                String url = button.url() == null ? "" : button.url().trim();
+                if (url.isEmpty()) {
+                    throw new IllegalArgumentException("URL button requires a URL");
+                }
+                try {
+                    String scheme = new URI(url).getScheme();
+                    if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+                        throw new IllegalArgumentException("Button URL must start with http:// or https://");
+                    }
+                } catch (java.net.URISyntaxException ex) {
+                    throw new IllegalArgumentException("Please enter a valid button URL");
+                }
+                btn.put("url", url);
+            }
+
+            if (type.equals("PHONE_NUMBER")) {
+                String phone = button.phoneNumber() == null
+                        ? ""
+                        : button.phoneNumber().replaceAll("[\\s-]", "");
+                if (!PHONE_OK.matcher(phone).matches()) {
+                    throw new IllegalArgumentException(
+                            "Phone button needs a valid number with country code, e.g. +919876543210");
+                }
+                btn.put("phone_number", phone);
+            }
         }
 
         // ==========================================
@@ -91,31 +194,25 @@ public class TemplateService {
 
         payload.put("name", name);
         payload.put("language", language);
-        payload.put("category", r.category());
+        payload.put("category", category);
 
         ArrayNode components = payload.putArray("components");
 
         // HEADER
-
-        if (r.headerText() != null && !r.headerText().isBlank()) {
-
+        if (headerText != null) {
             ObjectNode header = components.addObject();
-
             header.put("type", "HEADER");
             header.put("format", "TEXT");
-            header.put("text", r.headerText());
+            header.put("text", headerText);
         }
 
         // BODY
-
-        ObjectNode body = components.addObject();
-
-        body.put("type", "BODY");
-        body.put("text", r.body());
+        ObjectNode bodyNode = components.addObject();
+        bodyNode.put("type", "BODY");
+        bodyNode.put("text", body);
 
         if (vars > 0) {
-
-            ArrayNode row = body
+            ArrayNode row = bodyNode
                     .putObject("example")
                     .putArray("body_text")
                     .addArray();
@@ -126,42 +223,15 @@ public class TemplateService {
         }
 
         // FOOTER
-
-        if (r.footerText() != null && !r.footerText().isBlank()) {
-
+        if (footerText != null) {
             ObjectNode footer = components.addObject();
-
             footer.put("type", "FOOTER");
-            footer.put("text", r.footerText());
+            footer.put("text", footerText);
         }
 
         // BUTTONS
-
-        ArrayNode buttonArray = mapper.createArrayNode();
-
-        if (r.buttons() != null) {
-
-            for (TemplateButtonDto button : r.buttons()) {
-
-                ObjectNode btn = buttonArray.addObject();
-
-                btn.put("type", button.type());
-                btn.put("text", button.text());
-
-                if ("URL".equals(button.type())) {
-                    btn.put("url", button.url());
-                }
-
-                if ("PHONE_NUMBER".equals(button.type())) {
-                    btn.put("phone_number", button.phoneNumber());
-                }
-            }
-        }
-
         if (!buttonArray.isEmpty()) {
-
             ObjectNode buttonComponent = components.addObject();
-
             buttonComponent.put("type", "BUTTONS");
             buttonComponent.set("buttons", buttonArray);
         }
@@ -175,28 +245,17 @@ public class TemplateService {
         JsonNode metaResponse;
 
         try {
-
             metaResponse = client.createTemplate(payload);
-
             log.info("Meta template response received: {}", metaResponse);
-
         } catch (Exception ex) {
-
             log.error("Meta template creation failed", ex);
-
             throw new RuntimeException(
-                    "Meta template creation failed: " + ex.getMessage(),
-                    ex
-            );
+                    "Meta template creation failed: " + ex.getMessage(), ex);
         }
 
         if (metaResponse == null || !metaResponse.hasNonNull("id")) {
-
             log.error("Meta returned an unexpected template response: {}", metaResponse);
-
-            throw new RuntimeException(
-                    "Meta did not return a valid template ID"
-            );
+            throw new RuntimeException("Meta did not return a valid template ID");
         }
 
         // ==========================================
@@ -207,52 +266,41 @@ public class TemplateService {
 
         entity.setName(name);
         entity.setLanguage(language);
-        entity.setCategory(r.category());
-        entity.setHeaderText(r.headerText());
-        entity.setBody(r.body());
-        entity.setFooterText(r.footerText());
-
-        entity.setButtonsJson(
-                buttonArray.isEmpty() ? null : buttonArray.toString()
-        );
-
+        entity.setCategory(category);
+        entity.setHeaderText(headerText);
+        entity.setBody(body);
+        entity.setFooterText(footerText);
+        entity.setButtonsJson(buttonArray.isEmpty() ? null : buttonArray.toString());
         entity.setVariableCount(vars);
+        entity.setMetaTemplateId(metaResponse.path("id").asText());
+        entity.setStatus(metaResponse.path("status").asText("PENDING").toUpperCase());
 
-        entity.setMetaTemplateId(
-                metaResponse.path("id").asText()
-        );
-
-        entity.setStatus(
-                metaResponse.path("status").asText("PENDING")
-        );
+        if (entity.getCreatedAt() == null) {
+            entity.setCreatedAt(LocalDateTime.now());
+        }
 
         try {
-
             TemplateEntity saved = repo.saveAndFlush(entity);
 
-            log.info(
-                    "Template saved successfully. Local ID: {}, Meta ID: {}",
-                    saved.getId(),
-                    saved.getMetaTemplateId()
-            );
+            log.info("Template saved successfully. Local ID: {}, Meta ID: {}",
+                    saved.getId(), saved.getMetaTemplateId());
 
             return map(saved);
 
         } catch (Exception ex) {
-
-            log.error(
-                    "Meta accepted template, but PostgreSQL save failed. Meta ID: {}",
-                    entity.getMetaTemplateId(),
-                    ex
-            );
+            log.error("Meta accepted template, but database save failed. Meta ID: {}",
+                    entity.getMetaTemplateId(), ex);
 
             throw new RuntimeException(
                     "Template was submitted to Meta, but database saving failed: "
-                            + ex.getMessage(),
-                    ex
-            );
+                            + ex.getMessage(), ex);
         }
     }
+
+    // ==========================================
+    // SYNC TEMPLATES FROM META
+    // ==========================================
+
     @Transactional
     public List<TemplateResponse> sync() {
 
@@ -286,7 +334,7 @@ public class TemplateService {
                 entity.setName(name);
                 entity.setLanguage(language);
                 entity.setCategory(template.path("category").asText("MARKETING"));
-                entity.setStatus(template.path("status").asText("PENDING"));
+                entity.setStatus(template.path("status").asText("PENDING").toUpperCase());
                 entity.setMetaTemplateId(template.path("id").asText(null));
                 entity.setRejectionReason(template.path("rejected_reason").asText(null));
 
@@ -359,24 +407,16 @@ public class TemplateService {
 
         return items.stream().map(this::map).toList();
     }
+
     // ==========================================
     // WEBHOOK STATUS UPDATE
     // ==========================================
 
     @Transactional
-    public void applyWebhookStatus(
-            String metaId,
-            String name,
-            String event,
-            String reason
-    ) {
+    public void applyWebhookStatus(String metaId, String name, String event, String reason) {
 
-        log.info(
-                "Updating template status. Meta ID: {}, Name: {}, Event: {}",
-                metaId,
-                name,
-                event
-        );
+        log.info("Updating template status. Meta ID: {}, Name: {}, Event: {}",
+                metaId, name, event);
 
         TemplateEntity entity = metaId == null
                 ? null
@@ -385,9 +425,7 @@ public class TemplateService {
         List<TemplateEntity> targets =
                 entity != null
                         ? List.of(entity)
-                        : (name == null
-                        ? List.of()
-                        : repo.findByName(name));
+                        : (name == null ? List.of() : repo.findByName(name));
 
         for (TemplateEntity template : targets) {
 
@@ -396,25 +434,21 @@ public class TemplateService {
             }
 
             template.setRejectionReason(
-                    "NONE".equalsIgnoreCase(reason)
-                            ? null
-                            : reason
+                    "NONE".equalsIgnoreCase(reason) ? null : reason
             );
 
             repo.save(template);
 
-            log.info(
-                    "Template status updated. Name: {}, Status: {}",
-                    template.getName(),
-                    template.getStatus()
-            );
+            log.info("Template status updated. Name: {}, Status: {}",
+                    template.getName(), template.getStatus());
         }
     }
 
     // ==========================================
-    // COUNT VARIABLES
+    // VARIABLE HELPERS
     // ==========================================
 
+    /** Highest variable number in the body: "Hi {{1}}" -> 1. */
     public static int countVariables(String body) {
 
         if (body == null || body.isBlank()) {
@@ -422,17 +456,57 @@ public class TemplateService {
         }
 
         Matcher matcher = VAR.matcher(body);
-
         int max = 0;
 
         while (matcher.find()) {
-
-            int number = Integer.parseInt(matcher.group(1));
-
-            max = Math.max(max, number);
+            max = Math.max(max, Integer.parseInt(matcher.group(1)));
         }
 
         return max;
+    }
+
+    /** Meta rules: numbered, sequential, not at the very start or end of the body. */
+    private void validateBodyVariables(String body) {
+
+        Matcher any = ANY_VAR.matcher(body);
+        Set<Integer> numbers = new TreeSet<>();
+
+        while (any.find()) {
+            String token = any.group(1).trim();
+            if (!token.matches("\\d{1,3}")) {
+                throw new IllegalArgumentException(
+                        "Only numbered variables like {{1}} are supported");
+            }
+            numbers.add(Integer.parseInt(token));
+        }
+
+        // stray "{{" or "}}" that are not a complete placeholder
+        String stripped = ANY_VAR.matcher(body).replaceAll("");
+        if (stripped.contains("{{") || stripped.contains("}}")) {
+            throw new IllegalArgumentException("The message body has an incomplete variable");
+        }
+
+        int expected = 1;
+        for (int n : numbers) {
+            if (n != expected) {
+                throw new IllegalArgumentException(
+                        "Variables must be sequential: {{1}}, {{2}}, {{3}}...");
+            }
+            expected++;
+        }
+
+        if (!numbers.isEmpty()) {
+            if (START_VAR.matcher(body).find()) {
+                throw new IllegalArgumentException("Message body cannot start with a variable");
+            }
+            if (END_VAR.matcher(body).find()) {
+                throw new IllegalArgumentException("Message body cannot end with a variable");
+            }
+        }
+    }
+
+    private static String clean(String s) {
+        return (s == null || s.isBlank()) ? null : s.trim();
     }
 
     // ==========================================
