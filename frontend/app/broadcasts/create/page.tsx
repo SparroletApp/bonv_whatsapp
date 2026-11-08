@@ -1,7 +1,7 @@
-
 "use client";
 
 import { useState } from "react";
+import Swal from "sweetalert2";
 import "./create-broadcast.css";
 
 interface CreateBroadcastProps {
@@ -18,6 +18,20 @@ function CreateBroadcast({ onClose, onSubmit }: CreateBroadcastProps) {
         if (!name.trim()) return;
 
         onSubmit(name.trim());
+
+        // Close popup
+        onClose();
+
+        // Show success toast
+        Swal.fire({
+            toast: true,
+            position: "top-end",
+            icon: "success",
+            title: "Broadcast created successfully!",
+            showConfirmButton: false,
+            timer: 2500,
+            timerProgressBar: true,
+        });
     };
 
     return (
