@@ -32,7 +32,7 @@ export default function Broadcast() {
     const handleViewBroadcast = (broadcast: BroadcastResponse) => {
         localStorage.setItem("broadcastId", String(broadcast.id));
 
-        router.push("/broadcast/view");
+        router.push("/broadcasts/view");
     };
 
     // SweetAlert toast
