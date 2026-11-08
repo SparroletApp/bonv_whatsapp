@@ -1,4 +1,3 @@
-
 "use client";
 
 import campaignService from "@/app/apiservice/campaignservice";
@@ -18,6 +17,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import "./create-campaign.css";
+
+// change if your campaigns list page lives at a different path
+const CAMPAIGNS_PAGE = "/campaign";
 
 type Kind = "NAME" | "PHONE" | "EMAIL" | "TEXT";
 
@@ -49,7 +51,13 @@ export default function CampaignCreatePage() {
     const [error, setError] = useState("");
     const [info, setInfo] = useState("");
 
-    const template = templates.find((t) => t.id === templateId);
+    // only approved templates can be sent
+    const approvedTemplates = useMemo(
+        () => templates.filter((t) => t.status?.toUpperCase() === "APPROVED"),
+        [templates]
+    );
+
+    const template = approvedTemplates.find((t) => t.id === templateId);
 
     const loadTemplates = async () => {
         const data = await templateService.list();
@@ -87,6 +95,17 @@ export default function CampaignCreatePage() {
         refreshFromMeta(true);
     }, []);
 
+    // if the chosen template stops being approved (status changed in Meta), clear it
+    useEffect(() => {
+        if (
+            templateId !== "" &&
+            !approvedTemplates.some((t) => t.id === templateId)
+        ) {
+            setTemplateId("");
+            setMapping([]);
+        }
+    }, [approvedTemplates, templateId]);
+
     const totalContacts = useMemo(() => {
         return categories
             .filter((c) => selected.includes(c.id))
@@ -112,12 +131,13 @@ export default function CampaignCreatePage() {
     const pickTemplate = (id: number | "") => {
         setTemplateId(id);
 
-        const selectedTemplate = templates.find((t) => t.id === id);
+        const selectedTemplate = approvedTemplates.find((t) => t.id === id);
 
         setMapping(
             Array.from(
                 { length: selectedTemplate?.variableCount ?? 0 },
                 (_, i) => ({
+                    // {{1}} defaults to the contact's name from the contacts table
                     kind: i === 0 ? "NAME" : "TEXT",
                     text: "",
                 })
@@ -136,6 +156,10 @@ export default function CampaignCreatePage() {
     const previewValues = mapping.map((item) =>
         item.kind === "TEXT" ? item.text : SAMPLE[item.kind]
     );
+
+    const variablesReady =
+        !!template &&
+        !mapping.some((m) => m.kind === "TEXT" && !m.text.trim());
 
     const launch = async () => {
         setError("");
@@ -164,7 +188,7 @@ export default function CampaignCreatePage() {
         setLaunching(true);
 
         try {
-            const campaign = await campaignService.create({
+            await campaignService.create({
                 name: name.trim(),
                 templateId: template.id,
                 categoryIds: selected,
@@ -173,16 +197,12 @@ export default function CampaignCreatePage() {
                 ),
             });
 
-            nav.push(`/campaigns/${campaign.id}`);
+            nav.push(CAMPAIGNS_PAGE);
         } catch (e) {
             setError(apiError(e));
             setLaunching(false);
         }
     };
-
-    const selectedCategories = categories.filter((c) =>
-        selected.includes(c.id)
-    );
 
     const allSelected =
         categories.length > 0 && selected.length === categories.length;
@@ -362,7 +382,7 @@ export default function CampaignCreatePage() {
 
                         {categories.length > 0 ? (
                             <div className="cc-category-grid">
-                                {categories.map((category, index) => {
+                                {categories.map((category) => {
                                     const isSelected = selected.includes(category.id);
 
                                     return (
@@ -458,10 +478,12 @@ export default function CampaignCreatePage() {
                                     }
                                 >
                                     <option value="">
-                                        Choose an approved template
+                                        {approvedTemplates.length
+                                            ? "Choose an approved template"
+                                            : "No approved templates available"}
                                     </option>
 
-                                    {templates.map((t) => (
+                                    {approvedTemplates.map((t) => (
                                         <option key={t.id} value={t.id}>
                                             {t.name} ({t.language})
                                         </option>
@@ -472,7 +494,9 @@ export default function CampaignCreatePage() {
                             </div>
 
                             <small>
-                                Only templates available in your saved template list are displayed.
+                                {approvedTemplates.length} approved template
+                                {approvedTemplates.length === 1 ? "" : "s"} available.
+                                Pending or rejected templates appear here once Meta approves them.
                             </small>
                         </div>
 
@@ -555,7 +579,11 @@ export default function CampaignCreatePage() {
                                                         </div>
                                                     ) : (
                                                         <div className="cc-variable-preview">
-                                                            <small>Example value</small>
+                                                            <small>
+                                                                {item.kind === "NAME"
+                                                                    ? "Each contact's name · example"
+                                                                    : "Example value"}
+                                                            </small>
                                                             <strong>{SAMPLE[item.kind]}</strong>
                                                         </div>
                                                     )}
@@ -594,13 +622,13 @@ export default function CampaignCreatePage() {
                             </div>
                         )}
 
-                        {templates.length === 0 && !syncing && (
+                        {approvedTemplates.length === 0 && !syncing && (
                             <div className="cc-empty cc-template-empty">
                                 <i className="bi bi-file-earmark-plus" />
-                                <strong>No templates available</strong>
+                                <strong>No approved templates available</strong>
                                 <span>
                                     Create a template and wait for Meta approval.
-                                    Then refresh your templates.
+                                    Then sync your templates.
                                 </span>
 
                                 <button
@@ -694,18 +722,8 @@ export default function CampaignCreatePage() {
                                 Template selected
                             </div>
 
-                            <div className={
-                                template &&
-                                !mapping.some((m) => m.kind === "TEXT" && !m.text.trim())
-                                    ? "completed"
-                                    : ""
-                            }>
-                                <i className={`bi ${
-                                    template &&
-                                    !mapping.some((m) => m.kind === "TEXT" && !m.text.trim())
-                                        ? "bi-check-circle-fill"
-                                        : "bi-circle"
-                                }`} />
+                            <div className={variablesReady ? "completed" : ""}>
+                                <i className={`bi ${variablesReady ? "bi-check-circle-fill" : "bi-circle"}`} />
                                 Variables configured
                             </div>
                         </div>
