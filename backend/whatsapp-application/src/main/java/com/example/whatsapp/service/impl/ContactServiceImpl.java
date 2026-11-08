@@ -2,6 +2,7 @@
 package com.example.whatsapp.service.impl;
 
 import com.example.whatsapp.dto.broadcastdto.BroadcastAssignContactsDto;
+import com.example.whatsapp.dto.categorydto.CategoryIdDto;
 import com.example.whatsapp.dto.contactdto.ContactCreateDto;
 import com.example.whatsapp.dto.contactdto.ContactIdDto;
 import com.example.whatsapp.dto.contactdto.ContactResponseDto;
@@ -181,6 +182,22 @@ public class ContactServiceImpl implements ContactService {
                 ));
 
         return contactRepository.findAllByBroadcast_Id(broadcast.getId())
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ContactResponseDto> getContactsByCategoryId(CategoryIdDto dto) {
+
+        CategoryEntity category = categoryRepository.findById(dto.getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Category not found"
+                ));
+
+        return contactRepository.findAllByCategory_Id(category.getId())
                 .stream()
                 .map(this::mapToResponse)
                 .toList();

@@ -28,6 +28,10 @@ export interface ContactUpdateDto {
     categoryId: number;
 }
 
+export interface CategoryIdDto {
+    id: number;
+}
+
 export interface ContactIdDto {
     id: number;
 }
@@ -101,6 +105,15 @@ const contactService = {
     ): Promise<string> => {
         return api.post<string>(
             "/contacts/assign-broadcast",
+            data
+        );
+    },
+
+        getContactsByCategoryId: async (
+        data: CategoryIdDto
+    ): Promise<ContactResponseDto[]> => {
+        return await api.post<ContactResponseDto[]>(
+            "/contacts/get-by-category",
             data
         );
     },

@@ -3,3 +3,27 @@
     font-weight: 800;
     font-size: 16=7px;
 }
+
+.category-view-btn {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 8px;
+    background: #e6f4f1;
+    color: #064e45;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.category-view-btn:hover {
+    background: #064e45;
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+.category-view-btn i {
+    font-size: 16px;
+}

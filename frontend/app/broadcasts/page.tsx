@@ -11,12 +11,13 @@ import "./category.css";
 import CreateCategory from "./create/page";
 import EditCategory from "./edit/page";
 import Swal from "sweetalert2";
+import { useRouter } from "next/navigation";
 
 function Category() {
     const [categories, setCategories] = useState<CategoryResponseDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-
+const router = useRouter();
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(20);
 
@@ -152,7 +153,6 @@ function Category() {
                         <i className="bi bi-plus-lg"></i>
                         Add Broadcast
                     </button>
-
                 </div>
             </div>
             <div className="category-table-card">
@@ -237,6 +237,24 @@ function Category() {
                                         <td>
                                             <div className="category-actions">
 
+                                                {/* View Broadcast */}
+                                                <button
+                                                    type="button"
+                                                    title="View broadcast"
+                                                    className="category-view-btn"
+                                                    onClick={() => {
+                                                        localStorage.setItem(
+                                                            "broadcastId",
+                                                            category.id.toString()
+                                                        );
+
+                                                        router.push("/broadcast/view");
+                                                    }}
+                                                >
+                                                    <i className="bi bi-eye"></i>
+                                                </button>
+
+                                                {/* Edit Category */}
                                                 <button
                                                     type="button"
                                                     title="Edit category"
@@ -249,13 +267,12 @@ function Category() {
                                                     <i className="bi bi-pencil-square"></i>
                                                 </button>
 
+                                                {/* Delete Category */}
                                                 <button
                                                     type="button"
                                                     title="Delete category"
                                                     className="category-delete-btn"
-                                                    onClick={() =>
-                                                        handleDelete(category.id)
-                                                    }
+                                                    onClick={() => handleDelete(category.id)}
                                                 >
                                                     <i className="bi bi-trash3"></i>
                                                 </button>

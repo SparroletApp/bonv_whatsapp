@@ -143,7 +143,7 @@ function EditCategory({
                             <input
                                 type="text"
                                 id="editCategoryName"
-                                placeholder="Enter category name"
+                                placeholder="Enter broadcast name"
                                 value={categoryName}
                                 onChange={(e) => {
                                     setCategoryName(e.target.value);
