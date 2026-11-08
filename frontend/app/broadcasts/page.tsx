@@ -1,606 +1,367 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import categoryService, {
+    CategoryResponseDto
+} from "../apiservice/categoryservice";
+
+
+import "./category.css";
+import CreateCategory from "./create/page";
+import EditCategory from "./edit/page";
 import Swal from "sweetalert2";
-import "./broadcast.css";
 
-import broadcastService, {
-    BroadcastResponse,
-} from "@/app/apiservice/broadcastservice";
-
-import CreateBroadcast from "./create/page";
-
-export default function Broadcast() {
-    const router = useRouter();
-
-    const [broadcasts, setBroadcasts] = useState<BroadcastResponse[]>([]);
-    const [name, setName] = useState("");
-    const [search, setSearch] = useState("");
-
-    const [showModal, setShowModal] = useState(false);
-    const [showCreateBroadcast, setShowCreateBroadcast] = useState(false);
-
-    const [editingId, setEditingId] = useState<number | null>(null);
-
+function Category() {
+    const [categories, setCategories] = useState<CategoryResponseDto[]>([]);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
 
-    // View broadcast: save ID and navigate to broadcast/view
-    const handleViewBroadcast = (broadcast: BroadcastResponse) => {
-        localStorage.setItem("broadcastId", String(broadcast.id));
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(20);
 
-        router.push("/broadcasts/view");
-    };
+    const [showEditCategory, setShowEditCategory] = useState(false);
 
-    // SweetAlert toast
-    const showToast = (
-        icon: "success" | "error" | "warning",
-        title: string
-    ) => {
-        Swal.fire({
-            toast: true,
-            position: "top-end",
-            icon,
-            title,
-            showConfirmButton: false,
-            timer: 2500,
-            timerProgressBar: true,
-        });
-    };
+    const [selectedCategory, setSelectedCategory] =
+        useState<CategoryResponseDto | null>(null); const [showCreateCategory, setShowCreateCategory] = useState(false);
 
-    // Fetch broadcasts
-    const fetchBroadcasts = async () => {
+    useEffect(() => {
+        fetchCategories();
+    }, []);
+
+    const fetchCategories = async () => {
         try {
             setLoading(true);
             setError("");
 
-            const response = await broadcastService.getAllBroadcasts();
-            setBroadcasts(response || []);
-        } catch (err: any) {
-            const message =
-                err?.response?.data?.message ||
-                err?.response?.data ||
-                err?.message ||
-                "Unable to load broadcasts.";
-
-            setError(
-                typeof message === "string"
-                    ? message
-                    : "Unable to load broadcasts."
-            );
+            const response = await categoryService.getAllCategories();
+            setCategories(response);
+        } catch (err) {
+            console.error("Category fetch error:", err);
+            setError("Unable to load categories.");
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchBroadcasts();
-    }, []);
+    const totalPages = Math.ceil(categories.length / rowsPerPage);
 
-    // Filter broadcasts
-    const filteredBroadcasts = useMemo(() => {
-        return broadcasts.filter((broadcast) =>
-            broadcast.name?.toLowerCase().includes(search.toLowerCase())
-        );
-    }, [broadcasts, search]);
+    const startIndex = (currentPage - 1) * rowsPerPage;
 
-    // Open create popup
-    const openCreateModal = () => {
-        setError("");
-        setShowCreateBroadcast(true);
+    const currentCategories = categories.slice(
+        startIndex,
+        startIndex + rowsPerPage
+    );
+
+    const handleRowsChange = (
+        event: React.ChangeEvent<HTMLSelectElement>
+    ) => {
+        setRowsPerPage(Number(event.target.value));
+        setCurrentPage(1);
     };
 
-    // Open edit popup
-    const openEditModal = (broadcast: BroadcastResponse) => {
-        setName(broadcast.name);
-        setEditingId(broadcast.id);
-        setError("");
-        setShowModal(true);
-    };
-
-    // Close edit popup
-    const closeModal = () => {
-        if (saving) return;
-
-        setShowModal(false);
-        setName("");
-        setEditingId(null);
-        setError("");
-    };
-
-    // Create broadcast
-    const handleCreate = async (broadcastName: string) => {
-        try {
-            setSaving(true);
-            setError("");
-
-            await broadcastService.createBroadcast({
-                name: broadcastName,
-            });
-
-            setShowCreateBroadcast(false);
-
-            await fetchBroadcasts();
-
-            showToast("success", "Broadcast created successfully!");
-        } catch (err: any) {
-            const message =
-                err?.response?.data?.message ||
-                err?.response?.data ||
-                err?.message ||
-                "Unable to create broadcast.";
-
-            showToast(
-                "error",
-                typeof message === "string"
-                    ? message
-                    : "Unable to create broadcast."
-            );
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    // Update broadcast
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-
-        const trimmedName = name.trim();
-
-        if (!trimmedName) {
-            setError("Please enter a broadcast name.");
-            return;
-        }
-
-        try {
-            setSaving(true);
-            setError("");
-
-            if (editingId !== null) {
-                await broadcastService.updateBroadcast({
-                    id: editingId,
-                    name: trimmedName,
-                });
-            }
-
-            setShowModal(false);
-            setName("");
-            setEditingId(null);
-
-            await fetchBroadcasts();
-
-            showToast("success", "Broadcast updated successfully!");
-        } catch (err: any) {
-            const message =
-                err?.response?.data?.message ||
-                err?.response?.data ||
-                err?.message ||
-                "Unable to update broadcast.";
-
-            setError(
-                typeof message === "string"
-                    ? message
-                    : "Unable to update broadcast."
-            );
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    // Delete broadcast
     const handleDelete = async (id: number) => {
         const result = await Swal.fire({
-            title: "Delete Broadcast?",
-            text: "Are you sure you want to delete this broadcast?",
+            title: "Are you sure?",
+            text: "Do you want to delete this Broadcast?",
             icon: "warning",
             showCancelButton: true,
+            confirmButtonColor: "#064e45",
+            cancelButtonColor: "#6c7d73",
             confirmButtonText: "Yes, Delete",
             cancelButtonText: "Cancel",
-            confirmButtonColor: "#064e45",
-            cancelButtonColor: "#777777",
             reverseButtons: true,
+            customClass: {
+                popup: "category-swal-popup",
+                confirmButton: "category-swal-confirm",
+                cancelButton: "category-swal-cancel",
+            },
         });
 
         if (!result.isConfirmed) return;
 
         try {
-            await broadcastService.deleteBroadcast(id);
+            await categoryService.deleteCategory({ id });
 
-            setBroadcasts((prev) =>
-                prev.filter((broadcast) => broadcast.id !== id)
+            setCategories((previous) =>
+                previous.filter((category) => category.id !== id)
             );
 
-            if (editingId === id) {
-                setShowModal(false);
-                setEditingId(null);
+            const remainingCount = categories.length - 1;
+            const newTotalPages = Math.ceil(remainingCount / rowsPerPage);
+
+            if (currentPage > newTotalPages && newTotalPages > 0) {
+                setCurrentPage(newTotalPages);
             }
 
-            showToast("success", "Broadcast deleted successfully!");
-        } catch (err: any) {
-            const message =
-                err?.response?.data?.message ||
-                err?.response?.data ||
-                err?.message ||
-                "Unable to delete broadcast.";
+            Swal.fire({
+                toast: true,
+                position: "top-end",
+                icon: "success",
+                title: "Broadcast deleted successfully!",
+                showConfirmButton: false,
+                timer: 2500,
+                timerProgressBar: true,
+            });
 
-            showToast(
-                "error",
-                typeof message === "string"
-                    ? message
-                    : "Unable to delete broadcast."
-            );
+        } catch (err) {
+            console.error("Delete broadcast error:", err);
+
+            Swal.fire({
+                toast: true,
+                position: "top-end",
+                icon: "error",
+                title: "Unable to delete broadcast!",
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+            });
         }
     };
 
+    const formatDate = (date: string) => {
+        if (!date) return "-";
+
+        return new Date(date).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        });
+    };
+
     return (
-        <>
-            <div className="broadcast-page">
+        <section className="category-page">
+            <div className="category-header">
+                <div>
+                    <h2>Broadcast</h2>
+                    <p>Manage and organize your contact broadcast</p>
+                </div>
 
-                {/* Page Header */}
-                <div className="broadcast-header">
-                    <div className="broadcast-header-content">
-                        <div className="broadcast-breadcrumb">
-                            <span>Dashboard</span>
-                            <i className="bi bi-chevron-right"></i>
-                            <span>Broadcasts</span>
-                        </div>
+                <div className="category-header-actions">
 
-                        <h1>Broadcasts</h1>
-
-                        <p>
-                            Manage your broadcast lists and organize your
-                            contacts for WhatsApp messaging.
-                        </p>
+                    <div className="category-total-card">
+                        <span>Total Broadcasts</span>
+                        <h3>{categories.length}</h3>
                     </div>
 
                     <button
-                        className="broadcast-create-btn"
-                        onClick={openCreateModal}
                         type="button"
+                        className="category-add-btn"
+                        onClick={() => setShowCreateCategory(true)}
                     >
                         <i className="bi bi-plus-lg"></i>
-                        Create Broadcast
+                        Add Broadcast
+                    </button>
+
+                </div>
+            </div>
+            <div className="category-table-card">
+
+                <div className="category-table-heading">
+                    <div>
+                        <h3>Broadcast List</h3>
+                        <p>View all your available categories</p>
+                    </div>
+
+                    <button
+                        type="button"
+                        className="category-refresh-btn"
+                        onClick={fetchCategories}
+                        disabled={loading}
+                    >
+                        <i className="bi bi-arrow-clockwise"></i>
+                        Refresh
                     </button>
                 </div>
+                <div className="category-table-wrapper">
+                    <table className="category-table">
 
-                {/* Error Message */}
-                {error && !showModal && (
-                    <div className="broadcast-error-message">
-                        <i className="bi bi-exclamation-circle-fill"></i>
-                        {error}
+                        <thead>
+                            <tr>
+                                {/* <th>#</th> */}
+                                <th>Broadcast ID</th>
+                                <th>Broadcast Name</th>
+                                <th>Created Date</th>
+                                <th>Updated Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
 
-                        <button
-                            type="button"
-                            onClick={() => setError("")}
-                        >
-                            <i className="bi bi-x-lg"></i>
-                        </button>
+                        <tbody>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={5} className="category-message">
+                                        Loading broadcasts...
+                                    </td>
+                                </tr>
+                            ) : error ? (
+                                <tr>
+                                    <td colSpan={5} className="category-message category-error">
+                                        {error}
+                                    </td>
+                                </tr>
+                            ) : currentCategories.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="category-message">
+                                        No broadcast found.
+                                    </td>
+                                </tr>
+                            ) : (
+                                currentCategories.map((category, index) => (
+                                    <tr key={category.id}>
+
+                                        {/* <td className="category-id">
+                                            {startIndex + index + 1}
+                                        </td> */}
+                                        <td className="category-id-real">
+                                            [{category.id}]
+                                        </td>
+                                        <td>
+                                            <div className="category-name-cell">
+                                                <div className="category-icon">
+                                                    <i className="bi bi-collection"></i>
+                                                </div>
+
+                                                <span>{category.categoryName}</span>
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            {formatDate(category.createdAt)}
+                                        </td>
+
+                                        <td>
+                                            {formatDate(category.updatedAt || "")}
+                                        </td>
+
+                                        <td>
+                                            <div className="category-actions">
+
+                                                <button
+                                                    type="button"
+                                                    title="Edit category"
+                                                    className="category-edit-btn"
+                                                    onClick={() => {
+                                                        setSelectedCategory(category);
+                                                        setShowEditCategory(true);
+                                                    }}
+                                                >
+                                                    <i className="bi bi-pencil-square"></i>
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    title="Delete category"
+                                                    className="category-delete-btn"
+                                                    onClick={() =>
+                                                        handleDelete(category.id)
+                                                    }
+                                                >
+                                                    <i className="bi bi-trash3"></i>
+                                                </button>
+
+                                            </div>
+                                        </td>
+
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+
+                    </table>
+                </div>
+                {!loading && !error && (
+                    <div className="category-pagination">
+
+                        <div className="category-pagination-left">
+
+                            <span>Rows per page</span>
+
+                            <select
+                                value={rowsPerPage}
+                                onChange={handleRowsChange}
+                                className="category-pagination-select"
+                            >
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                                <option value={200}>200</option>
+                            </select>
+
+                            <span className="category-pagination-info">
+                                {categories.length === 0
+                                    ? "0 of 0"
+                                    : `${startIndex + 1}-${Math.min(
+                                        startIndex + rowsPerPage,
+                                        categories.length
+                                    )} of ${categories.length}`}
+                            </span>
+
+                        </div>
+
+                        <div className="category-pagination-right">
+
+                            <button
+                                type="button"
+                                className="category-page-arrow"
+                                disabled={currentPage === 1 || totalPages === 0}
+                                onClick={() => setCurrentPage((page) => page - 1)}
+                            >
+                                <i className="bi bi-chevron-left"></i>
+                            </button>
+
+                            {Array.from(
+                                { length: totalPages },
+                                (_, index) => index + 1
+                            ).map((page) => (
+                                <button
+                                    key={page}
+                                    type="button"
+                                    className={`category-page-number ${currentPage === page ? "active" : ""
+                                        }`}
+                                    onClick={() => setCurrentPage(page)}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+
+                            <button
+                                type="button"
+                                className="category-page-arrow"
+                                disabled={
+                                    currentPage === totalPages ||
+                                    totalPages === 0
+                                }
+                                onClick={() => setCurrentPage((page) => page + 1)}
+                            >
+                                <i className="bi bi-chevron-right"></i>
+                            </button>
+
+                        </div>
+
                     </div>
                 )}
 
-                {/* Statistics */}
-                <div className="broadcast-stats">
-                    <div className="broadcast-stat-card">
-                        <div className="broadcast-stat-icon">
-                            <i className="bi bi-megaphone-fill"></i>
-                        </div>
-
-                        <div>
-                            <span>Total Broadcasts</span>
-                            <h2>{broadcasts.length}</h2>
-                        </div>
-                    </div>
-
-                    <div className="broadcast-stat-card">
-                        <div className="broadcast-stat-icon secondary">
-                            <i className="bi bi-collection-fill"></i>
-                        </div>
-
-                        <div>
-                            <span>Matching Results</span>
-                            <h2>{filteredBroadcasts.length}</h2>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Broadcast Table Container */}
-                <div className="broadcast-list-container">
-
-                    <div className="broadcast-list-header">
-                        <div>
-                            <h3>Broadcast Lists</h3>
-                            <p>View and manage all your broadcasts.</p>
-                        </div>
-
-                        <div className="broadcast-list-tools">
-                            <div className="broadcast-search">
-                                <i className="bi bi-search"></i>
-
-                                <input
-                                    type="text"
-                                    placeholder="Search broadcasts..."
-                                    value={search}
-                                    onChange={(e) =>
-                                        setSearch(e.target.value)
-                                    }
-                                />
-
-                                {search && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setSearch("")}
-                                    >
-                                        <i className="bi bi-x"></i>
-                                    </button>
-                                )}
-                            </div>
-
-                            <button
-                                type="button"
-                                className="broadcast-refresh-btn"
-                                onClick={fetchBroadcasts}
-                                disabled={loading}
-                                title="Refresh broadcasts"
-                            >
-                                <i
-                                    className={`bi bi-arrow-clockwise ${
-                                        loading ? "broadcast-spin" : ""
-                                    }`}
-                                ></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Loading */}
-                    {loading ? (
-                        <div className="broadcast-state">
-                            <div className="broadcast-loader"></div>
-                            <p>Loading broadcasts...</p>
-                        </div>
-                    ) : filteredBroadcasts.length === 0 ? (
-                        <div className="broadcast-empty">
-                            <div className="broadcast-empty-icon">
-                                <i className="bi bi-megaphone"></i>
-                            </div>
-
-                            <h3>
-                                {search
-                                    ? "No broadcasts found"
-                                    : "No broadcasts created yet"}
-                            </h3>
-
-                            <p>
-                                {search
-                                    ? "Try searching with a different name."
-                                    : "Create your first broadcast list to get started."}
-                            </p>
-
-                            {!search && (
-                                <button
-                                    type="button"
-                                    onClick={openCreateModal}
-                                    className="broadcast-empty-btn"
-                                >
-                                    <i className="bi bi-plus-lg"></i>
-                                    Create Your First Broadcast
-                                </button>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="broadcast-table-wrapper">
-                            <table className="broadcast-table">
-                                <thead>
-                                    <tr>
-                                        <th className="broadcast-number-col">
-                                            #
-                                        </th>
-                                        <th>Broadcast Name</th>
-                                        <th>Type</th>
-                                        <th className="broadcast-action-heading">
-                                            Action
-                                        </th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    {filteredBroadcasts.map(
-                                        (broadcast, index) => (
-                                            <tr key={broadcast.id}>
-                                                <td className="broadcast-number">
-                                                    {index + 1}
-                                                </td>
-
-                                                <td>
-                                                    <div className="broadcast-name-cell">
-                                                        <div className="broadcast-table-icon">
-                                                            <i className="bi bi-megaphone-fill"></i>
-                                                        </div>
-
-                                                        <span>
-                                                            {broadcast.name}
-                                                        </span>
-                                                    </div>
-                                                </td>
-
-                                                <td>
-                                                    <span className="broadcast-type-badge">
-                                                        Broadcast
-                                                    </span>
-                                                </td>
-
-                                                <td>
-                                                    <div className="broadcast-action-buttons">
-
-                                                        {/* View */}
-                                                        <button
-                                                            type="button"
-                                                            className="broadcast-view-btn"
-                                                            title="View"
-                                                            onClick={() =>
-                                                                handleViewBroadcast(
-                                                                    broadcast
-                                                                )
-                                                            }
-                                                        >
-                                                            <i className="bi bi-eye"></i>
-                                                        </button>
-
-                                                        {/* Edit */}
-                                                        <button
-                                                            type="button"
-                                                            className="broadcast-edit-btn"
-                                                            title="Edit"
-                                                            onClick={() =>
-                                                                openEditModal(
-                                                                    broadcast
-                                                                )
-                                                            }
-                                                        >
-                                                            <i className="bi bi-pencil-square"></i>
-                                                        </button>
-
-                                                        {/* Delete */}
-                                                        <button
-                                                            type="button"
-                                                            className="broadcast-delete-btn"
-                                                            title="Delete"
-                                                            onClick={() =>
-                                                                handleDelete(
-                                                                    broadcast.id
-                                                                )
-                                                            }
-                                                        >
-                                                            <i className="bi bi-trash3"></i>
-                                                        </button>
-
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {!loading && filteredBroadcasts.length > 0 && (
-                        <div className="broadcast-list-footer">
-                            Showing{" "}
-                            <strong>{filteredBroadcasts.length}</strong> of{" "}
-                            <strong>{broadcasts.length}</strong> broadcasts
-                        </div>
-                    )}
-                </div>
             </div>
 
-            {/* Create Broadcast Popup */}
-            {showCreateBroadcast && (
-                <CreateBroadcast
-                    onClose={() => setShowCreateBroadcast(false)}
-                    onSubmit={handleCreate}
-                />
-            )}
+            <CreateCategory
+                isOpen={showCreateCategory}
+                onClose={() => setShowCreateCategory(false)}
+                onCategoryCreated={fetchCategories}
+            />
 
-            {/* Edit Broadcast Popup */}
-            {showModal && (
-                <div
-                    className="broadcast-modal-overlay"
-                    onMouseDown={(e) => {
-                        if (e.target === e.currentTarget) closeModal();
-                    }}
-                >
-                    <div className="broadcast-modal">
+            <EditCategory
+                isOpen={showEditCategory}
+                category={selectedCategory}
+                onClose={() => {
+                    setShowEditCategory(false);
+                    setSelectedCategory(null);
+                }}
+                onCategoryUpdated={fetchCategories}
+            />
 
-                        <div className="broadcast-modal-header">
-                            <div className="broadcast-modal-title">
-                                <div className="broadcast-modal-icon">
-                                    <i className="bi bi-megaphone-fill"></i>
-                                </div>
-
-                                <div>
-                                    <h3>Edit Broadcast</h3>
-                                    <p>Update your broadcast list name.</p>
-                                </div>
-                            </div>
-
-                            <button
-                                type="button"
-                                className="broadcast-modal-close"
-                                onClick={closeModal}
-                                disabled={saving}
-                            >
-                                <i className="bi bi-x-lg"></i>
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit}>
-                            <div className="broadcast-modal-body">
-
-                                <label htmlFor="broadcast-name">
-                                    Broadcast Name <span>*</span>
-                                </label>
-
-                                <input
-                                    id="broadcast-name"
-                                    type="text"
-                                    placeholder="e.g. Customer Updates"
-                                    value={name}
-                                    onChange={(e) => {
-                                        setName(e.target.value);
-                                        setError("");
-                                    }}
-                                    maxLength={100}
-                                    autoFocus
-                                />
-
-                                <small>
-                                    Give your broadcast list a clear and
-                                    recognizable name.
-                                </small>
-
-                                {error && (
-                                    <div className="broadcast-modal-error">
-                                        <i className="bi bi-exclamation-circle"></i>
-                                        {error}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="broadcast-modal-footer">
-                                <button
-                                    type="button"
-                                    className="broadcast-modal-cancel"
-                                    onClick={closeModal}
-                                    disabled={saving}
-                                >
-                                    Cancel
-                                </button>
-
-                                <button
-                                    type="submit"
-                                    className="broadcast-modal-submit"
-                                    disabled={saving || !name.trim()}
-                                >
-                                    {saving ? (
-                                        <>
-                                            <span className="broadcast-btn-loader"></span>
-                                            Updating...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <i className="bi bi-check-lg"></i>
-                                            Update Broadcast
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </>
+        </section>
     );
 }
+
+export default Category;
