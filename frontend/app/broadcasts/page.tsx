@@ -1,11 +1,14 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Swal from "sweetalert2";
 import "./broadcast.css";
 
 import broadcastService, {
     BroadcastResponse,
 } from "@/app/apiservice/broadcastservice";
+
 import CreateBroadcast from "./create/page";
 
 export default function Broadcast() {
@@ -14,14 +17,32 @@ export default function Broadcast() {
     const [search, setSearch] = useState("");
 
     const [showModal, setShowModal] = useState(false);
+    const [showCreateBroadcast, setShowCreateBroadcast] = useState(false);
+    const [viewBroadcast, setViewBroadcast] = useState<BroadcastResponse | null>(null);
+
     const [editingId, setEditingId] = useState<number | null>(null);
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
 
-    const [showCreateBroadcast, setShowCreateBroadcast] = useState(false);
+    // SweetAlert toast
+    const showToast = (
+        icon: "success" | "error" | "warning",
+        title: string
+    ) => {
+        Swal.fire({
+            toast: true,
+            position: "top-end",
+            icon,
+            title,
+            showConfirmButton: false,
+            timer: 2500,
+            timerProgressBar: true,
+        });
+    };
+
+    // Fetch broadcasts
     const fetchBroadcasts = async () => {
         try {
             setLoading(true);
@@ -30,11 +51,16 @@ export default function Broadcast() {
             const response = await broadcastService.getAllBroadcasts();
             setBroadcasts(response || []);
         } catch (err: any) {
-            setError(
+            const message =
                 err?.response?.data?.message ||
                 err?.response?.data ||
                 err?.message ||
-                "Unable to load broadcasts."
+                "Unable to load broadcasts.";
+
+            setError(
+                typeof message === "string"
+                    ? message
+                    : "Unable to load broadcasts."
             );
         } finally {
             setLoading(false);
@@ -52,25 +78,22 @@ export default function Broadcast() {
         );
     }, [broadcasts, search]);
 
-    // Open create modal
+    // Open create popup
     const openCreateModal = () => {
-        setName("");
-        setEditingId(null);
         setError("");
-        setSuccess("");
-        setShowModal(true);
+        setShowCreateBroadcast(true);
     };
 
-    // Open edit modal
+    // Open edit popup
     const openEditModal = (broadcast: BroadcastResponse) => {
         setName(broadcast.name);
         setEditingId(broadcast.id);
         setError("");
-        setSuccess("");
+        setViewBroadcast(null);
         setShowModal(true);
     };
 
-    // Close modal
+    // Close edit popup
     const closeModal = () => {
         if (saving) return;
 
@@ -80,7 +103,38 @@ export default function Broadcast() {
         setError("");
     };
 
-    // Create / Update broadcast
+    // Create broadcast
+    const handleCreate = async (broadcastName: string) => {
+        try {
+            setSaving(true);
+            setError("");
+
+            await broadcastService.createBroadcast({
+                name: broadcastName,
+            });
+
+            setShowCreateBroadcast(false);
+
+            await fetchBroadcasts();
+
+            showToast("success", "Broadcast created successfully!");
+        } catch (err: any) {
+            const message =
+                err?.response?.data?.message ||
+                err?.response?.data ||
+                err?.message ||
+                "Unable to create broadcast.";
+
+            showToast(
+                "error",
+                typeof message === "string" ? message : "Unable to create broadcast."
+            );
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Update broadcast
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
@@ -100,12 +154,6 @@ export default function Broadcast() {
                     id: editingId,
                     name: trimmedName,
                 });
-                setSuccess("Broadcast updated successfully.");
-            } else {
-                await broadcastService.createBroadcast({
-                    name: trimmedName,
-                });
-                setSuccess("Broadcast created successfully.");
             }
 
             setShowModal(false);
@@ -113,12 +161,19 @@ export default function Broadcast() {
             setEditingId(null);
 
             await fetchBroadcasts();
+
+            showToast("success", "Broadcast updated successfully!");
         } catch (err: any) {
-            setError(
+            const message =
                 err?.response?.data?.message ||
                 err?.response?.data ||
                 err?.message ||
-                "Something went wrong. Please try again."
+                "Unable to update broadcast.";
+
+            setError(
+                typeof message === "string"
+                    ? message
+                    : "Unable to update broadcast."
             );
         } finally {
             setSaving(false);
@@ -127,32 +182,49 @@ export default function Broadcast() {
 
     // Delete broadcast
     const handleDelete = async (id: number) => {
-        const confirmed = window.confirm(
-            "Are you sure you want to delete this broadcast?"
-        );
+        const result = await Swal.fire({
+            title: "Delete Broadcast?",
+            text: "Are you sure you want to delete this broadcast?",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Yes, Delete",
+            cancelButtonText: "Cancel",
+            confirmButtonColor: "#064e45",
+            cancelButtonColor: "#777777",
+            reverseButtons: true,
+        });
 
-        if (!confirmed) return;
+        if (!result.isConfirmed) return;
 
         try {
-            setError("");
-            setSuccess("");
-
             await broadcastService.deleteBroadcast(id);
 
-            setSuccess("Broadcast deleted successfully.");
+            setBroadcasts((prev) =>
+                prev.filter((broadcast) => broadcast.id !== id)
+            );
+
+            if (viewBroadcast?.id === id) {
+                setViewBroadcast(null);
+            }
 
             if (editingId === id) {
                 setShowModal(false);
                 setEditingId(null);
             }
 
-            await fetchBroadcasts();
+            showToast("success", "Broadcast deleted successfully!");
         } catch (err: any) {
-            setError(
+            const message =
                 err?.response?.data?.message ||
                 err?.response?.data ||
                 err?.message ||
-                "Unable to delete broadcast."
+                "Unable to delete broadcast.";
+
+            showToast(
+                "error",
+                typeof message === "string"
+                    ? message
+                    : "Unable to delete broadcast."
             );
         }
     };
@@ -173,14 +245,14 @@ export default function Broadcast() {
                         <h1>Broadcasts</h1>
 
                         <p>
-                            Manage your broadcast lists and organize your contacts
-                            for WhatsApp messaging.
+                            Manage your broadcast lists and organize your
+                            contacts for WhatsApp messaging.
                         </p>
                     </div>
 
                     <button
                         className="broadcast-create-btn"
-                        onClick={() => setShowCreateBroadcast(true)}
+                        onClick={openCreateModal}
                         type="button"
                     >
                         <i className="bi bi-plus-lg"></i>
@@ -188,24 +260,12 @@ export default function Broadcast() {
                     </button>
                 </div>
 
-                {success && (
-                    <div className="broadcast-success-message">
-                        <i className="bi bi-check-circle-fill"></i>
-                        {success}
-                        <button
-                            type="button"
-                            onClick={() => setSuccess("")}
-                        >
-                            <i className="bi bi-x-lg"></i>
-                        </button>
-                    </div>
-                )}
-
                 {/* Error Message */}
                 {error && !showModal && (
                     <div className="broadcast-error-message">
                         <i className="bi bi-exclamation-circle-fill"></i>
                         {error}
+
                         <button
                             type="button"
                             onClick={() => setError("")}
@@ -221,6 +281,7 @@ export default function Broadcast() {
                         <div className="broadcast-stat-icon">
                             <i className="bi bi-megaphone-fill"></i>
                         </div>
+
                         <div>
                             <span>Total Broadcasts</span>
                             <h2>{broadcasts.length}</h2>
@@ -231,6 +292,7 @@ export default function Broadcast() {
                         <div className="broadcast-stat-icon secondary">
                             <i className="bi bi-collection-fill"></i>
                         </div>
+
                         <div>
                             <span>Matching Results</span>
                             <h2>{filteredBroadcasts.length}</h2>
@@ -238,7 +300,7 @@ export default function Broadcast() {
                     </div>
                 </div>
 
-                {/* Broadcast List */}
+                {/* Broadcast Table Container */}
                 <div className="broadcast-list-container">
 
                     <div className="broadcast-list-header">
@@ -250,12 +312,16 @@ export default function Broadcast() {
                         <div className="broadcast-list-tools">
                             <div className="broadcast-search">
                                 <i className="bi bi-search"></i>
+
                                 <input
                                     type="text"
                                     placeholder="Search broadcasts..."
                                     value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
+                                    onChange={(e) =>
+                                        setSearch(e.target.value)
+                                    }
                                 />
+
                                 {search && (
                                     <button
                                         type="button"
@@ -273,7 +339,11 @@ export default function Broadcast() {
                                 disabled={loading}
                                 title="Refresh broadcasts"
                             >
-                                <i className={`bi bi-arrow-clockwise ${loading ? "broadcast-spin" : ""}`}></i>
+                                <i
+                                    className={`bi bi-arrow-clockwise ${
+                                        loading ? "broadcast-spin" : ""
+                                    }`}
+                                ></i>
                             </button>
                         </div>
                     </div>
@@ -285,7 +355,6 @@ export default function Broadcast() {
                             <p>Loading broadcasts...</p>
                         </div>
                     ) : filteredBroadcasts.length === 0 ? (
-
                         /* Empty State */
                         <div className="broadcast-empty">
                             <div className="broadcast-empty-icon">
@@ -315,227 +384,299 @@ export default function Broadcast() {
                                 </button>
                             )}
                         </div>
-
                     ) : (
+                        /* Table */
+                        <div className="broadcast-table-wrapper">
+                            <table className="broadcast-table">
+                                <thead>
+                                    <tr>
+                                        <th className="broadcast-number-col">
+                                            #
+                                        </th>
+                                        <th>Broadcast Name</th>
+                                        <th>Broadcast ID</th>
+                                        <th>Type</th>
+                                        <th className="broadcast-action-heading">
+                                            Action
+                                        </th>
+                                    </tr>
+                                </thead>
 
-                        /* Broadcast Cards */
-                        <div className="broadcast-grid">
-                            {filteredBroadcasts.map((broadcast) => (
-                                <div
-                                    className="broadcast-card"
-                                    key={broadcast.id}
-                                >
-                                    <div className="broadcast-card-top">
-                                        <div className="broadcast-card-icon">
-                                            <i className="bi bi-megaphone-fill"></i>
-                                        </div>
+                                <tbody>
+                                    {filteredBroadcasts.map(
+                                        (broadcast, index) => (
+                                            <tr key={broadcast.id}>
+                                                <td className="broadcast-number">
+                                                    {index + 1}
+                                                </td>
 
-                                        <div className="broadcast-card-menu">
-                                            <button
-                                                type="button"
-                                                title="Edit broadcast"
-                                                onClick={() =>
-                                                    openEditModal(broadcast)
-                                                }
-                                            >
-                                                <i className="bi bi-pencil-square"></i>
-                                            </button>
+                                                <td>
+                                                    <div className="broadcast-name-cell">
+                                                        <div className="broadcast-table-icon">
+                                                            <i className="bi bi-megaphone-fill"></i>
+                                                        </div>
 
-                                            <button
-                                                type="button"
-                                                title="Delete broadcast"
-                                                className="broadcast-card-delete"
-                                                onClick={() =>
-                                                    handleDelete(broadcast.id)
-                                                }
-                                            >
-                                                <i className="bi bi-trash3"></i>
-                                            </button>
-                                        </div>
-                                    </div>
+                                                        <span>
+                                                            {broadcast.name}
+                                                        </span>
+                                                    </div>
+                                                </td>
 
-                                    <div className="broadcast-card-info">
-                                        <span className="broadcast-card-label">
-                                            BROADCAST LIST
-                                        </span>
+                                                <td>
+                                                    <span className="broadcast-id">
+                                                        #{broadcast.id}
+                                                    </span>
+                                                </td>
 
-                                        <h4>{broadcast.name}</h4>
+                                                <td>
+                                                    <span className="broadcast-type-badge">
+                                                        Broadcast
+                                                    </span>
+                                                </td>
 
-                                        <p>
-                                            Broadcast ID: #{broadcast.id}
-                                        </p>
-                                    </div>
+                                                <td>
+                                                    <div className="broadcast-action-buttons">
 
-                                    <div className="broadcast-card-bottom">
-                                        <span>
-                                            <i className="bi bi-folder2-open"></i>
-                                            Broadcast
-                                        </span>
+                                                        {/* View */}
+                                                        <button
+                                                            type="button"
+                                                            className="broadcast-view-btn"
+                                                            title="View"
+                                                            onClick={() =>
+                                                                setViewBroadcast(
+                                                                    broadcast
+                                                                )
+                                                            }
+                                                        >
+                                                            <i className="bi bi-eye"></i>
+                                                        </button>
 
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                openEditModal(broadcast)
-                                            }
-                                        >
-                                            Edit Details
-                                            <i className="bi bi-arrow-right"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                                                        {/* Edit */}
+                                                        <button
+                                                            type="button"
+                                                            className="broadcast-edit-btn"
+                                                            title="Edit"
+                                                            onClick={() =>
+                                                                openEditModal(
+                                                                    broadcast
+                                                                )
+                                                            }
+                                                        >
+                                                            <i className="bi bi-pencil-square"></i>
+                                                        </button>
+
+                                                        {/* Delete */}
+                                                        <button
+                                                            type="button"
+                                                            className="broadcast-delete-btn"
+                                                            title="Delete"
+                                                            onClick={() =>
+                                                                handleDelete(
+                                                                    broadcast.id
+                                                                )
+                                                            }
+                                                        >
+                                                            <i className="bi bi-trash3"></i>
+                                                        </button>
+
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     )}
 
                     {!loading && filteredBroadcasts.length > 0 && (
                         <div className="broadcast-list-footer">
-                            Showing <strong>{filteredBroadcasts.length}</strong> of{" "}
+                            Showing{" "}
+                            <strong>{filteredBroadcasts.length}</strong> of{" "}
                             <strong>{broadcasts.length}</strong> broadcasts
                         </div>
                     )}
                 </div>
-
-                {/* Create / Edit Modal */}
-                {showModal && (
-                    <div
-                        className="broadcast-modal-overlay"
-                        onMouseDown={(e) => {
-                            if (e.target === e.currentTarget) closeModal();
-                        }}
-                    >
-                        <div className="broadcast-modal">
-
-                            <div className="broadcast-modal-header">
-                                <div className="broadcast-modal-title">
-                                    <div className="broadcast-modal-icon">
-                                        <i className="bi bi-megaphone-fill"></i>
-                                    </div>
-
-                                    <div>
-                                        <h3>
-                                            {editingId !== null
-                                                ? "Edit Broadcast"
-                                                : "Create Broadcast"}
-                                        </h3>
-                                        <p>
-                                            {editingId !== null
-                                                ? "Update your broadcast list name."
-                                                : "Create a new broadcast list."}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    className="broadcast-modal-close"
-                                    onClick={closeModal}
-                                    disabled={saving}
-                                >
-                                    <i className="bi bi-x-lg"></i>
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleSubmit}>
-                                <div className="broadcast-modal-body">
-
-                                    <label htmlFor="broadcast-name">
-                                        Broadcast Name
-                                        <span>*</span>
-                                    </label>
-
-                                    <input
-                                        id="broadcast-name"
-                                        type="text"
-                                        placeholder="e.g. Customer Updates"
-                                        value={name}
-                                        onChange={(e) => {
-                                            setName(e.target.value);
-                                            setError("");
-                                        }}
-                                        maxLength={100}
-                                        autoFocus
-                                    />
-
-                                    <small>
-                                        Give your broadcast list a clear and
-                                        recognizable name.
-                                    </small>
-
-                                    {error && (
-                                        <div className="broadcast-modal-error">
-                                            <i className="bi bi-exclamation-circle"></i>
-                                            {error}
-                                        </div>
-                                    )}
-
-                                </div>
-
-                                <div className="broadcast-modal-footer">
-                                    <button
-                                        type="button"
-                                        className="broadcast-modal-cancel"
-                                        onClick={closeModal}
-                                        disabled={saving}
-                                    >
-                                        Cancel
-                                    </button>
-
-                                    <button
-                                        type="submit"
-                                        className="broadcast-modal-submit"
-                                        disabled={saving || !name.trim()}
-                                    >
-                                        {saving ? (
-                                            <>
-                                                <span className="broadcast-btn-loader"></span>
-                                                Saving...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <i className={`bi ${editingId !== null
-                                                    ? "bi-check-lg"
-                                                    : "bi-plus-lg"
-                                                    }`}></i>
-
-                                                {editingId !== null
-                                                    ? "Update Broadcast"
-                                                    : "Create Broadcast"}
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                )}
-
             </div>
+
+            {/* Create Broadcast Popup */}
             {showCreateBroadcast && (
                 <CreateBroadcast
                     onClose={() => setShowCreateBroadcast(false)}
-                    onSubmit={async (name) => {
-                        try {
-                            setSaving(true);
-                            setError("");
-
-                            await broadcastService.createBroadcast({ name });
-
-                            setShowCreateBroadcast(false);
-                            setSuccess("Broadcast created successfully.");
-
-                            await fetchBroadcasts();
-                        } catch (err: any) {
-                            setError(
-                                err?.response?.data?.message ||
-                                err?.response?.data ||
-                                err?.message ||
-                                "Unable to create broadcast."
-                            );
-                        } finally {
-                            setSaving(false);
-                        }
-                    }}
+                    onSubmit={handleCreate}
                 />
+            )}
+
+            {/* Edit Broadcast Popup */}
+            {showModal && (
+                <div
+                    className="broadcast-modal-overlay"
+                    onMouseDown={(e) => {
+                        if (e.target === e.currentTarget) closeModal();
+                    }}
+                >
+                    <div className="broadcast-modal">
+
+                        <div className="broadcast-modal-header">
+                            <div className="broadcast-modal-title">
+                                <div className="broadcast-modal-icon">
+                                    <i className="bi bi-megaphone-fill"></i>
+                                </div>
+
+                                <div>
+                                    <h3>Edit Broadcast</h3>
+                                    <p>Update your broadcast list name.</p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                className="broadcast-modal-close"
+                                onClick={closeModal}
+                                disabled={saving}
+                            >
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSubmit}>
+                            <div className="broadcast-modal-body">
+
+                                <label htmlFor="broadcast-name">
+                                    Broadcast Name <span>*</span>
+                                </label>
+
+                                <input
+                                    id="broadcast-name"
+                                    type="text"
+                                    placeholder="e.g. Customer Updates"
+                                    value={name}
+                                    onChange={(e) => {
+                                        setName(e.target.value);
+                                        setError("");
+                                    }}
+                                    maxLength={100}
+                                    autoFocus
+                                />
+
+                                <small>
+                                    Give your broadcast list a clear and
+                                    recognizable name.
+                                </small>
+
+                                {error && (
+                                    <div className="broadcast-modal-error">
+                                        <i className="bi bi-exclamation-circle"></i>
+                                        {error}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="broadcast-modal-footer">
+                                <button
+                                    type="button"
+                                    className="broadcast-modal-cancel"
+                                    onClick={closeModal}
+                                    disabled={saving}
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    className="broadcast-modal-submit"
+                                    disabled={saving || !name.trim()}
+                                >
+                                    {saving ? (
+                                        <>
+                                            <span className="broadcast-btn-loader"></span>
+                                            Updating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="bi bi-check-lg"></i>
+                                            Update Broadcast
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* View Broadcast Popup */}
+            {viewBroadcast && (
+                <div
+                    className="broadcast-modal-overlay"
+                    onClick={() => setViewBroadcast(null)}
+                >
+                    <div
+                        className="broadcast-modal broadcast-view-modal"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="broadcast-modal-header">
+                            <div className="broadcast-modal-title">
+                                <div className="broadcast-modal-icon">
+                                    <i className="bi bi-eye-fill"></i>
+                                </div>
+
+                                <div>
+                                    <h3>Broadcast Details</h3>
+                                    <p>View broadcast information.</p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                className="broadcast-modal-close"
+                                onClick={() => setViewBroadcast(null)}
+                            >
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+
+                        <div className="broadcast-view-body">
+                            <div className="broadcast-view-item">
+                                <label>Broadcast ID</label>
+                                <p>#{viewBroadcast.id}</p>
+                            </div>
+
+                            <div className="broadcast-view-item">
+                                <label>Broadcast Name</label>
+                                <p>{viewBroadcast.name}</p>
+                            </div>
+
+                            <div className="broadcast-view-item">
+                                <label>Type</label>
+                                <span className="broadcast-type-badge">
+                                    Broadcast
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="broadcast-modal-footer">
+                            <button
+                                type="button"
+                                className="broadcast-modal-cancel"
+                                onClick={() => setViewBroadcast(null)}
+                            >
+                                Close
+                            </button>
+
+                            <button
+                                type="button"
+                                className="broadcast-modal-submit"
+                                onClick={() =>
+                                    openEditModal(viewBroadcast)
+                                }
+                            >
+                                <i className="bi bi-pencil-square"></i>
+                                Edit Broadcast
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </>
     );
