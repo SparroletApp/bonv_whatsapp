@@ -1,5 +1,6 @@
 package com.example.whatsapp.controller;
 
+import com.example.whatsapp.dto.broadcastdto.BroadcastAssignContactsDto;
 import com.example.whatsapp.dto.contactdto.ContactCreateDto;
 import com.example.whatsapp.dto.contactdto.ContactIdDto;
 import com.example.whatsapp.dto.contactdto.ContactResponseDto;
@@ -64,5 +65,16 @@ public class ContactController {
         contactService.deleteContact(dto);
 
         return ResponseEntity.ok("Contact deleted successfully");
+    }
+
+    @PostMapping("/assign-broadcast")
+    public ResponseEntity<String> assignContactsToBroadcast(
+            @Valid @RequestBody BroadcastAssignContactsDto dto) {
+
+        contactService.assignContactsToBroadcast(dto);
+
+        return ResponseEntity.ok(
+                "Selected contacts assigned to broadcast successfully"
+        );
     }
 }

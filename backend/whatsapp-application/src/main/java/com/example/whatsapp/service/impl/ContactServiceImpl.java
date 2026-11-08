@@ -1,14 +1,17 @@
 
 package com.example.whatsapp.service.impl;
 
+import com.example.whatsapp.dto.broadcastdto.BroadcastAssignContactsDto;
 import com.example.whatsapp.dto.contactdto.ContactCreateDto;
 import com.example.whatsapp.dto.contactdto.ContactIdDto;
 import com.example.whatsapp.dto.contactdto.ContactResponseDto;
 import com.example.whatsapp.dto.contactdto.ContactUpdateDto;
 
+import com.example.whatsapp.entity.BroadCastEntity;
 import com.example.whatsapp.entity.CategoryEntity;
 import com.example.whatsapp.entity.ContactEntity;
 
+import com.example.whatsapp.repository.BroadcastRepository;
 import com.example.whatsapp.repository.CategoryRepository;
 import com.example.whatsapp.repository.ContactRepository;
 import com.example.whatsapp.service.ContactService;
@@ -20,7 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,7 @@ public class ContactServiceImpl implements ContactService {
 
     private final ContactRepository contactRepository;
     private final CategoryRepository categoryRepository;
+    private final BroadcastRepository broadcastRepository;
 
     @Override
     public ContactResponseDto createContact(ContactCreateDto dto) {
@@ -127,6 +133,41 @@ public class ContactServiceImpl implements ContactService {
                 ));
 
         contactRepository.delete(contact);
+    }
+
+    @Override
+    public void assignContactsToBroadcast(BroadcastAssignContactsDto dto) {
+
+        BroadCastEntity broadcast = broadcastRepository.findById(dto.getBroadcastId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Broadcast not found"
+                ));
+
+        if (dto.getContactIds() == null || dto.getContactIds().isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Please select at least one contact"
+            );
+        }
+
+        Set<Long> contactIds = new HashSet<>(dto.getContactIds());
+
+        List<ContactEntity> contacts = contactRepository.findAllById(contactIds);
+
+        if (contacts.size() != contactIds.size()) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "One or more contacts were not found"
+            );
+        }
+
+        // Assign broadcast to selected contacts
+        for (ContactEntity contact : contacts) {
+            contact.setBroadcast(broadcast);
+        }
+
+        contactRepository.saveAll(contacts);
     }
 
     private ContactResponseDto mapToResponse(ContactEntity contact) {

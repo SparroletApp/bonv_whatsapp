@@ -31,6 +31,11 @@ export interface ContactIdDto {
     id: number;
 }
 
+export interface BroadcastAssignContactsDto {
+    broadcastId: number;
+    contactIds: number[];
+}
+
 export interface ApiErrorResponse {
     status: number;
     message: string;
@@ -85,6 +90,16 @@ const contactService = {
             data
         );
     },
+
+    assignContactsToBroadcast: async (
+        data: BroadcastAssignContactsDto
+    ): Promise<string> => {
+        return api.post<string>(
+            "/api/contacts/assign-broadcast",
+            data
+        );
+    },
 };
+
 
 export default contactService;

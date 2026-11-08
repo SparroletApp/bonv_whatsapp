@@ -26,4 +26,12 @@ public class ContactEntity extends BaseEntity {
             foreignKey = @ForeignKey(name = "fk_contact_category")
     )
     private CategoryEntity category;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "broadcast_id",
+            nullable = true,
+            foreignKey = @ForeignKey(name = "fk_contact_broadcast")
+    )
+    private BroadCastEntity broadcast;
 }

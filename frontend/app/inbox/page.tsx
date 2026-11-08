@@ -115,14 +115,13 @@ export default function InboxPage() {
                             <button type="button" title="New chat">
                                 <i className="bi bi-chat-square-plus"></i>
                             </button>
-                            <button type="button" title="More options">
+                            {/* <button type="button" title="More options">
                                 <i className="bi bi-three-dots-vertical"></i>
-                            </button>
+                            </button> */}
                         </div>
                     </div>
                 </div>
 
-                {/* SEARCH */}
                 <div className="wa-search-area">
                     <div className="wa-search-box">
                         <i className="bi bi-search"></i>

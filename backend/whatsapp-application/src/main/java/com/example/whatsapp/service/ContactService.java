@@ -1,5 +1,6 @@
 package com.example.whatsapp.service;
 
+import com.example.whatsapp.dto.broadcastdto.BroadcastAssignContactsDto;
 import com.example.whatsapp.dto.contactdto.*;
 
 import java.util.List;
@@ -15,4 +16,5 @@ public interface ContactService {
     ContactResponseDto updateContact(ContactUpdateDto dto);
 
     void deleteContact(ContactIdDto dto);
+    void assignContactsToBroadcast(BroadcastAssignContactsDto dto);
 }

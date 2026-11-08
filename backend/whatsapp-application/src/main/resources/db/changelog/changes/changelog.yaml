@@ -63,5 +63,21 @@ databaseChangeLog:
             path: sql/create_campaign_table.sql
             relativeToChangelogFile: true
 
+  - changeSet:
+      id: create_table_broadcast
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/create_table_broadcast.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_contacts_add_broadcast
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_contacts_add_broadcast.sql
+            relativeToChangelogFile: true
+
 
 

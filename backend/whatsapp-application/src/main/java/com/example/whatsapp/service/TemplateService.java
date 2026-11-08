@@ -509,9 +509,6 @@ public class TemplateService {
         return (s == null || s.isBlank()) ? null : s.trim();
     }
 
-    // ==========================================
-    // ENTITY TO RESPONSE
-    // ==========================================
 
     private TemplateResponse map(TemplateEntity entity) {
 
