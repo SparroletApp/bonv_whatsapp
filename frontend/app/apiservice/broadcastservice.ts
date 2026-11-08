@@ -19,7 +19,7 @@ const broadcastService = {
         data: BroadcastRequest
     ): Promise<BroadcastResponse> => {
         return api.post<BroadcastResponse>(
-            "/api/broadcasts/create",
+            "/broadcasts/create",
             data
         );
     },
