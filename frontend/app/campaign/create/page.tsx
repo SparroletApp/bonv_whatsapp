@@ -1,23 +1,35 @@
+
 "use client";
 
 import campaignService from "@/app/apiservice/campaignservice";
-import categoryInsightService, { CategorySummary } from "@/app/apiservice/categoryinsightservice";
-import templateService, { TemplateResponse } from "@/app/apiservice/templateservice";
-import Modal from "@/app/component/Modal";
+import categoryInsightService, {
+    CategorySummary,
+} from "@/app/apiservice/categoryinsightservice";
+import templateService, {
+    TemplateResponse,
+} from "@/app/apiservice/templateservice";
 
+import Modal from "@/app/component/Modal";
 import TemplatePreview from "@/app/component/TemplatePreview";
 import TemplateForm from "@/app/templatepage/form/page";
 import { apiError } from "@/app/utils/apiError";
+
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-
+import "./create-campaign.css";
 
 type Kind = "NAME" | "PHONE" | "EMAIL" | "TEXT";
-interface VarMap { kind: Kind; text: string }
+
+interface VarMap {
+    kind: Kind;
+    text: string;
+}
 
 const SAMPLE: Record<Exclude<Kind, "TEXT">, string> = {
-    NAME: "Rahul", PHONE: "919876543210", EMAIL: "rahul@example.com",
+    NAME: "Rahul",
+    PHONE: "919876543210",
+    EMAIL: "rahul@example.com",
 };
 
 export default function CampaignCreatePage() {
@@ -29,85 +41,131 @@ export default function CampaignCreatePage() {
     const [templates, setTemplates] = useState<TemplateResponse[]>([]);
     const [templateId, setTemplateId] = useState<number | "">("");
     const [mapping, setMapping] = useState<VarMap[]>([]);
+
     const [showTemplateForm, setShowTemplateForm] = useState(false);
     const [launching, setLaunching] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+
     const [error, setError] = useState("");
     const [info, setInfo] = useState("");
 
     const template = templates.find((t) => t.id === templateId);
-const [syncing, setSyncing] = useState(false);
 
-// all statuses, so pending/rejected ones are visible too
-const loadTemplates = () => templateService.list().then(setTemplates);
-
-const refreshFromMeta = async (silent = false) => {
-    setSyncing(true);
-    try {
-        await templateService.sync();      // pulls from Meta into your DB
-        await loadTemplates();
-        if (!silent) setInfo("Templates refreshed from Meta.");
-    } catch (e) {
-        await loadTemplates().catch(() => {});   // fall back to what's saved
-        setError("Could not refresh from Meta: " + apiError(e));
-    } finally {
-        setSyncing(false);
-    }
-};
-
-useEffect(() => {
-    categoryInsightService.list().then(setCategories).catch((e) => setError(apiError(e)));
-    refreshFromMeta(true);                 // sync on page open
-}, []);
-
-    useEffect(() => {
-        categoryInsightService.list().then(setCategories).catch((e) => setError(apiError(e)));
-        loadTemplates().catch((e) => setError(apiError(e)));
-    }, []);
-
-    const totalContacts = useMemo(
-        () => categories.filter((c) => selected.includes(c.id)).reduce((s, c) => s + c.contactCount, 0),
-        [categories, selected]
-    );
-
-    const toggle = (id: number) =>
-        setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
-
-    const pickTemplate = (id: number | "") => {
-        setTemplateId(id);
-        const t = templates.find((x) => x.id === id);
-        setMapping(Array.from({ length: t?.variableCount ?? 0 },
-            (_, i) => ({ kind: i === 0 ? "NAME" : "TEXT", text: "" } as VarMap)));
+    const loadTemplates = async () => {
+        const data = await templateService.list();
+        setTemplates(data);
     };
 
-    const updateMap = (i: number, patch: Partial<VarMap>) =>
-        setMapping(mapping.map((m, idx) => (idx === i ? { ...m, ...patch } : m)));
+    const refreshFromMeta = async (silent = false) => {
+        setSyncing(true);
 
-    const previewValues = mapping.map((m) => (m.kind === "TEXT" ? m.text : SAMPLE[m.kind]));
-
-    const sync = async () => {
         try {
             await templateService.sync();
             await loadTemplates();
-            setInfo("Templates refreshed from Meta.");
-        } catch (e) { setError(apiError(e)); }
+
+            if (!silent) {
+                setInfo("Templates successfully refreshed from Meta.");
+                setError("");
+            }
+        } catch (e) {
+            await loadTemplates().catch(() => {});
+
+            if (!silent) {
+                setError("Could not refresh templates: " + apiError(e));
+            }
+        } finally {
+            setSyncing(false);
+        }
     };
+
+    useEffect(() => {
+        categoryInsightService
+            .list()
+            .then(setCategories)
+            .catch((e) => setError(apiError(e)));
+
+        refreshFromMeta(true);
+    }, []);
+
+    const totalContacts = useMemo(() => {
+        return categories
+            .filter((c) => selected.includes(c.id))
+            .reduce((sum, c) => sum + c.contactCount, 0);
+    }, [categories, selected]);
+
+    const toggleCategory = (id: number) => {
+        setSelected((current) =>
+            current.includes(id)
+                ? current.filter((x) => x !== id)
+                : [...current, id]
+        );
+    };
+
+    const selectAllCategories = () => {
+        setSelected((current) =>
+            current.length === categories.length
+                ? []
+                : categories.map((c) => c.id)
+        );
+    };
+
+    const pickTemplate = (id: number | "") => {
+        setTemplateId(id);
+
+        const selectedTemplate = templates.find((t) => t.id === id);
+
+        setMapping(
+            Array.from(
+                { length: selectedTemplate?.variableCount ?? 0 },
+                (_, i) => ({
+                    kind: i === 0 ? "NAME" : "TEXT",
+                    text: "",
+                })
+            )
+        );
+    };
+
+    const updateMap = (index: number, patch: Partial<VarMap>) => {
+        setMapping((current) =>
+            current.map((item, i) =>
+                i === index ? { ...item, ...patch } : item
+            )
+        );
+    };
+
+    const previewValues = mapping.map((item) =>
+        item.kind === "TEXT" ? item.text : SAMPLE[item.kind]
+    );
 
     const launch = async () => {
         setError("");
+        setInfo("");
 
-        if (!name.trim()) return setError("Enter a campaign name");
-        if (selected.length === 0) return setError("Select at least one category");
-        if (!template) return setError("Select an approved template");
+        if (!name.trim()) {
+            setError("Please enter a campaign name.");
+            return;
+        }
+
+        if (selected.length === 0) {
+            setError("Please select at least one contact category.");
+            return;
+        }
+
+        if (!template) {
+            setError("Please select an approved template.");
+            return;
+        }
 
         if (mapping.some((m) => m.kind === "TEXT" && !m.text.trim())) {
-            return setError("Fill in all custom variable values");
+            setError("Please fill in all custom variable values.");
+            return;
         }
 
         setLaunching(true);
 
         try {
-            const c = await campaignService.create({
-                name,
+            const campaign = await campaignService.create({
+                name: name.trim(),
                 templateId: template.id,
                 categoryIds: selected,
                 variableMapping: mapping.map((m) =>
@@ -115,93 +173,603 @@ useEffect(() => {
                 ),
             });
 
-            nav.push(`/campaigns/${c.id}`);
-
+            nav.push(`/campaigns/${campaign.id}`);
         } catch (e) {
             setError(apiError(e));
             setLaunching(false);
         }
     };
 
+    const selectedCategories = categories.filter((c) =>
+        selected.includes(c.id)
+    );
+
+    const allSelected =
+        categories.length > 0 && selected.length === categories.length;
+
     return (
-        <div className="wa-page">
-            <h2>Create Campaign</h2>
-            {error && <div className="wa-error">{error}</div>}
-            {info && <div className="wa-info">{info}</div>}
+        <div className="cc-page">
 
-            <section className="wa-card">
-                <h3>1. Campaign name</h3>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Diwali offer – Nov 2026" />
-            </section>
-
-            <section className="wa-card">
-                <h3>2. Select categories</h3>
-                <div className="wa-chips">
-                    {categories.map((c) => (
-                        <label key={c.id} className={`wa-chip ${selected.includes(c.id) ? "on" : ""}`}>
-                            <input type="checkbox" checked={selected.includes(c.id)} onChange={() => toggle(c.id)} />
-                            {c.name} <small>({c.contactCount})</small>
-                        </label>
-                    ))}
-                </div>
-                <p><strong>{totalContacts}</strong> contact(s) will receive this campaign.</p>
-            </section>
-
-            <section className="wa-card">
-                <div className="wa-row wa-between">
-                    <h3>3. Select template</h3>
-                    <div className="wa-row">
-                        <button className="wa-btn-link" onClick={sync}>Refresh from Meta</button>
-                        <button className="wa-btn wa-btn-secondary" onClick={() => setShowTemplateForm(true)}>
-                            + Create new template
-                        </button>
+            {/* HERO */}
+            <div className="cc-hero">
+                <div className="cc-hero-content">
+                    <div className="cc-breadcrumb">
+                        <span>Campaigns</span>
+                        <i className="bi bi-chevron-right" />
+                        <strong>Create campaign</strong>
                     </div>
-                </div>
 
-                <select value={templateId} onChange={(e) => pickTemplate(e.target.value ? Number(e.target.value) : "")}>
-                    <option value="">— choose an approved template —</option>
-                    {templates.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name} ({t.language})</option>
-                    ))}
-                </select>
-
-                {template && (
-                    <div className="wa-grid-2">
+                    <div className="cc-hero-main">
                         <div>
-                            {template.variableCount > 0 && <h4>Fill variables</h4>}
-                            {mapping.map((m, i) => (
-                                <div className="wa-row" key={i}>
-                                    <span style={{ width: 50 }}>{`{{${i + 1}}}`}</span>
-                                    <select value={m.kind} onChange={(e) => updateMap(i, { kind: e.target.value as Kind })}>
-                                        <option value="NAME">Contact name</option>
-                                        <option value="PHONE">Contact phone</option>
-                                        <option value="EMAIL">Contact email</option>
-                                        <option value="TEXT">Custom text</option>
-                                    </select>
-                                    {m.kind === "TEXT" &&
-                                        <input value={m.text} onChange={(e) => updateMap(i, { text: e.target.value })}
-                                            placeholder="Value for everyone" />}
-                                </div>
-                            ))}
+                            <div className="cc-hero-tag">
+                                <i className="bi bi-whatsapp" />
+                                WHATSAPP MARKETING
+                            </div>
+
+                            <h1>Create your campaign</h1>
+
+                            <p>
+                                Build meaningful conversations with your
+                                audience. Configure your campaign and reach
+                                the right people at the right time.
+                            </p>
                         </div>
-                        <TemplatePreview {...template} values={previewValues} />
+
+                        <div className="cc-hero-icon">
+                            <i className="bi bi-megaphone" />
+                            <span className="cc-icon-dot" />
+                        </div>
                     </div>
-                )}
-                {templates.length === 0 &&
-                    <p className="wa-hint">No approved templates. Create one, wait for approval, then click “Refresh from Meta”.</p>}
-            </section>
 
-            <button className="wa-btn wa-btn-big" disabled={launching} onClick={launch}>
-                {launching ? "Launching…" : `Launch to ${totalContacts} contact(s)`}
-            </button>
+                    <div className="cc-progress">
+                        <div className="cc-progress-item active">
+                            <span>01</span>
+                            <div>
+                                <strong>Campaign details</strong>
+                                <small>Set up your campaign</small>
+                            </div>
+                        </div>
 
+                        <div className="cc-progress-line" />
+
+                        <div className={`cc-progress-item ${selected.length ? "active" : ""}`}>
+                            <span>02</span>
+                            <div>
+                                <strong>Audience</strong>
+                                <small>Select your contacts</small>
+                            </div>
+                        </div>
+
+                        <div className="cc-progress-line" />
+
+                        <div className={`cc-progress-item ${template ? "active" : ""}`}>
+                            <span>03</span>
+                            <div>
+                                <strong>Message</strong>
+                                <small>Choose your template</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* NOTIFICATIONS */}
+            {error && (
+                <div className="cc-alert cc-alert-error">
+                    <i className="bi bi-exclamation-circle-fill" />
+                    <span>{error}</span>
+                    <button onClick={() => setError("")}>
+                        <i className="bi bi-x-lg" />
+                    </button>
+                </div>
+            )}
+
+            {info && (
+                <div className="cc-alert cc-alert-success">
+                    <i className="bi bi-check-circle-fill" />
+                    <span>{info}</span>
+                    <button onClick={() => setInfo("")}>
+                        <i className="bi bi-x-lg" />
+                    </button>
+                </div>
+            )}
+
+            <div className="cc-layout">
+
+                {/* MAIN FORM */}
+                <div className="cc-main">
+
+                    {/* CAMPAIGN NAME */}
+                    <section className="cc-card">
+                        <div className="cc-card-header">
+                            <div className="cc-section-icon">
+                                <i className="bi bi-pencil-square" />
+                            </div>
+
+                            <div>
+                                <h2>Campaign information</h2>
+                                <p>Give your campaign a recognizable name.</p>
+                            </div>
+
+                            <span className="cc-step">STEP 01</span>
+                        </div>
+
+                        <div className="cc-field">
+                            <label htmlFor="campaignName">
+                                Campaign name <span>*</span>
+                            </label>
+
+                            <input
+                                id="campaignName"
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="e.g. Diwali Special Offers - November 2026"
+                                maxLength={100}
+                            />
+
+                            <div className="cc-field-bottom">
+                                <span>
+                                    <i className="bi bi-info-circle" />
+                                    Choose a name that helps you identify this campaign.
+                                </span>
+                                <small>{name.length}/100</small>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* CATEGORY SELECTION */}
+                    <section className="cc-card">
+                        <div className="cc-card-header">
+                            <div className="cc-section-icon">
+                                <i className="bi bi-people" />
+                            </div>
+
+                            <div>
+                                <h2>Choose your audience</h2>
+                                <p>Select the contact groups you want to reach.</p>
+                            </div>
+
+                            <span className="cc-step">STEP 02</span>
+                        </div>
+
+                        <div className="cc-audience-summary">
+                            <div className="cc-audience-summary-icon">
+                                <i className="bi bi-person-check" />
+                            </div>
+
+                            <div>
+                                <strong>{totalContacts.toLocaleString("en-IN")}</strong>
+                                <span>Contacts selected</span>
+                            </div>
+
+                            <div className="cc-audience-summary-divider" />
+
+                            <div>
+                                <strong>{selected.length}</strong>
+                                <span>Categories</span>
+                            </div>
+
+                            <button
+                                type="button"
+                                className="cc-select-all"
+                                onClick={selectAllCategories}
+                                disabled={categories.length === 0}
+                            >
+                                {allSelected ? "Deselect all" : "Select all"}
+                            </button>
+                        </div>
+
+                        {categories.length > 0 ? (
+                            <div className="cc-category-grid">
+                                {categories.map((category, index) => {
+                                    const isSelected = selected.includes(category.id);
+
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={category.id}
+                                            className={`cc-category-card ${isSelected ? "selected" : ""}`}
+                                            onClick={() => toggleCategory(category.id)}
+                                        >
+                                            <span className="cc-category-icon">
+                                                <i className="bi bi-people-fill" />
+                                            </span>
+
+                                            <span className="cc-category-content">
+                                                <strong>{category.name}</strong>
+                                                <small>
+                                                    {category.contactCount.toLocaleString("en-IN")} contacts
+                                                </small>
+                                            </span>
+
+                                            <span className="cc-category-check">
+                                                <i className={`bi ${isSelected ? "bi-check-lg" : "bi-plus-lg"}`} />
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="cc-empty">
+                                <i className="bi bi-people" />
+                                <strong>No categories found</strong>
+                                <span>Create contact categories to build your audience.</span>
+                            </div>
+                        )}
+
+                        <div className="cc-selected-footer">
+                            <i className="bi bi-shield-check" />
+                            Your campaign will target contacts from the selected categories.
+                        </div>
+                    </section>
+
+                    {/* TEMPLATE SELECTION */}
+                    <section className="cc-card">
+                        <div className="cc-card-header">
+                            <div className="cc-section-icon">
+                                <i className="bi bi-chat-square-text" />
+                            </div>
+
+                            <div>
+                                <h2>Message template</h2>
+                                <p>Choose an approved WhatsApp message template.</p>
+                            </div>
+
+                            <span className="cc-step">STEP 03</span>
+                        </div>
+
+                        <div className="cc-template-actions">
+                            <button
+                                type="button"
+                                className="cc-refresh-btn"
+                                onClick={() => refreshFromMeta(false)}
+                                disabled={syncing}
+                            >
+                                <i className={`bi bi-arrow-repeat ${syncing ? "cc-spinning" : ""}`} />
+                                {syncing ? "Refreshing..." : "Sync from Meta"}
+                            </button>
+
+                            <button
+                                type="button"
+                                className="cc-create-template-btn"
+                                onClick={() => setShowTemplateForm(true)}
+                            >
+                                <i className="bi bi-plus-lg" />
+                                New template
+                            </button>
+                        </div>
+
+                        <div className="cc-template-select-wrapper">
+                            <label htmlFor="templateSelect">Select template</label>
+
+                            <div className="cc-select-container">
+                                <i className="bi bi-file-earmark-text" />
+
+                                <select
+                                    id="templateSelect"
+                                    value={templateId}
+                                    onChange={(e) =>
+                                        pickTemplate(
+                                            e.target.value
+                                                ? Number(e.target.value)
+                                                : ""
+                                        )
+                                    }
+                                >
+                                    <option value="">
+                                        Choose an approved template
+                                    </option>
+
+                                    {templates.map((t) => (
+                                        <option key={t.id} value={t.id}>
+                                            {t.name} ({t.language})
+                                        </option>
+                                    ))}
+                                </select>
+
+                                <i className="bi bi-chevron-down cc-select-arrow" />
+                            </div>
+
+                            <small>
+                                Only templates available in your saved template list are displayed.
+                            </small>
+                        </div>
+
+                        {template && (
+                            <div className="cc-template-config">
+
+                                <div className="cc-template-selected">
+                                    <div className="cc-template-selected-icon">
+                                        <i className="bi bi-whatsapp" />
+                                    </div>
+
+                                    <div>
+                                        <strong>{template.name}</strong>
+                                        <span>
+                                            {template.language} · {template.variableCount} variable(s)
+                                        </span>
+                                    </div>
+
+                                    <span className="cc-approved">
+                                        <i className="bi bi-check-circle-fill" />
+                                        Selected
+                                    </span>
+                                </div>
+
+                                {template.variableCount > 0 && (
+                                    <div className="cc-variable-section">
+                                        <div className="cc-variable-heading">
+                                            <div>
+                                                <h3>Personalize your message</h3>
+                                                <p>
+                                                    Map each template variable to a contact field or custom value.
+                                                </p>
+                                            </div>
+
+                                            <span>{mapping.length} variables</span>
+                                        </div>
+
+                                        <div className="cc-variable-list">
+                                            {mapping.map((item, index) => (
+                                                <div className="cc-variable-row" key={index}>
+                                                    <div className="cc-variable-number">
+                                                        {"{{" + (index + 1) + "}}"}
+                                                    </div>
+
+                                                    <div className="cc-variable-control">
+                                                        <label>
+                                                            Variable {index + 1}
+                                                        </label>
+
+                                                        <select
+                                                            value={item.kind}
+                                                            onChange={(e) =>
+                                                                updateMap(index, {
+                                                                    kind: e.target.value as Kind,
+                                                                    text: "",
+                                                                })
+                                                            }
+                                                        >
+                                                            <option value="NAME">Contact name</option>
+                                                            <option value="PHONE">Contact phone</option>
+                                                            <option value="EMAIL">Contact email</option>
+                                                            <option value="TEXT">Custom text</option>
+                                                        </select>
+                                                    </div>
+
+                                                    {item.kind === "TEXT" ? (
+                                                        <div className="cc-variable-control cc-variable-custom">
+                                                            <label>Custom value</label>
+
+                                                            <input
+                                                                type="text"
+                                                                value={item.text}
+                                                                onChange={(e) =>
+                                                                    updateMap(index, {
+                                                                        text: e.target.value,
+                                                                    })
+                                                                }
+                                                                placeholder="Enter message value"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="cc-variable-preview">
+                                                            <small>Example value</small>
+                                                            <strong>{SAMPLE[item.kind]}</strong>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="cc-variable-note">
+                                            <i className="bi bi-lightbulb" />
+                                            Contact fields are dynamically populated for each recipient.
+                                            Custom text is shared with everyone in this campaign.
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="cc-preview-section">
+                                    <div className="cc-preview-heading">
+                                        <div>
+                                            <h3>Message preview</h3>
+                                            <p>See how your selected template will look.</p>
+                                        </div>
+
+                                        <span>
+                                            <i className="bi bi-eye" />
+                                            LIVE PREVIEW
+                                        </span>
+                                    </div>
+
+                                    <div className="cc-preview-container">
+                                        <TemplatePreview
+                                            {...template}
+                                            values={previewValues}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {templates.length === 0 && !syncing && (
+                            <div className="cc-empty cc-template-empty">
+                                <i className="bi bi-file-earmark-plus" />
+                                <strong>No templates available</strong>
+                                <span>
+                                    Create a template and wait for Meta approval.
+                                    Then refresh your templates.
+                                </span>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShowTemplateForm(true)}
+                                >
+                                    <i className="bi bi-plus-lg" />
+                                    Create template
+                                </button>
+                            </div>
+                        )}
+                    </section>
+
+                </div>
+
+                {/* SIDEBAR */}
+                <aside className="cc-sidebar">
+                    <div className="cc-summary-card">
+                        <div className="cc-summary-header">
+                            <div>
+                                <span>CAMPAIGN OVERVIEW</span>
+                                <h3>Ready to launch?</h3>
+                            </div>
+
+                            <div className="cc-summary-icon">
+                                <i className="bi bi-send-fill" />
+                            </div>
+                        </div>
+
+                        <div className="cc-total-contacts">
+                            <span>Estimated recipients</span>
+                            <strong>{totalContacts.toLocaleString("en-IN")}</strong>
+                            <small>Contacts in selected categories</small>
+                        </div>
+
+                        <div className="cc-summary-divider" />
+
+                        <div className="cc-summary-list">
+                            <div className="cc-summary-row">
+                                <span>
+                                    <i className="bi bi-megaphone" />
+                                    Campaign name
+                                </span>
+                                <strong title={name}>
+                                    {name || "Not provided"}
+                                </strong>
+                            </div>
+
+                            <div className="cc-summary-row">
+                                <span>
+                                    <i className="bi bi-people" />
+                                    Categories
+                                </span>
+                                <strong>{selected.length} selected</strong>
+                            </div>
+
+                            <div className="cc-summary-row">
+                                <span>
+                                    <i className="bi bi-chat-square-text" />
+                                    Template
+                                </span>
+                                <strong>{template ? template.name : "Not selected"}</strong>
+                            </div>
+
+                            <div className="cc-summary-row">
+                                <span>
+                                    <i className="bi bi-braces" />
+                                    Variables
+                                </span>
+                                <strong>{mapping.length}</strong>
+                            </div>
+                        </div>
+
+                        <div className="cc-summary-divider" />
+
+                        <div className="cc-checklist">
+                            <h4>Launch checklist</h4>
+
+                            <div className={name.trim() ? "completed" : ""}>
+                                <i className={`bi ${name.trim() ? "bi-check-circle-fill" : "bi-circle"}`} />
+                                Campaign name added
+                            </div>
+
+                            <div className={selected.length ? "completed" : ""}>
+                                <i className={`bi ${selected.length ? "bi-check-circle-fill" : "bi-circle"}`} />
+                                Audience selected
+                            </div>
+
+                            <div className={template ? "completed" : ""}>
+                                <i className={`bi ${template ? "bi-check-circle-fill" : "bi-circle"}`} />
+                                Template selected
+                            </div>
+
+                            <div className={
+                                template &&
+                                !mapping.some((m) => m.kind === "TEXT" && !m.text.trim())
+                                    ? "completed"
+                                    : ""
+                            }>
+                                <i className={`bi ${
+                                    template &&
+                                    !mapping.some((m) => m.kind === "TEXT" && !m.text.trim())
+                                        ? "bi-check-circle-fill"
+                                        : "bi-circle"
+                                }`} />
+                                Variables configured
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="cc-launch-btn"
+                            disabled={launching}
+                            onClick={launch}
+                        >
+                            {launching ? (
+                                <>
+                                    <span className="cc-loader" />
+                                    Launching campaign...
+                                </>
+                            ) : (
+                                <>
+                                    Launch campaign
+                                    <i className="bi bi-arrow-right" />
+                                </>
+                            )}
+                        </button>
+
+                        <p className="cc-launch-note">
+                            <i className="bi bi-shield-lock" />
+                            Review your campaign details before launching.
+                        </p>
+                    </div>
+
+                    <div className="cc-help-card">
+                        <div className="cc-help-icon">
+                            <i className="bi bi-lightbulb" />
+                        </div>
+
+                        <div>
+                            <strong>Pro tip</strong>
+                            <p>
+                                Use personalized variables like contact names
+                                to make your WhatsApp messages more engaging.
+                            </p>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+
+            {/* CREATE TEMPLATE MODAL */}
             {showTemplateForm && (
-                <Modal title="Create template" onClose={() => setShowTemplateForm(false)}>
-                    <TemplateForm onCreated={(t) => {
-                        setShowTemplateForm(false);
-                        setInfo(`Template “${t.name}” submitted (status: ${t.status}). It appears in the list once Meta approves it.`);
-                        loadTemplates();
-                    }} />
+                <Modal
+                    title="Create WhatsApp template"
+                    onClose={() => setShowTemplateForm(false)}
+                >
+                    <TemplateForm
+                        onCreated={(t) => {
+                            setShowTemplateForm(false);
+
+                            setInfo(
+                                `Template "${t.name}" submitted (status: ${t.status}). It will be available once approved by Meta.`
+                            );
+
+                            loadTemplates().catch((e) =>
+                                setError(apiError(e))
+                            );
+                        }}
+                    />
                 </Modal>
             )}
         </div>
