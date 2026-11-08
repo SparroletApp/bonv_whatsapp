@@ -95,7 +95,7 @@ const contactService = {
         data: BroadcastAssignContactsDto
     ): Promise<string> => {
         return api.post<string>(
-            "/api/contacts/assign-broadcast",
+            "/contacts/assign-broadcast",
             data
         );
     },

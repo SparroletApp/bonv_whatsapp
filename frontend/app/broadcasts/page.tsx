@@ -26,7 +26,11 @@ export default function Broadcast() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
 
-    // SweetAlert toast
+    const handleViewBroadcast = (broadcast: BroadcastResponse) => {
+        localStorage.setItem("broadcastId", String(broadcast.id));
+
+        setViewBroadcast(broadcast);
+    };
     const showToast = (
         icon: "success" | "error" | "warning",
         title: string
@@ -340,9 +344,8 @@ export default function Broadcast() {
                                 title="Refresh broadcasts"
                             >
                                 <i
-                                    className={`bi bi-arrow-clockwise ${
-                                        loading ? "broadcast-spin" : ""
-                                    }`}
+                                    className={`bi bi-arrow-clockwise ${loading ? "broadcast-spin" : ""
+                                        }`}
                                 ></i>
                             </button>
                         </div>
@@ -394,7 +397,7 @@ export default function Broadcast() {
                                             #
                                         </th>
                                         <th>Broadcast Name</th>
-                                        <th>Broadcast ID</th>
+
                                         <th>Type</th>
                                         <th className="broadcast-action-heading">
                                             Action
@@ -421,13 +424,6 @@ export default function Broadcast() {
                                                         </span>
                                                     </div>
                                                 </td>
-
-                                                <td>
-                                                    <span className="broadcast-id">
-                                                        #{broadcast.id}
-                                                    </span>
-                                                </td>
-
                                                 <td>
                                                     <span className="broadcast-type-badge">
                                                         Broadcast
@@ -437,21 +433,15 @@ export default function Broadcast() {
                                                 <td>
                                                     <div className="broadcast-action-buttons">
 
-                                                        {/* View */}
                                                         <button
                                                             type="button"
                                                             className="broadcast-view-btn"
                                                             title="View"
-                                                            onClick={() =>
-                                                                setViewBroadcast(
-                                                                    broadcast
-                                                                )
-                                                            }
+                                                            onClick={() => handleViewBroadcast(broadcast)}
                                                         >
                                                             <i className="bi bi-eye"></i>
                                                         </button>
 
-                                                        {/* Edit */}
                                                         <button
                                                             type="button"
                                                             className="broadcast-edit-btn"
@@ -465,7 +455,6 @@ export default function Broadcast() {
                                                             <i className="bi bi-pencil-square"></i>
                                                         </button>
 
-                                                        {/* Delete */}
                                                         <button
                                                             type="button"
                                                             className="broadcast-delete-btn"
@@ -499,7 +488,6 @@ export default function Broadcast() {
                 </div>
             </div>
 
-            {/* Create Broadcast Popup */}
             {showCreateBroadcast && (
                 <CreateBroadcast
                     onClose={() => setShowCreateBroadcast(false)}
@@ -507,7 +495,6 @@ export default function Broadcast() {
                 />
             )}
 
-            {/* Edit Broadcast Popup */}
             {showModal && (
                 <div
                     className="broadcast-modal-overlay"
@@ -605,7 +592,6 @@ export default function Broadcast() {
                 </div>
             )}
 
-            {/* View Broadcast Popup */}
             {viewBroadcast && (
                 <div
                     className="broadcast-modal-overlay"
