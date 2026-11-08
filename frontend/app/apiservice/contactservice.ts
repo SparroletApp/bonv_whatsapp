@@ -19,11 +19,12 @@ export interface ContactCreateDto {
     categoryId: number;
 }
 
+
 export interface ContactUpdateDto {
     id: number;
     name: string;
     phone: string;
-    email?: string;
+    email: string;
     categoryId: number;
 }
 
@@ -104,7 +105,6 @@ const contactService = {
         );
     },
 
-    // Get Contacts By Broadcast ID
 getContactsByBroadcastId: async (
     data: BroadcastIdDto
 ): Promise<ContactResponseDto[]> => {

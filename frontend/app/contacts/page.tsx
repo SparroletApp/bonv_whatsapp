@@ -58,7 +58,10 @@ function Contact() {
         fetchContacts();
         fetchCategories();
     }, []);
-
+    const openEditPage = (contact: ContactResponseDto) => {
+        localStorage.setItem("contactId", String(contact.id));
+        router.push("/contacts/edit");
+    };
     const fetchContacts = async () => {
         try {
             setLoading(true);
@@ -393,9 +396,7 @@ function Contact() {
                                                     type="button"
                                                     title="Edit contact"
                                                     className="category-edit-btn"
-                                                    onClick={() =>
-                                                        openEditModal(contact)
-                                                    }
+                                                    onClick={() => openEditPage(contact)}
                                                 >
                                                     <i className="bi bi-pencil-square"></i>
                                                 </button>

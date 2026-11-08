@@ -29,7 +29,7 @@ function Sidebar() {
        const menuItems = [
     { name: "Overview", icon: "bi-grid-1x2", path: "/dashboard" },
     { name: "Categories", icon: "bi-tags", path: "/category" },
-    { name: "BroadCasts", icon: "bi-diagram-3", path: "/broadcasts" },
+    // { name: "BroadCasts", icon: "bi-diagram-3", path: "/broadcasts" },
     { name: "Contacts", icon: "bi-people", path: "/contacts" },
     { name: "Campaigns", icon: "bi-megaphone", path: "/campaign" },
     { name: "Templates", icon: "bi-file-earmark-text", path: "/templates" },

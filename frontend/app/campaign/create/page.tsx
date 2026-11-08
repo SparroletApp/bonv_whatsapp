@@ -769,7 +769,6 @@ export default function CampaignCreatePage() {
                 </aside>
             </div>
 
-            {/* CREATE TEMPLATE MODAL */}
             {showTemplateForm && (
                 <Modal
                     title="Create WhatsApp template"
