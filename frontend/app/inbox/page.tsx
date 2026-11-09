@@ -20,6 +20,19 @@ export default function InboxPage() {
 
     const bottom = useRef<HTMLDivElement>(null);
 
+    const formatMessageTime = (value: string) => {
+        if (!value) return "";
+
+        const utcValue = value.endsWith("Z") ? value : `${value}Z`;
+
+        return new Date(utcValue).toLocaleTimeString("en-IN", {
+            timeZone: "Asia/Kolkata",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+        });
+    };
+
     const loadConvs = () =>
         inboxService.conversations().then(setConvs).catch(() => { });
 
@@ -87,7 +100,7 @@ export default function InboxPage() {
 
         return `${hours}h ${minutes}m ${seconds}s`;
     };
-    
+
     const activeConv = convs.find((c) => c.phone === active?.phone) ?? active;
     const remainingMs = remainingFor(activeConv);
     const windowOpen = remainingMs > 0;
@@ -355,12 +368,7 @@ export default function InboxPage() {
 
                                         <div className="wa-message-meta">
                                             <span>
-                                                {new Date(
-                                                    m.createdAt
-                                                ).toLocaleTimeString([], {
-                                                    hour: "2-digit",
-                                                    minute: "2-digit",
-                                                })}
+                                                {formatMessageTime(m.createdAt)}
                                             </span>
 
                                             {m.direction === "OUTBOUND" && (
