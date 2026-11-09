@@ -16,9 +16,7 @@ export default function InboxPage() {
     const [text, setText] = useState("");
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
-
-    // ---- 24h WINDOW: clock that ticks every 30 seconds ----
-    const [now, setNow] = useState(Date.now());
+const [now, setNow] = useState<number>(0);
 
     const bottom = useRef<HTMLDivElement>(null);
 
