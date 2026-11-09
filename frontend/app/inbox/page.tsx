@@ -21,17 +21,17 @@ export default function InboxPage() {
     const bottom = useRef<HTMLDivElement>(null);
 
     const formatMessageTime = (value: string) => {
-    if (!value) return "";
-    const date = new Date(
-        value.endsWith("Z") ? value : `${value}Z`
-    );
-    return date.toLocaleTimeString("en-IN", {
-        timeZone: "Asia/Kolkata",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-    });
-};
+        if (!value) return "";
+        const date = new Date(
+            value.endsWith("Z") ? value : `${value}Z`
+        );
+        return date.toLocaleTimeString("en-IN", {
+            timeZone: "Asia/Kolkata",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+        });
+    };
 
     const loadConvs = () =>
         inboxService.conversations().then(setConvs).catch(() => { });
@@ -72,21 +72,24 @@ export default function InboxPage() {
         let expiry: number;
 
         if (typeof c.windowExpiresAt === "number") {
-            // Support Unix seconds and milliseconds
             expiry =
                 c.windowExpiresAt < 1000000000000
                     ? c.windowExpiresAt * 1000
                     : c.windowExpiresAt;
         } else {
-            expiry = new Date(c.windowExpiresAt).getTime();
+            const value = c.windowExpiresAt;
+            const utcValue =
+                /Z$|[+-]\d{2}:\d{2}$/.test(value)
+                    ? value
+                    : `${value}Z`;
+            expiry = new Date(utcValue).getTime();
         }
-
         if (!Number.isFinite(expiry)) {
             console.error("Invalid windowExpiresAt:", c.windowExpiresAt);
             return 0;
         }
 
-        return expiry - now;
+        return Math.max(0, expiry - now);
     };
 
     const formatRemaining = (ms: number) => {
