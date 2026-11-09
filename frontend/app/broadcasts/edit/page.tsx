@@ -42,7 +42,7 @@ function EditCategory({
         const trimmedName = categoryName.trim();
 
         if (!trimmedName) {
-            setError("Please enter a category name.");
+            setError("Please enter a broadcast name.");
             return;
         }
 
@@ -65,18 +65,18 @@ function EditCategory({
                 toast: true,
                 position: "top-end",
                 icon: "success",
-                title: "Category updated successfully!",
+                title: "Broadcast updated successfully!",
                 showConfirmButton: false,
                 timer: 2500,
                 timerProgressBar: true,
             });
 
         } catch (err: any) {
-            console.error("Category update error:", err);
+            console.error("Broadcast update error:", err);
 
             setError(
                 err?.response?.data?.message ||
-                "Failed to update category. Please try again."
+                "Failed to update broadcast. Please try again."
             );
 
         } finally {
@@ -111,8 +111,8 @@ function EditCategory({
                         </div>
 
                         <div>
-                            <h2>Edit Category</h2>
-                            <p>Update your contact category</p>
+                            <h2>Edit Broadcast</h2>
+                            <p>Update your contact broadcast</p>
                         </div>
 
                     </div>
@@ -132,7 +132,7 @@ function EditCategory({
                     <div className="category-modal-body">
 
                         <label htmlFor="editCategoryName">
-                            Category Name
+                           Broadcast Name
                             <span className="required-star">*</span>
                         </label>
 
@@ -163,7 +163,7 @@ function EditCategory({
                         )}
 
                         <p className="category-input-hint">
-                            Update the category name to organize your contacts.
+                            Update the broadcast name to organize your contacts.
                         </p>
 
                     </div>
@@ -191,7 +191,7 @@ function EditCategory({
                             ) : (
                                 <>
                                     <i className="bi bi-check-lg"></i>
-                                    Update Category
+                                    Update Broadcast
                                 </>
                             )}
                         </button>

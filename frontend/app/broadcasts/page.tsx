@@ -254,7 +254,6 @@ const router = useRouter();
                                                     <i className="bi bi-eye"></i>
                                                 </button>
 
-                                                {/* Edit Category */}
                                                 <button
                                                     type="button"
                                                     title="Edit category"
