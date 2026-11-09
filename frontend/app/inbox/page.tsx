@@ -1,7 +1,14 @@
-
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+
+import type { ChangeEvent } from "react";
+
 import { apiError } from "../utils/apiError";
 
 import inboxService, {
@@ -15,7 +22,99 @@ import templateService, {
 
 import "./inbox.css";
 
-function MediaBubble({ m }: { m: InboxMessage }) {
+/* ==========================================
+   HELPERS
+========================================== */
+
+function unwrapResponse<T>(response: any): T {
+    return response?.data !== undefined
+        ? response.data
+        : response;
+}
+
+function getInitials(name: string) {
+    return (
+        name
+            ?.split(" ")
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((word) => word[0])
+            .join("")
+            .toUpperCase() || "?"
+    );
+}
+
+function formatMessageTime(value: string) {
+    if (!value) return "";
+
+    const date = new Date(
+        /Z$|[+-]\d{2}:\d{2}$/.test(value)
+            ? value
+            : `${value}Z`
+    );
+
+    if (Number.isNaN(date.getTime())) return "";
+
+    return date.toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+    });
+}
+
+function formatRemaining(ms: number) {
+    if (ms <= 0) return "0m";
+
+    const totalSeconds = Math.floor(ms / 1000);
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${hours}h ${minutes}m ${seconds}s`;
+}
+
+function remainingFor(
+    conversation: Conversation | null | undefined,
+    now: number
+) {
+    if (!conversation?.windowExpiresAt || !now) return 0;
+
+    const raw = conversation.windowExpiresAt as unknown;
+
+    let expiry: number;
+
+    if (typeof raw === "number") {
+        expiry =
+            raw < 1000000000000
+                ? raw * 1000
+                : raw;
+    } else {
+        const value = String(raw);
+
+        const utcValue =
+            /Z$|[+-]\d{2}:\d{2}$/.test(value)
+                ? value
+                : `${value}Z`;
+
+        expiry = new Date(utcValue).getTime();
+    }
+
+    if (!Number.isFinite(expiry)) return 0;
+
+    return Math.max(0, expiry - now);
+}
+
+/* ==========================================
+   MEDIA BUBBLE
+========================================== */
+
+function MediaBubble({
+    m,
+}: {
+    m: InboxMessage;
+}) {
     const [url, setUrl] = useState("");
     const [failed, setFailed] = useState(false);
 
@@ -25,32 +124,69 @@ function MediaBubble({ m }: { m: InboxMessage }) {
         let objectUrl = "";
         let cancelled = false;
 
-        inboxService.media(m.mediaId)
-            .then((blob) => {
+        inboxService
+            .media(m.mediaId)
+            .then((response: any) => {
                 if (cancelled) return;
+
+                const blob = unwrapResponse<Blob>(response);
+
+                if (!(blob instanceof Blob)) {
+                    throw new Error("Invalid media response");
+                }
+
                 objectUrl = URL.createObjectURL(blob);
                 setUrl(objectUrl);
             })
-            .catch(() => setFailed(true));
+            .catch(() => {
+                if (!cancelled) {
+                    setFailed(true);
+                }
+            });
 
         return () => {
             cancelled = true;
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
+
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+            }
         };
     }, [m.mediaId]);
 
     if (failed) {
-        return <div className="wa-media-missing">Media unavailable</div>;
+        return (
+            <div className="wa-media-missing">
+                Media unavailable
+            </div>
+        );
     }
 
     if (!url) {
-        return <div className="wa-media-loading">Loading...</div>;
+        return (
+            <div className="wa-media-loading">
+                Loading…
+            </div>
+        );
     }
 
-    return m.messageType === "IMAGE"
-        ? <img src={url} alt="" className="wa-media-image" />
-        : <audio controls src={url} className="wa-media-audio" />;
+    return m.messageType === "IMAGE" ? (
+        <img
+            src={url}
+            alt="Message attachment"
+            className="wa-media-image"
+        />
+    ) : (
+        <audio
+            controls
+            src={url}
+            className="wa-media-audio"
+        />
+    );
 }
+
+/* ==========================================
+   MAIN INBOX PAGE
+========================================== */
 
 export default function InboxPage() {
     const [convs, setConvs] = useState<Conversation[]>([]);
@@ -68,77 +204,136 @@ export default function InboxPage() {
     const [recording, setRecording] = useState(false);
     const [recSecs, setRecSecs] = useState(0);
 
-    // TEMPLATE STATES
+    /* TEMPLATE STATES */
+
     const [showTemplateModal, setShowTemplateModal] = useState(false);
-    const [templates, setTemplates] = useState<TemplateResponse[]>([]);
-    const [selectedTemplateId, setSelectedTemplateId] = useState("");
-    const [templateParams, setTemplateParams] = useState<string[]>([]);
-    const [templateLoading, setTemplateLoading] = useState(false);
+
+    const [approvedTemplates, setApprovedTemplates] =
+        useState<TemplateResponse[]>([]);
+
+    const [selectedTemplateId, setSelectedTemplateId] =
+        useState<number | "">("");
+
+    const [templateParameters, setTemplateParameters] =
+        useState<string[]>([]);
+
+    const [loadingTemplates, setLoadingTemplates] = useState(false);
     const [sendingTemplate, setSendingTemplate] = useState(false);
     const [templateError, setTemplateError] = useState("");
-    const [templateSuccess, setTemplateSuccess] = useState("");
+
+    /* REFS */
 
     const fileInput = useRef<HTMLInputElement>(null);
+
     const recRef = useRef<MediaRecorder | null>(null);
+
     const chunksRef = useRef<Blob[]>([]);
+
     const cancelRef = useRef(false);
+
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
     const bottom = useRef<HTMLDivElement>(null);
 
-    const formatMessageTime = (value: string) => {
-        if (!value) return "";
+    const activePhoneRef = useRef<string | null>(null);
 
-        const date = new Date(
-            value.endsWith("Z") ? value : `${value}Z`
-        );
+    /* ==========================================
+       LOAD CONVERSATIONS
+    ========================================== */
 
-        return date.toLocaleTimeString("en-IN", {
-            timeZone: "Asia/Kolkata",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-        });
+    const loadConvs = async () => {
+        try {
+            const response = await inboxService.conversations();
+
+            const data = unwrapResponse<Conversation[]>(response);
+
+            if (Array.isArray(data)) {
+                setConvs(data);
+            }
+        } catch {
+            // Keep existing conversations if polling fails.
+        }
     };
 
-    const loadConvs = () =>
-        inboxService.conversations()
-            .then(setConvs)
-            .catch(() => { });
+    /* ==========================================
+       LOAD MESSAGES
+    ========================================== */
 
-    const loadMsgs = (phone: string) =>
-        inboxService.messages(phone)
-            .then(setMsgs)
-            .catch(() => { });
+    const loadMsgs = async (phone: string) => {
+        try {
+            const response = await inboxService.messages(phone);
+
+            const data = unwrapResponse<InboxMessage[]>(response);
+
+            if (
+                Array.isArray(data) &&
+                activePhoneRef.current === phone
+            ) {
+                setMsgs(data);
+            }
+        } catch {
+            // Keep existing messages if polling fails.
+        }
+    };
+
+    /* ==========================================
+       INITIAL LOAD AND POLLING
+    ========================================== */
 
     useEffect(() => {
         loadConvs();
 
-        const t = setInterval(() => {
+        const interval = setInterval(() => {
             loadConvs();
-
-            if (active) {
-                loadMsgs(active.phone);
-            }
         }, 5000);
 
-        return () => clearInterval(t);
+        return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        if (!active?.phone) return;
+
+        activePhoneRef.current = active.phone;
+
+        loadMsgs(active.phone);
+
+        const interval = setInterval(() => {
+            loadMsgs(active.phone);
+        }, 5000);
+
+        return () => {
+            clearInterval(interval);
+        };
     }, [active?.phone]);
+
+    /* ==========================================
+       CURRENT TIME
+    ========================================== */
 
     useEffect(() => {
         setNow(Date.now());
 
-        const t = setInterval(() => {
+        const interval = setInterval(() => {
             setNow(Date.now());
         }, 1000);
 
-        return () => clearInterval(t);
+        return () => clearInterval(interval);
     }, []);
 
+    /* ==========================================
+       AUTO SCROLL
+    ========================================== */
+
     useEffect(() => {
-        bottom.current?.scrollIntoView({ behavior: "smooth" });
+        bottom.current?.scrollIntoView({
+            behavior: "smooth",
+        });
     }, [msgs.length]);
 
-    // RELEASE IMAGE PREVIEW URL
+    /* ==========================================
+       PREVIEW CLEANUP
+    ========================================== */
+
     useEffect(() => {
         return () => {
             if (previewUrl) {
@@ -147,153 +342,248 @@ export default function InboxPage() {
         };
     }, [previewUrl]);
 
-    const remainingFor = (c?: Conversation | null) => {
-        if (!c?.windowExpiresAt || !now) return 0;
+    /* ==========================================
+       RECORDING CLEANUP
+    ========================================== */
 
-        let expiry: number;
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
 
-        if (typeof c.windowExpiresAt === "number") {
-            expiry = c.windowExpiresAt < 1000000000000
-                ? c.windowExpiresAt * 1000
-                : c.windowExpiresAt;
-        } else {
-            const value = c.windowExpiresAt;
+            const recorder = recRef.current;
 
-            const utcValue =
-                /Z$|[+-]\d{2}:\d{2}$/.test(value)
-                    ? value
-                    : `${value}Z`;
+            if (recorder?.state === "recording") {
+                recorder.stop();
+            }
+        };
+    }, []);
 
-            expiry = new Date(utcValue).getTime();
-        }
-
-        if (!Number.isFinite(expiry)) {
-            return 0;
-        }
-
-        return Math.max(0, expiry - now);
-    };
-
-    const formatRemaining = (ms: number) => {
-        if (ms <= 0) return "0m";
-
-        const totalSeconds = Math.floor(ms / 1000);
-
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-
-        return `${hours}h ${minutes}m ${seconds}s`;
-    };
+    /* ==========================================
+       ACTIVE CONVERSATION
+    ========================================== */
 
     const activeConv =
-        convs.find((c) => c.phone === active?.phone) ?? active;
+        convs.find(
+            (c) => c.phone === active?.phone
+        ) ?? active;
 
-    const remainingMs = remainingFor(activeConv);
+    const remainingMs = remainingFor(activeConv, now);
+
     const windowOpen = remainingMs > 0;
 
-    // ------------------------------------
-    // TEMPLATE LOGIC
-    // ------------------------------------
+    /* ==========================================
+       OPEN CONVERSATION
+    ========================================== */
 
-    const selectedTemplate = templates.find(
-        (t) => String(t.id) === selectedTemplateId
+    const open = async (c: Conversation) => {
+        activePhoneRef.current = c.phone;
+
+        setActive(c);
+        setError("");
+        setMsgs([]);
+        setText("");
+
+        await loadMsgs(c.phone);
+
+        if (c.unreadCount > 0) {
+            try {
+                await inboxService.markRead(c.phone);
+                await loadConvs();
+            } catch {
+                // Ignore mark-read refresh errors.
+            }
+        }
+    };
+
+    /* ==========================================
+       TEMPLATE SELECTION
+    ========================================== */
+
+    const selectedTemplate = useMemo(
+        () =>
+            approvedTemplates.find(
+                (t) => t.id === Number(selectedTemplateId)
+            ) ?? null,
+        [approvedTemplates, selectedTemplateId]
     );
 
-    // Extract actual body variables.
-    const variableIndexes = useMemo(() => {
-        if (!selectedTemplate) return [];
+    /* ==========================================
+       BODY VARIABLES
+    ========================================== */
+
+    const bodyVariableNumbers = useMemo(() => {
+        if (!selectedTemplate?.body) return [];
 
         const matches = [
-            ...selectedTemplate.body.matchAll(/\{\{\s*(\d+)\s*\}\}/g),
+            ...selectedTemplate.body.matchAll(
+                /\{\{\s*(\d+)\s*\}\}/g
+            ),
         ];
 
-        const indexes = [...new Set(
-            matches.map((match) => Number(match[1]))
-        )].sort((a, b) => a - b);
-
-        return indexes;
+        return Array.from(
+            new Set(
+                matches.map((match) => Number(match[1]))
+            )
+        ).sort((a, b) => a - b);
     }, [selectedTemplate]);
+
+    /* ==========================================
+       TEMPLATE VALIDATION
+    ========================================== */
+
+    const unsupportedTemplateReason = useMemo(() => {
+        if (!selectedTemplate) return "";
+
+        const headerType =
+            selectedTemplate.headerType || "NONE";
+
+        if (
+            ["IMAGE", "VIDEO", "DOCUMENT", "LOCATION"].includes(
+                headerType
+            )
+        ) {
+            return `This template uses a ${headerType} header. Media/location header sending needs additional header-component support in the backend.`;
+        }
+
+        if (
+            headerType === "TEXT" &&
+            /\{\{\s*\d+\s*\}\}/.test(
+                selectedTemplate.headerText || ""
+            )
+        ) {
+            return "This template has header variables. Header parameter support must be added before sending it.";
+        }
+
+        return "";
+    }, [selectedTemplate]);
+
+    /* ==========================================
+       OPEN TEMPLATE MODAL
+    ========================================== */
 
     const openTemplateModal = async () => {
         if (!active) return;
 
         setTemplateError("");
-        setTemplateSuccess("");
-        setSelectedTemplateId("");
-        setTemplateParams([]);
+        setError("");
+
         setShowTemplateModal(true);
 
-        setTemplateLoading(true);
+        setSelectedTemplateId("");
+        setTemplateParameters([]);
 
         try {
-            const result = await templateService.list("APPROVED");
+            setLoadingTemplates(true);
 
-            const approved = (result || []).filter(
-                (t) => t.status?.toUpperCase() === "APPROVED"
+            const response = await templateService.list("APPROVED");
+
+            const data = unwrapResponse<TemplateResponse[]>(response);
+
+            const templates = Array.isArray(data) ? data : [];
+
+            setApprovedTemplates(
+                templates.filter(
+                    (template) =>
+                        template.status?.toUpperCase() === "APPROVED"
+                )
             );
-
-            setTemplates(approved);
         } catch (e) {
             setTemplateError(apiError(e));
         } finally {
-            setTemplateLoading(false);
+            setLoadingTemplates(false);
         }
     };
 
-    const selectTemplate = (id: string) => {
+    /* ==========================================
+       SELECT TEMPLATE
+    ========================================== */
+
+    const selectTemplate = (value: string) => {
+        const id = value ? Number(value) : "";
+
         setSelectedTemplateId(id);
         setTemplateError("");
-        setTemplateSuccess("");
 
-        const template = templates.find(
-            (t) => String(t.id) === id
+        if (id === "") {
+            setTemplateParameters([]);
+            return;
+        }
+
+        const template = approvedTemplates.find(
+            (t) => t.id === Number(id)
         );
 
         if (!template) {
-            setTemplateParams([]);
+            setTemplateParameters([]);
             return;
         }
 
         const matches = [
-            ...template.body.matchAll(/\{\{\s*(\d+)\s*\}\}/g),
+            ...template.body.matchAll(
+                /\{\{\s*(\d+)\s*\}\}/g
+            ),
         ];
 
-        const indexes = [...new Set(
-            matches.map((match) => Number(match[1]))
-        )].sort((a, b) => a - b);
+        const numbers = Array.from(
+            new Set(
+                matches.map((match) => Number(match[1]))
+            )
+        ).sort((a, b) => a - b);
 
-        setTemplateParams(indexes.map(() => ""));
+        setTemplateParameters(
+            numbers.map(() => "")
+        );
     };
 
-    const updateTemplateParam = (
+    /* ==========================================
+       UPDATE TEMPLATE VARIABLES
+    ========================================== */
+
+    const updateTemplateParameter = (
         index: number,
         value: string
     ) => {
-        setTemplateParams((prev) =>
-            prev.map((item, i) =>
+        setTemplateParameters((previous) =>
+            previous.map((item, i) =>
                 i === index ? value : item
             )
         );
     };
 
+    /* ==========================================
+       TEMPLATE PREVIEW
+    ========================================== */
+
     const templatePreview = useMemo(() => {
         if (!selectedTemplate) return "";
 
-        let body = selectedTemplate.body;
+        let preview = selectedTemplate.body || "";
 
-        variableIndexes.forEach((variable, index) => {
-            const value = templateParams[index]?.trim()
-                || `{{${variable}}}`;
+        bodyVariableNumbers.forEach((number, index) => {
+            const value =
+                templateParameters[index] || `{{${number}}}`;
 
-            body = body.replace(
-                new RegExp(`\\{\\{\\s*${variable}\\s*\\}\\}`, "g"),
+            preview = preview.replace(
+                new RegExp(
+                    `\\{\\{\\s*${number}\\s*\\}\\}`,
+                    "g"
+                ),
                 value
             );
         });
 
-        return body;
-    }, [selectedTemplate, variableIndexes, templateParams]);
+        return preview;
+    }, [
+        selectedTemplate,
+        bodyVariableNumbers,
+        templateParameters,
+    ]);
+
+    /* ==========================================
+       SEND TEMPLATE
+    ========================================== */
 
     const sendTemplate = async () => {
         if (!active || !selectedTemplate) {
@@ -301,36 +591,42 @@ export default function InboxPage() {
             return;
         }
 
-        if (templateParams.some((p) => !p.trim())) {
-            setTemplateError("Please fill in all template variables.");
+        if (unsupportedTemplateReason) {
+            setTemplateError(unsupportedTemplateReason);
             return;
         }
 
-        setSendingTemplate(true);
+        if (
+            templateParameters.some(
+                (parameter) => !parameter.trim()
+            )
+        ) {
+            setTemplateError(
+                "Please fill in all template variables."
+            );
+            return;
+        }
+
         setTemplateError("");
-        setTemplateSuccess("");
+        setSendingTemplate(true);
+
+        const phone = active.phone;
 
         try {
-            await inboxService.sendTemplate(
-                active.phone,
-                {
-                    templateId: selectedTemplate.id,
-                    templateName: selectedTemplate.name,
-                    language: selectedTemplate.language,
-                    parameters: templateParams.map((p) => p.trim()),
-                }
-            );
+            await inboxService.sendTemplate(phone, {
+                templateId: selectedTemplate.id,
+                templateName: selectedTemplate.name,
+                language: selectedTemplate.language,
+                parameters: templateParameters,
+            });
 
-            setTemplateSuccess("Template message sent successfully!");
+            setShowTemplateModal(false);
 
-            await loadMsgs(active.phone);
+            setSelectedTemplateId("");
+            setTemplateParameters([]);
+
+            await loadMsgs(phone);
             await loadConvs();
-
-            setTimeout(() => {
-                setShowTemplateModal(false);
-                setTemplateSuccess("");
-            }, 1000);
-
         } catch (e) {
             setTemplateError(apiError(e));
         } finally {
@@ -338,26 +634,22 @@ export default function InboxPage() {
         }
     };
 
-    // ------------------------------------
-    // OPEN CONVERSATION
-    // ------------------------------------
+    /* ==========================================
+       CLEAR IMAGE
+    ========================================== */
 
-    const open = async (c: Conversation) => {
-        setActive(c);
-        setError("");
-        setMsgs([]);
+    const clearImage = () => {
+        setPendingImage(null);
+        setPreviewUrl("");
 
-        await loadMsgs(c.phone);
-
-        if (c.unreadCount > 0) {
-            await inboxService.markRead(c.phone);
-            loadConvs();
+        if (fileInput.current) {
+            fileInput.current.value = "";
         }
     };
 
-    // ------------------------------------
-    // NORMAL MESSAGE SENDING
-    // ------------------------------------
+    /* ==========================================
+       NORMAL MESSAGE SENDING
+    ========================================== */
 
     const send = async () => {
         if (!active || !windowOpen) return;
@@ -387,46 +679,45 @@ export default function InboxPage() {
 
             await loadMsgs(active.phone);
             await loadConvs();
-
         } catch (e) {
             setError(apiError(e));
         }
     };
 
-    // ------------------------------------
-    // IMAGE
-    // ------------------------------------
+    /* ==========================================
+       PICK IMAGE
+    ========================================== */
 
-    const pickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const f = e.target.files?.[0];
+    const pickImage = (
+        e: ChangeEvent<HTMLInputElement>
+    ) => {
+        const file = e.target.files?.[0];
 
         e.target.value = "";
 
-        if (!f) return;
+        if (!file) return;
 
-        if (!["image/jpeg", "image/png"].includes(f.type)) {
+        if (
+            !["image/jpeg", "image/png"].includes(file.type)
+        ) {
             setError("Only JPEG or PNG images are supported.");
             return;
         }
 
-        if (f.size > 5 * 1024 * 1024) {
+        if (file.size > 5 * 1024 * 1024) {
             setError("Image must be 5 MB or smaller.");
             return;
         }
 
         setError("");
-        setPendingImage(f);
-        setPreviewUrl(URL.createObjectURL(f));
+
+        setPendingImage(file);
+        setPreviewUrl(URL.createObjectURL(file));
     };
 
-    const clearImage = () => {
-        setPendingImage(null);
-        setPreviewUrl("");
-    };
-
-    // ------------------------------------
-    // AUDIO RECORDING
-    // ------------------------------------
+    /* ==========================================
+       AUDIO RECORDING
+    ========================================== */
 
     const startRecording = async () => {
         if (!active || !windowOpen) return;
@@ -445,13 +736,14 @@ export default function InboxPage() {
                 );
             }
 
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    channelCount: 1,
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                },
-            });
+            const stream =
+                await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                    },
+                });
 
             const supportedTypes = [
                 "audio/ogg;codecs=opus",
@@ -460,13 +752,15 @@ export default function InboxPage() {
                 "audio/webm",
             ];
 
-            const selectedType = supportedTypes.find((type) =>
-                MediaRecorder.isTypeSupported(type)
+            const selectedType = supportedTypes.find(
+                (type) => MediaRecorder.isTypeSupported(type)
             );
 
             const recorder = new MediaRecorder(
                 stream,
-                selectedType ? { mimeType: selectedType } : undefined
+                selectedType
+                    ? { mimeType: selectedType }
+                    : undefined
             );
 
             chunksRef.current = [];
@@ -479,7 +773,9 @@ export default function InboxPage() {
             };
 
             recorder.onstop = async () => {
-                stream.getTracks().forEach((track) => track.stop());
+                stream.getTracks().forEach(
+                    (track) => track.stop()
+                );
 
                 if (timerRef.current) {
                     clearInterval(timerRef.current);
@@ -522,14 +818,16 @@ export default function InboxPage() {
 
                     await loadMsgs(phone);
                     await loadConvs();
-
                 } catch (e) {
                     setError(apiError(e));
                 }
             };
 
             recorder.onerror = () => {
-                stream.getTracks().forEach((track) => track.stop());
+                stream.getTracks().forEach(
+                    (track) => track.stop()
+                );
+
                 setRecording(false);
                 setError("Audio recording failed.");
             };
@@ -537,12 +835,12 @@ export default function InboxPage() {
             recorder.start(500);
 
             recRef.current = recorder;
+
             setRecording(true);
 
             timerRef.current = setInterval(() => {
-                setRecSecs((s) => s + 1);
+                setRecSecs((seconds) => seconds + 1);
             }, 1000);
-
         } catch (e) {
             setError(
                 e instanceof Error
@@ -560,31 +858,31 @@ export default function InboxPage() {
         }
     };
 
-    const fmtSecs = (s: number) =>
-        `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    const fmtSecs = (seconds: number) =>
+        `${Math.floor(seconds / 60)}:${String(
+            seconds % 60
+        ).padStart(2, "0")}`;
 
-    // ------------------------------------
-    // MESSAGE STATUS
-    // ------------------------------------
+    /* ==========================================
+       MESSAGE STATUS
+    ========================================== */
 
-    const tick = (m: InboxMessage) =>
-        m.direction === "OUTBOUND"
-            ? ({
-                SENT: "✓",
-                DELIVERED: "✓✓",
-                READ: "✓✓",
-                FAILED: "⚠",
-            } as Record<string, string>)[m.status] || "…"
-            : "";
+    const tick = (m: InboxMessage) => {
+        if (m.direction !== "OUTBOUND") return "";
 
-    const getInitials = (name: string) =>
-        name
-            ?.split(" ")
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((word) => word[0])
-            .join("")
-            .toUpperCase() || "?";
+        const statusMap: Record<string, string> = {
+            SENT: "✓",
+            DELIVERED: "✓✓",
+            READ: "✓✓",
+            FAILED: "⚠",
+        };
+
+        return statusMap[m.status] || "…";
+    };
+
+    /* ==========================================
+       FILTER CONVERSATIONS
+    ========================================== */
 
     const filteredConvs = convs.filter(
         (c) =>
@@ -592,18 +890,22 @@ export default function InboxPage() {
             c.phone?.toLowerCase().includes(search.toLowerCase())
     );
 
-    // ------------------------------------
-    // UI
-    // ------------------------------------
+    /* ==========================================
+       JSX
+    ========================================== */
 
     return (
         <div className="wa-app">
 
-            {/* SIDEBAR */}
+            {/* ======================================
+                SIDEBAR
+            ====================================== */}
+
             <aside className="wa-sidebar">
 
                 <div className="wa-sidebar-top">
                     <div className="wa-profile">
+
                         <div className="wa-profile-avatar">
                             <i className="bi bi-person-fill"></i>
                         </div>
@@ -618,18 +920,24 @@ export default function InboxPage() {
                                 <i className="bi bi-chat-square-plus"></i>
                             </button>
                         </div>
+
                     </div>
                 </div>
 
+                {/* SEARCH */}
+
                 <div className="wa-search-area">
                     <div className="wa-search-box">
+
                         <i className="bi bi-search"></i>
 
                         <input
                             type="text"
                             placeholder="Search or start a new chat"
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) =>
+                                setSearch(e.target.value)
+                            }
                         />
 
                         {search && (
@@ -640,8 +948,11 @@ export default function InboxPage() {
                                 <i className="bi bi-x-lg"></i>
                             </button>
                         )}
+
                     </div>
                 </div>
+
+                {/* FILTERS */}
 
                 <div className="wa-filter-area">
                     <span className="wa-filter-active">All</span>
@@ -649,10 +960,12 @@ export default function InboxPage() {
                     <span>Favorites</span>
                 </div>
 
+                {/* CONVERSATIONS */}
+
                 <div className="wa-conversation-list">
 
                     {filteredConvs.map((c) => {
-                        const rem = remainingFor(c);
+                        const rem = remainingFor(c, now);
 
                         return (
                             <div
@@ -664,6 +977,7 @@ export default function InboxPage() {
                                 }`}
                                 onClick={() => open(c)}
                             >
+
                                 <div className="wa-contact-avatar">
                                     {getInitials(c.name)}
                                 </div>
@@ -671,10 +985,13 @@ export default function InboxPage() {
                                 <div className="wa-conversation-content">
 
                                     <div className="wa-conversation-heading">
-                                        <strong>{c.name || c.phone}</strong>
+                                        <strong>
+                                            {c.name || c.phone}
+                                        </strong>
                                     </div>
 
                                     <div className="wa-conversation-preview">
+
                                         <span>
                                             {c.lastDirection === "OUTBOUND" && (
                                                 <i className="bi bi-check2-all wa-preview-tick"></i>
@@ -688,9 +1005,11 @@ export default function InboxPage() {
                                                 {c.unreadCount}
                                             </span>
                                         )}
+
                                     </div>
 
                                     <div className="wa-conversation-phone">
+
                                         +{c.phone}
 
                                         <span
@@ -706,6 +1025,7 @@ export default function InboxPage() {
                                                 ? `${formatRemaining(rem)} left`
                                                 : "Window closed"}
                                         </span>
+
                                     </div>
 
                                 </div>
@@ -715,6 +1035,7 @@ export default function InboxPage() {
 
                     {filteredConvs.length === 0 && (
                         <div className="wa-no-conversations">
+
                             <div className="wa-no-chat-icon">
                                 <i className="bi bi-chat-dots"></i>
                             </div>
@@ -726,6 +1047,7 @@ export default function InboxPage() {
                                     ? "Try searching with another name or number."
                                     : "Your conversations will appear here."}
                             </span>
+
                         </div>
                     )}
 
@@ -738,13 +1060,17 @@ export default function InboxPage() {
 
             </aside>
 
-            {/* CHAT PANEL */}
+            {/* ======================================
+                CHAT PANEL
+            ====================================== */}
+
             <section className="wa-chat-panel">
 
                 {active ? (
                     <>
 
                         {/* CHAT HEADER */}
+
                         <header className="wa-chat-header">
 
                             <div className="wa-chat-contact">
@@ -754,38 +1080,38 @@ export default function InboxPage() {
                                 </div>
 
                                 <div className="wa-chat-contact-info">
-                                    <strong>{active.name || active.phone}</strong>
+
+                                    <strong>
+                                        {active.name || active.phone}
+                                    </strong>
 
                                     <span>
                                         +{active.phone}
                                         {" · "}
-
                                         {windowOpen
                                             ? `${formatRemaining(remainingMs)} left to reply`
                                             : "reply window closed"}
                                     </span>
+
                                 </div>
 
                             </div>
 
+                            {/* NO TEMPLATE BUTTON IN HEADER */}
+
                             <div className="wa-chat-header-actions">
 
-                                {/* NEW TEMPLATE BUTTON */}
                                 <button
                                     type="button"
-                                    title="Send WhatsApp Template"
-                                    className="wa-template-header-btn"
-                                    onClick={openTemplateModal}
+                                    title="Search messages"
                                 >
-                                    <i className="bi bi-file-earmark-text"></i>
-                                    <span>Send Template</span>
-                                </button>
-
-                                <button type="button" title="Search messages">
                                     <i className="bi bi-search"></i>
                                 </button>
 
-                                <button type="button" title="More options">
+                                <button
+                                    type="button"
+                                    title="More options"
+                                >
                                     <i className="bi bi-three-dots-vertical"></i>
                                 </button>
 
@@ -794,6 +1120,7 @@ export default function InboxPage() {
                         </header>
 
                         {/* CHAT BODY */}
+
                         <div className="wa-chat-messages">
 
                             <div className="wa-encryption-notice">
@@ -802,6 +1129,7 @@ export default function InboxPage() {
                             </div>
 
                             {msgs.map((m) => (
+
                                 <div
                                     key={m.id}
                                     className={`wa-message-row ${
@@ -810,11 +1138,17 @@ export default function InboxPage() {
                                             : "wa-message-incoming"
                                     }`}
                                 >
+
                                     <div className="wa-message-bubble">
 
-                                        {m.mediaId && <MediaBubble m={m} />}
+                                        {m.mediaId && (
+                                            <MediaBubble m={m} />
+                                        )}
 
-                                        {!(m.mediaId && /^\[.*\]$/.test(m.text)) && (
+                                        {!(
+                                            m.mediaId &&
+                                            /^\[.*\]$/.test(m.text || "")
+                                        ) && (
                                             <div className="wa-message-text">
                                                 {m.text}
                                             </div>
@@ -828,6 +1162,7 @@ export default function InboxPage() {
                                         )}
 
                                         <div className="wa-message-meta">
+
                                             <span>
                                                 {formatMessageTime(m.createdAt)}
                                             </span>
@@ -845,10 +1180,13 @@ export default function InboxPage() {
                                                     {tick(m)}
                                                 </span>
                                             )}
+
                                         </div>
 
                                     </div>
+
                                 </div>
+
                             ))}
 
                             <div ref={bottom} />
@@ -856,6 +1194,7 @@ export default function InboxPage() {
                         </div>
 
                         {/* ERROR */}
+
                         {error && (
                             <div className="wa-chat-error">
                                 <i className="bi bi-exclamation-circle-fill"></i>
@@ -863,7 +1202,8 @@ export default function InboxPage() {
                             </div>
                         )}
 
-                        {/* WINDOW STATUS */}
+                        {/* 24 HOUR WINDOW */}
+
                         {windowOpen ? (
                             <div className="wa-window-info">
                                 <i className="bi bi-clock"></i>
@@ -872,30 +1212,39 @@ export default function InboxPage() {
                         ) : (
                             <div className="wa-window-closed">
                                 <i className="bi bi-clock-history"></i>
-                                24-hour window closed. You can reply only after the
-                                customer messages you again, or send an approved
-                                template.
+                                24-hour window closed. You can reply only after
+                                the customer messages you again, or send an
+                                approved template.
                             </div>
                         )}
 
                         {/* IMAGE PREVIEW */}
+
                         {pendingImage && (
                             <div className="wa-image-preview">
-                                <img src={previewUrl} alt="" />
+
+                                <img
+                                    src={previewUrl}
+                                    alt="Selected attachment"
+                                />
 
                                 <span>{pendingImage.name}</span>
 
                                 <button
                                     type="button"
                                     onClick={clearImage}
-                                    title="Remove"
+                                    title="Remove image"
                                 >
                                     <i className="bi bi-x-lg"></i>
                                 </button>
+
                             </div>
                         )}
 
-                        {/* MESSAGE COMPOSER */}
+                        {/* ==================================
+                            MESSAGE COMPOSER
+                        ================================== */}
+
                         <footer className="wa-composer">
 
                             <input
@@ -908,10 +1257,11 @@ export default function InboxPage() {
 
                             {recording ? (
                                 <>
+
                                     <button
                                         type="button"
                                         className="wa-composer-icon"
-                                        title="Cancel"
+                                        title="Cancel recording"
                                         onClick={() => stopRecording(true)}
                                     >
                                         <i className="bi bi-trash"></i>
@@ -929,9 +1279,13 @@ export default function InboxPage() {
                                     >
                                         <i className="bi bi-send-fill"></i>
                                     </button>
+
                                 </>
                             ) : (
                                 <>
+
+                                    {/* COMPOSER ACTIONS */}
+
                                     <div className="wa-composer-actions">
 
                                         <button
@@ -947,21 +1301,45 @@ export default function InboxPage() {
                                             title="Attach image"
                                             className="wa-composer-icon"
                                             disabled={!windowOpen}
-                                            onClick={() => fileInput.current?.click()}
+                                            onClick={() =>
+                                                fileInput.current?.click()
+                                            }
                                         >
                                             <i className="bi bi-plus-lg"></i>
                                         </button>
 
+                                        {/* SMALL LIGHT TEMPLATE BUTTON */}
+
+                                        <button
+                                            type="button"
+                                            className="wa-template-bottom-button"
+                                            title="Send approved WhatsApp template"
+                                            onClick={openTemplateModal}
+                                        >
+                                            <i className="bi bi-file-earmark-text"></i>
+
+                                            <span>Template</span>
+
+                                            <i className="bi bi-chevron-down wa-template-bottom-arrow"></i>
+                                        </button>
+
                                     </div>
 
+                                    {/* MESSAGE INPUT */}
+
                                     <div className="wa-input-wrapper">
+
                                         <input
                                             value={text}
                                             disabled={!windowOpen}
-                                            onChange={(e) => setText(e.target.value)}
-                                            onKeyDown={(e) =>
-                                                e.key === "Enter" && send()
+                                            onChange={(e) =>
+                                                setText(e.target.value)
                                             }
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    send();
+                                                }
+                                            }}
                                             placeholder={
                                                 windowOpen
                                                     ? pendingImage
@@ -970,7 +1348,10 @@ export default function InboxPage() {
                                                     : "Window closed - template only"
                                             }
                                         />
+
                                     </div>
+
+                                    {/* SEND / MICROPHONE */}
 
                                     {text.trim() || pendingImage ? (
                                         <button
@@ -991,6 +1372,7 @@ export default function InboxPage() {
                                             <i className="bi bi-mic-fill"></i>
                                         </button>
                                     )}
+
                                 </>
                             )}
 
@@ -999,7 +1381,10 @@ export default function InboxPage() {
                     </>
                 ) : (
 
+                    /* WELCOME SCREEN */
+
                     <div className="wa-welcome-screen">
+
                         <div className="wa-welcome-content">
 
                             <div className="wa-welcome-icon">
@@ -1026,251 +1411,299 @@ export default function InboxPage() {
                             <i className="bi bi-laptop"></i>
                             Stay connected with your customers
                         </div>
+
                     </div>
 
                 )}
 
             </section>
 
-            {/* ==================================
+            {/* ======================================
                 SEND TEMPLATE MODAL
-            ================================== */}
+            ====================================== */}
 
             {showTemplateModal && active && (
+
                 <div
                     className="wa-template-overlay"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget && !sendingTemplate) {
+                    onClick={() => {
+                        if (!sendingTemplate) {
                             setShowTemplateModal(false);
                         }
                     }}
                 >
-                    <div className="wa-template-modal">
+
+                    <div
+                        className="wa-template-modal"
+                        onClick={(e) => e.stopPropagation()}
+                    >
 
                         {/* MODAL HEADER */}
+
                         <div className="wa-template-modal-header">
 
                             <div>
-                                <h5>
-                                    <i className="bi bi-whatsapp"></i>
-                                    Send Template Message
-                                </h5>
+
+                                <h3>
+                                    <i className="bi bi-file-earmark-text"></i>
+                                    Send WhatsApp Template
+                                </h3>
 
                                 <p>
-                                    Send an approved WhatsApp template to your customer.
+                                    Send an approved template to this customer.
                                 </p>
+
                             </div>
 
                             <button
                                 type="button"
                                 disabled={sendingTemplate}
-                                onClick={() => setShowTemplateModal(false)}
+                                onClick={() =>
+                                    setShowTemplateModal(false)
+                                }
                             >
                                 <i className="bi bi-x-lg"></i>
                             </button>
 
                         </div>
 
+                        {/* MODAL BODY */}
+
                         <div className="wa-template-modal-body">
 
-                            {/* CUSTOMER */}
+                            {/* RECIPIENT */}
+
                             <div className="wa-template-recipient">
 
-                                <div className="wa-contact-avatar">
-                                    {getInitials(active.name)}
-                                </div>
+                                <i className="bi bi-person-circle"></i>
 
                                 <div>
-                                    <strong>{active.name || active.phone}</strong>
-                                    <span>+{active.phone}</span>
-                                </div>
 
-                                <span className="wa-template-approved-badge">
-                                    <i className="bi bi-check-circle-fill"></i>
-                                    Individual
-                                </span>
+                                    <strong>
+                                        {active.name || "Customer"}
+                                    </strong>
+
+                                    <span>
+                                        +{active.phone}
+                                    </span>
+
+                                </div>
 
                             </div>
 
                             {/* TEMPLATE SELECT */}
+
                             <div className="wa-template-field">
 
                                 <label>
                                     Select approved template
                                 </label>
 
-                                {templateLoading ? (
-                                    <div className="wa-template-loading">
-                                        <span className="spinner-border spinner-border-sm"></span>
-                                        Loading approved templates...
-                                    </div>
-                                ) : (
-                                    <select
-                                        value={selectedTemplateId}
-                                        onChange={(e) =>
-                                            selectTemplate(e.target.value)
-                                        }
-                                    >
-                                        <option value="">
-                                            -- Select a template --
+                                <select
+                                    value={selectedTemplateId}
+                                    onChange={(e) =>
+                                        selectTemplate(e.target.value)
+                                    }
+                                    disabled={
+                                        loadingTemplates ||
+                                        sendingTemplate
+                                    }
+                                >
+
+                                    <option value="">
+                                        {loadingTemplates
+                                            ? "Loading templates..."
+                                            : "Choose a template"}
+                                    </option>
+
+                                    {approvedTemplates.map((template) => (
+
+                                        <option
+                                            key={template.id}
+                                            value={template.id}
+                                        >
+                                            {template.name} ({template.language})
                                         </option>
 
-                                        {templates.map((t) => (
-                                            <option
-                                                key={t.id}
-                                                value={t.id}
-                                            >
-                                                {t.name} ({t.language})
-                                            </option>
-                                        ))}
-                                    </select>
-                                )}
+                                    ))}
 
-                                {!templateLoading && templates.length === 0 && (
-                                    <small>
-                                        No approved templates found. Sync your templates
-                                        from Meta first.
-                                    </small>
-                                )}
+                                </select>
+
+                                {!loadingTemplates &&
+                                    approvedTemplates.length === 0 && (
+
+                                        <small className="wa-template-help">
+                                            No approved templates found.
+                                            Create and approve a template first.
+                                        </small>
+
+                                    )}
 
                             </div>
 
-                            {/* TEMPLATE DETAILS */}
+                            {/* SELECTED TEMPLATE DETAILS */}
+
                             {selectedTemplate && (
+
                                 <>
+
                                     <div className="wa-template-details">
 
-                                        <div className="wa-template-detail-heading">
+                                        <div>
+                                            <span>Template</span>
                                             <strong>
                                                 {selectedTemplate.name}
                                             </strong>
-
-                                            <span>
-                                                {selectedTemplate.category}
-                                            </span>
                                         </div>
 
-                                        <small>
-                                            Language: {selectedTemplate.language}
-                                        </small>
+                                        <div>
+                                            <span>Language</span>
+                                            <strong>
+                                                {selectedTemplate.language}
+                                            </strong>
+                                        </div>
+
+                                        <div>
+                                            <span>Category</span>
+                                            <strong>
+                                                {selectedTemplate.category}
+                                            </strong>
+                                        </div>
 
                                     </div>
 
-                                    {/* HEADER */}
+                                    {/* HEADER PREVIEW */}
+
                                     {selectedTemplate.headerType === "TEXT" &&
                                         selectedTemplate.headerText && (
-                                            <div className="wa-template-header-preview">
+
+                                            <div className="wa-template-preview">
+
+                                                <span>HEADER</span>
+
                                                 <strong>
                                                     {selectedTemplate.headerText}
                                                 </strong>
+
                                             </div>
+
                                         )}
 
-                                    {/* BODY VARIABLES */}
-                                    {variableIndexes.length > 0 && (
-                                        <div className="wa-template-variables">
+                                    {/* BODY PREVIEW */}
 
-                                            <strong>
-                                                Personalize your message
-                                            </strong>
+                                    <div className="wa-template-preview">
 
-                                            <p>
-                                                Enter the values for this customer's
-                                                template variables.
-                                            </p>
+                                        <span>MESSAGE PREVIEW</span>
 
-                                            {variableIndexes.map((variable, index) => (
-                                                <div
-                                                    className="wa-template-field"
-                                                    key={variable}
-                                                >
-                                                    <label>
-                                                        Variable {"{{"}
-                                                        {variable}
-                                                        {"}}"}
-                                                    </label>
+                                        <p>{templatePreview}</p>
 
-                                                    <input
-                                                        type="text"
-                                                        value={templateParams[index] || ""}
-                                                        onChange={(e) =>
-                                                            updateTemplateParam(
-                                                                index,
-                                                                e.target.value
-                                                            )
-                                                        }
-                                                        placeholder={`Enter value for {{${variable}}}`}
-                                                    />
-                                                </div>
-                                            ))}
-
-                                        </div>
-                                    )}
-
-                                    {/* PREVIEW */}
-                                    <div className="wa-template-preview-section">
-
-                                        <strong>
-                                            <i className="bi bi-eye"></i>
-                                            Message Preview
-                                        </strong>
-
-                                        <div className="wa-template-preview-bubble">
-
-                                            {selectedTemplate.headerType === "TEXT" &&
-                                                selectedTemplate.headerText && (
-                                                    <strong className="wa-template-preview-heading">
-                                                        {selectedTemplate.headerText}
-                                                    </strong>
-                                                )}
-
-                                            <div className="wa-template-preview-body">
-                                                {templatePreview}
-                                            </div>
-
-                                            {selectedTemplate.footerText && (
-                                                <div className="wa-template-preview-footer">
-                                                    {selectedTemplate.footerText}
-                                                </div>
-                                            )}
-
-                                            <div className="wa-template-preview-time">
-                                                WhatsApp template
-                                            </div>
-
-                                        </div>
+                                        {selectedTemplate.footerText && (
+                                            <small>
+                                                {selectedTemplate.footerText}
+                                            </small>
+                                        )}
 
                                     </div>
 
+                                    {/* VARIABLES */}
+
+                                    {bodyVariableNumbers.length > 0 && (
+
+                                        <div className="wa-template-variables">
+
+                                            <h4>
+                                                <i className="bi bi-braces"></i>
+                                                Template variables
+                                            </h4>
+
+                                            <p>
+                                                Enter the values to replace
+                                                each variable in the message.
+                                            </p>
+
+                                            {bodyVariableNumbers.map(
+                                                (number, index) => (
+
+                                                    <div
+                                                        className="wa-template-field"
+                                                        key={number}
+                                                    >
+
+                                                        <label>
+                                                            Variable {"{{"}
+                                                            {number}
+                                                            {"}}"}
+                                                        </label>
+
+                                                        <input
+                                                            type="text"
+                                                            value={
+                                                                templateParameters[index] || ""
+                                                            }
+                                                            onChange={(e) =>
+                                                                updateTemplateParameter(
+                                                                    index,
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                            placeholder={`Enter value for {{${number}}}`}
+                                                            disabled={sendingTemplate}
+                                                        />
+
+                                                    </div>
+
+                                                )
+                                            )}
+
+                                        </div>
+
+                                    )}
+
+                                    {/* UNSUPPORTED HEADER WARNING */}
+
+                                    {unsupportedTemplateReason && (
+
+                                        <div className="wa-template-warning">
+
+                                            <i className="bi bi-exclamation-triangle"></i>
+
+                                            {unsupportedTemplateReason}
+
+                                        </div>
+
+                                    )}
+
                                 </>
+
                             )}
 
-                            {/* ERRORS */}
+                            {/* TEMPLATE ERROR */}
+
                             {templateError && (
-                                <div className="wa-template-error">
-                                    <i className="bi bi-exclamation-circle-fill"></i>
-                                    {templateError}
-                                </div>
-                            )}
 
-                            {/* SUCCESS */}
-                            {templateSuccess && (
-                                <div className="wa-template-success">
-                                    <i className="bi bi-check-circle-fill"></i>
-                                    {templateSuccess}
+                                <div className="wa-template-error">
+
+                                    <i className="bi bi-exclamation-circle"></i>
+
+                                    {templateError}
+
                                 </div>
+
                             )}
 
                         </div>
 
-                        {/* FOOTER */}
+                        {/* MODAL FOOTER */}
+
                         <div className="wa-template-modal-footer">
 
                             <button
                                 type="button"
                                 className="wa-template-cancel"
                                 disabled={sendingTemplate}
-                                onClick={() => setShowTemplateModal(false)}
+                                onClick={() =>
+                                    setShowTemplateModal(false)
+                                }
                             >
                                 Cancel
                             </button>
@@ -1279,16 +1712,20 @@ export default function InboxPage() {
                                 type="button"
                                 className="wa-template-send"
                                 disabled={
-                                    !selectedTemplate ||
                                     sendingTemplate ||
-                                    templateLoading ||
-                                    templateParams.some((p) => !p.trim())
+                                    loadingTemplates ||
+                                    !selectedTemplate ||
+                                    !!unsupportedTemplateReason ||
+                                    templateParameters.some(
+                                        (parameter) => !parameter.trim()
+                                    )
                                 }
                                 onClick={sendTemplate}
                             >
+
                                 {sendingTemplate ? (
                                     <>
-                                        <span className="spinner-border spinner-border-sm"></span>
+                                        <span className="wa-template-spinner"></span>
                                         Sending...
                                     </>
                                 ) : (
@@ -1297,12 +1734,15 @@ export default function InboxPage() {
                                         Send Template
                                     </>
                                 )}
+
                             </button>
 
                         </div>
 
                     </div>
+
                 </div>
+
             )}
 
         </div>

@@ -51,4 +51,14 @@ public class InboxController {
                 .header("Cache-Control", "private, max-age=3600")
                 .body(f.data());
     }
+
+    @PostMapping("/conversations/{phone}/send-template")
+    public ResponseEntity<?> sendTemplate(
+            @PathVariable String phone,
+            @RequestBody InboxTemplateRequestDto request
+    ) {
+        return ResponseEntity.ok(
+                inboxService.sendTemplate(phone, request)
+        );
+    }
 }

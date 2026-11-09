@@ -1081,6 +1081,80 @@
     }
 }
 
+
+.wa-template-bottom-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    height: 30px;
+    padding: 0 10px;
+
+    border: 1px solid #e0ebe8;
+    border-radius: 6px;
+
+    background: #f5f9f8;
+    color: #54736c;
+
+    font-size: 11px;
+    font-weight: 500;
+
+    white-space: nowrap;
+    cursor: pointer;
+
+    transition: all 0.2s ease;
+}
+
+.wa-template-bottom-button > i {
+    font-size: 12px;
+}
+
+.wa-template-bottom-button .wa-template-bottom-arrow {
+    font-size: 9px;
+    margin-left: 2px;
+}
+
+.wa-template-bottom-button:hover {
+    background: #e8f3f0;
+    border-color: #c7ded7;
+    color: #064e45;
+}
+
+.wa-template-bottom-button:active {
+    transform: scale(0.97);
+}
+
+.wa-template-bottom-button:focus-visible {
+    outline: 2px solid #064e45;
+    outline-offset: 2px;
+}
+
+/* COMPOSER ACTION ALIGNMENT */
+
+.wa-composer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* MOBILE */
+
+@media (max-width: 576px) {
+    .wa-template-bottom-button {
+        height: 28px;
+        padding: 0 7px;
+        gap: 4px;
+        font-size: 10px;
+    }
+
+    .wa-composer-actions {
+        gap: 5px;
+    }
+}
+
+
 .wa-welcome-icon {
     width: 105px;
     height: 105px;

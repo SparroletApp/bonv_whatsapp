@@ -52,9 +52,6 @@ public class TemplateController {
         );
     }
 
-    // ==========================================
-    // UPLOAD TEMPLATE SAMPLE MEDIA
-    // ==========================================
 
     @PostMapping(
             value = "/media-sample",
