@@ -8,8 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.nio.charset.StandardCharsets;
+import com.example.whatsapp.entity.TemplateEntity;
+import com.example.whatsapp.repository.TemplateRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -28,7 +29,8 @@ public class InboxService {
     private static final long WINDOW_HOURS = 24;
     private static final long MAX_IMAGE = 5L * 1024 * 1024;
     private static final long MAX_AUDIO = 16L * 1024 * 1024;
-
+    private final TemplateRepository templateRepo;
+    private final ObjectMapper mapper;
     private static final ZoneId INDIA_ZONE =
             ZoneId.of("Asia/Kolkata");
 
@@ -268,6 +270,140 @@ public class InboxService {
         }
     }
 
+    @Transactional
+    public InboxMessageDto sendTemplate(
+            String phone,
+            InboxTemplateRequestDto request
+    ) {
+        if (phone == null || phone.isBlank()) {
+            throw new IllegalArgumentException("Recipient phone number is required.");
+        }
+
+        if (request == null || request.getTemplateId() == null) {
+            throw new IllegalArgumentException("Please select a template.");
+        }
+
+        TemplateEntity template = templateRepo.findById(request.getTemplateId())
+                .orElseThrow(() -> new IllegalArgumentException("Template not found."));
+
+        if (!"APPROVED".equalsIgnoreCase(template.getStatus())) {
+            throw new IllegalStateException("Only approved WhatsApp templates can be sent.");
+        }
+
+        String templateName = template.getName();
+        String language = template.getLanguage();
+        String headerType = template.getHeaderType() == null
+                ? "NONE"
+                : template.getHeaderType().trim().toUpperCase();
+
+        if (request.getTemplateName() != null
+                && !request.getTemplateName().isBlank()
+                && !templateName.equals(request.getTemplateName())) {
+            throw new IllegalArgumentException("The selected template does not match the request.");
+        }
+
+        if (request.getLanguage() != null
+                && !request.getLanguage().isBlank()
+                && !language.equals(request.getLanguage())) {
+            throw new IllegalArgumentException("The selected template language does not match.");
+        }
+
+        List<String> parameters = request.getParameters() == null
+                ? List.of()
+                : request.getParameters();
+
+        int expectedParameters = template.getVariableCount();
+
+        if (parameters.size() != expectedParameters) {
+            throw new IllegalArgumentException(
+                    "This template requires " + expectedParameters
+                            + " body parameter(s), but received " + parameters.size() + "."
+            );
+        }
+
+        for (String parameter : parameters) {
+            if (parameter == null || parameter.isBlank()) {
+                throw new IllegalArgumentException(
+                        "Template parameter values cannot be empty."
+                );
+            }
+        }
+
+        String headerMediaUrl = template.getHeaderMediaUrl();
+
+        if (List.of("IMAGE", "VIDEO", "DOCUMENT").contains(headerType)
+                && (headerMediaUrl == null || headerMediaUrl.isBlank())) {
+            throw new IllegalStateException(
+                    "The template has a " + headerType
+                            + " header, but its saved media URL is missing. "
+                            + "Please upload the template media again."
+            );
+        }
+
+        if ("LOCATION".equals(headerType)) {
+            throw new IllegalStateException(
+                    "LOCATION template headers are not supported by the current Inbox sender."
+            );
+        }
+
+        // Find the contact name from the most recent inbound message.
+        // Sending an approved template does not require an open 24-hour window.
+        String recipientName = repo
+                .findFirstByRecipientPhoneAndDirectionOrderByCreatedAtDesc(
+                        phone, "INBOUND"
+                )
+                .map(WhatsappEntity::getRecipientName)
+                .orElse(phone);
+
+        WhatsappEntity out = new WhatsappEntity();
+
+        out.setRecipientName(recipientName);
+        out.setRecipientPhone(phone);
+        out.setDirection("OUTBOUND");
+        out.setMessageType("TEMPLATE");
+        out.setTemplateName(templateName);
+        out.setLanguageCode(language);
+        out.setTemplateParams(mapper.valueToTree(parameters).toString());
+        out.setHeaderType(headerType);
+        out.setHeaderMediaUrl(headerMediaUrl);
+        out.setMimeType(
+                "IMAGE".equals(headerType) ? "image/jpeg"
+                        : "VIDEO".equals(headerType) ? "video/mp4"
+                        : "DOCUMENT".equals(headerType) ? "application/pdf"
+                        : null
+        );
+        out.setMessage(
+                parameters.isEmpty()
+                        ? "[template] " + templateName
+                        : "[template] " + templateName + " - "
+                        + String.join(", ", parameters)
+        );
+        out.setStatus("PROCESSING");
+
+        try {
+            String messageId = client.sendTemplate(
+                    phone,
+                    templateName,
+                    language,
+                    parameters,
+                    headerType,
+                    headerMediaUrl
+            );
+
+            out.setWhatsappMessageId(messageId);
+            out.setStatus("SENT");
+            out.setSentAt(currentTime());
+
+        } catch (Exception ex) {
+            out.setStatus("FAILED");
+            out.setErrorMessage(ex.getMessage());
+
+            // Keep the failed message visible in the Inbox.
+        }
+
+        return toDto(repo.save(out));
+    }
+
     private String preview(WhatsappEntity m) {
 
         if (m.getMessage() != null && !m.getMessage().isBlank()) {
@@ -291,7 +427,9 @@ public class InboxService {
                 m.getErrorMessage(),
                 m.getCreatedAt(),
                 m.getMediaId(),
-                m.getMimeType()
+                m.getMimeType(),
+                m.getHeaderType(),
+                m.getHeaderMediaUrl()
         );
     }
 }

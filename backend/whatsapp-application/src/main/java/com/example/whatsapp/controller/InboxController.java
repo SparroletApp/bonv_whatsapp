@@ -57,8 +57,6 @@ public class InboxController {
             @PathVariable String phone,
             @RequestBody InboxTemplateRequestDto request
     ) {
-        return ResponseEntity.ok(
-                inboxService.sendTemplate(phone, request)
-        );
+        return ResponseEntity.ok(service.sendTemplate(phone, request));
     }
 }
