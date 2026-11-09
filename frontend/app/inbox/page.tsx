@@ -56,21 +56,38 @@ export default function InboxPage() {
     const remainingFor = (c?: Conversation | null) => {
         if (!c?.windowExpiresAt || !now) return 0;
 
-        const expiry = new Date(c.windowExpiresAt).getTime();
+        let expiry: number;
 
-        if (isNaN(expiry)) return 0;
+        if (typeof c.windowExpiresAt === "number") {
+            // Support Unix seconds and milliseconds
+            expiry =
+                c.windowExpiresAt < 1000000000000
+                    ? c.windowExpiresAt * 1000
+                    : c.windowExpiresAt;
+        } else {
+            expiry = new Date(c.windowExpiresAt).getTime();
+        }
 
-        return Math.max(0, expiry - now);
+        if (!Number.isFinite(expiry)) {
+            console.error("Invalid windowExpiresAt:", c.windowExpiresAt);
+            return 0;
+        }
+
+        return expiry - now;
     };
 
     const formatRemaining = (ms: number) => {
-        const totalMinutes = Math.max(0, Math.floor(ms / 60000));
-        const h = Math.floor(totalMinutes / 60);
-        const m = totalMinutes % 60;
-        return `${h}h ${m}m`;
-    };
+        if (ms <= 0) return "0m";
 
-    // always use the latest polled data, not the stale `active` copy
+        const totalSeconds = Math.floor(ms / 1000);
+
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        return `${hours}h ${minutes}m ${seconds}s`;
+    };
+    
     const activeConv = convs.find((c) => c.phone === active?.phone) ?? active;
     const remainingMs = remainingFor(activeConv);
     const windowOpen = remainingMs > 0;
