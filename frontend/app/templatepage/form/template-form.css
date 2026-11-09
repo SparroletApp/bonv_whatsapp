@@ -544,7 +544,11 @@
 
 .tf-preview-sticky {
     position: sticky;
+    position: -webkit-sticky;
     top: 25px;
+    align-self: start;
+    height: fit-content;
+    z-index: 5;
 }
 
 .tf-preview-heading {
