@@ -3,7 +3,7 @@ spring:
     name: fsm
 
   profiles:
-    active: local
+    active: prod
 
   liquibase:
     enabled: true
