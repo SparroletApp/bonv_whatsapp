@@ -1,3 +1,4 @@
+
 package com.example.whatsapp.service;
 
 import com.example.whatsapp.client.WhatsappClient;
@@ -20,11 +21,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.URI;
-import java.time.LocalDateTime;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -64,9 +67,23 @@ public class TemplateService {
                     "LOCATION"
             );
 
+    private static final Set<String> MEDIA_TYPES =
+            Set.of("IMAGE", "VIDEO", "DOCUMENT");
+
     private final TemplateRepository repo;
     private final WhatsappClient client;
     private final ObjectMapper mapper;
+    private final MediaStorageService mediaStorage;
+
+    /*
+     * Meta upload handle -> public URL.
+     *
+     * The handle is returned by Meta during sample upload.
+     * The public URL is used later when the campaign sends
+     * messages using this template.
+     */
+    private final Map<String, String> sampleUrls =
+            new ConcurrentHashMap<>();
 
     // ==========================================
     // UPLOAD TEMPLATE SAMPLE MEDIA
@@ -91,7 +108,7 @@ public class TemplateService {
 
         String headerType = type.trim().toUpperCase();
 
-        if (!Set.of("IMAGE", "VIDEO", "DOCUMENT").contains(headerType)) {
+        if (!MEDIA_TYPES.contains(headerType)) {
             throw new IllegalArgumentException(
                     "Supported upload types are IMAGE, VIDEO and DOCUMENT"
             );
@@ -152,14 +169,20 @@ public class TemplateService {
         String filename = file.getOriginalFilename();
 
         if (filename == null || filename.isBlank()) {
+
             filename = switch (headerType) {
                 case "IMAGE" -> "template-sample.jpg";
                 case "VIDEO" -> "template-sample.mp4";
                 case "DOCUMENT" -> "template-sample.pdf";
                 default -> "template-sample";
             };
+
         } else {
-            filename = filename.replaceAll("[^a-zA-Z0-9._-]", "_");
+
+            filename = filename.replaceAll(
+                    "[^a-zA-Z0-9._-]",
+                    "_"
+            );
         }
 
         log.info(
@@ -169,13 +192,64 @@ public class TemplateService {
                 file.getSize()
         );
 
+        // Upload sample media to Meta
         String handle = client.uploadTemplateSample(
                 file.getBytes(),
                 mimeType,
                 filename
         );
 
-        log.info("Template sample uploaded successfully");
+        if (handle == null || handle.isBlank()) {
+            throw new IllegalStateException(
+                    "Meta did not return a valid media handle"
+            );
+        }
+
+        /*
+         * Save a public copy of the same file.
+         *
+         * This URL is stored in the template database and
+         * reused by campaigns when sending messages.
+         *
+         * Do not silently ignore a storage failure.
+         */
+        String publicUrl;
+
+        try {
+
+            publicUrl = mediaStorage.save(file);
+
+            if (publicUrl == null || publicUrl.isBlank()) {
+                throw new IllegalStateException(
+                        "Media storage did not return a public URL"
+                );
+            }
+
+            validatePublicMediaUrl(publicUrl);
+
+            if (sampleUrls.size() > 500) {
+                sampleUrls.clear();
+            }
+
+            sampleUrls.put(handle, publicUrl);
+
+        } catch (Exception ex) {
+
+            log.error(
+                    "Could not save public template media",
+                    ex
+            );
+
+            throw new IllegalStateException(
+                    "Media was uploaded to Meta, but could not be saved "
+                            + "for campaign reuse: " + ex.getMessage(),
+                    ex
+            );
+        }
+
+        log.info(
+                "Template sample uploaded successfully. Public URL saved."
+        );
 
         return handle;
     }
@@ -273,7 +347,12 @@ public class TemplateService {
             );
         }
 
-        // Validate header fields
+        // ==========================================
+        // VALIDATE HEADER
+        // ==========================================
+
+        String mediaHandle = null;
+        String savedMediaUrl = null;
 
         if (headerType.equals("TEXT")) {
 
@@ -290,8 +369,7 @@ public class TemplateService {
                 );
             }
 
-        } else if (Set.of("IMAGE", "VIDEO", "DOCUMENT")
-                .contains(headerType)) {
+        } else if (MEDIA_TYPES.contains(headerType)) {
 
             if (r.headerMediaHandle() == null
                     || r.headerMediaHandle().isBlank()) {
@@ -301,11 +379,35 @@ public class TemplateService {
                 );
             }
 
+            mediaHandle = r.headerMediaHandle().trim();
+
+            /*
+             * Find the public URL associated with the Meta handle.
+             * This is the media URL that campaigns will reuse.
+             */
+            savedMediaUrl = sampleUrls.get(mediaHandle);
+
+            if (savedMediaUrl == null || savedMediaUrl.isBlank()) {
+                throw new IllegalArgumentException(
+                        "The uploaded media could not be found. "
+                                + "Please upload the template media again."
+                );
+            }
+
+            validatePublicMediaUrl(savedMediaUrl);
+
             headerText = null;
 
         } else {
 
             headerText = null;
+
+            if (r.headerMediaHandle() != null
+                    && !r.headerMediaHandle().isBlank()) {
+                throw new IllegalArgumentException(
+                        "Media handle is not required for this header type"
+                );
+            }
         }
 
         if (headerText != null && headerText.contains("{{")) {
@@ -431,7 +533,7 @@ public class TemplateService {
                         );
                     }
 
-                } catch (java.net.URISyntaxException ex) {
+                } catch (URISyntaxException ex) {
 
                     throw new IllegalArgumentException(
                             "Please enter a valid button URL"
@@ -482,8 +584,7 @@ public class TemplateService {
             header.put("format", "TEXT");
             header.put("text", headerText);
 
-        } else if (Set.of("IMAGE", "VIDEO", "DOCUMENT")
-                .contains(headerType)) {
+        } else if (MEDIA_TYPES.contains(headerType)) {
 
             ObjectNode header = components.addObject();
 
@@ -494,7 +595,7 @@ public class TemplateService {
 
             ArrayNode handles = example.putArray("header_handle");
 
-            handles.add(r.headerMediaHandle().trim());
+            handles.add(mediaHandle);
 
         } else if (headerType.equals("LOCATION")) {
 
@@ -600,14 +701,16 @@ public class TemplateService {
         entity.setHeaderType(headerType);
         entity.setHeaderText(headerText);
 
+        boolean mediaHeader = MEDIA_TYPES.contains(headerType);
+
         entity.setHeaderMediaHandle(
-                Set.of("IMAGE", "VIDEO", "DOCUMENT")
-                        .contains(headerType)
-                        ? r.headerMediaHandle().trim()
-                        : null
+                mediaHeader ? mediaHandle : null
         );
 
-        entity.setHeaderMediaUrl(null);
+        // Save the public media URL for future campaigns
+        entity.setHeaderMediaUrl(
+                mediaHeader ? savedMediaUrl : null
+        );
 
         entity.setBody(body);
         entity.setFooterText(footerText);
@@ -635,10 +738,16 @@ public class TemplateService {
             TemplateEntity saved = repo.saveAndFlush(entity);
 
             log.info(
-                    "Template saved. Local ID: {}, Meta ID: {}",
+                    "Template saved. Local ID: {}, Meta ID: {}, Media URL saved: {}",
                     saved.getId(),
-                    saved.getMetaTemplateId()
+                    saved.getMetaTemplateId(),
+                    saved.getHeaderMediaUrl() != null
             );
+
+            // Remove the temporary mapping after successful persistence
+            if (mediaHeader) {
+                sampleUrls.remove(mediaHandle);
+            }
 
             return map(saved);
 
@@ -652,6 +761,40 @@ public class TemplateService {
             throw new RuntimeException(
                     "Template was submitted to Meta, but database saving failed: "
                             + ex.getMessage(),
+                    ex
+            );
+        }
+    }
+
+    // ==========================================
+    // VALIDATE PUBLIC MEDIA URL
+    // ==========================================
+
+    private void validatePublicMediaUrl(String mediaUrl) {
+
+        if (mediaUrl == null || mediaUrl.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Template media URL is missing"
+            );
+        }
+
+        try {
+
+            URI uri = URI.create(mediaUrl);
+
+            if (!"https".equalsIgnoreCase(uri.getScheme())
+                    || uri.getHost() == null
+                    || uri.getHost().isBlank()) {
+
+                throw new IllegalArgumentException(
+                        "Template media URL must be a valid public HTTPS URL"
+                );
+            }
+
+        } catch (IllegalArgumentException ex) {
+
+            throw new IllegalArgumentException(
+                    "Invalid template media URL. Please check your media storage configuration.",
                     ex
             );
         }
@@ -720,8 +863,15 @@ public class TemplateService {
                         template.path("rejected_reason").asText(null)
                 );
 
-                // Reset existing component fields
+                /*
+                 * Preserve local media information.
+                 * Meta's template listing does not return the original
+                 * uploaded sample media URL.
+                 */
+                String keepHandle = entity.getHeaderMediaHandle();
+                String keepUrl = entity.getHeaderMediaUrl();
 
+                // Reset existing component fields
                 entity.setHeaderType("NONE");
                 entity.setHeaderText(null);
                 entity.setHeaderMediaHandle(null);
@@ -759,10 +909,12 @@ public class TemplateService {
                                 entity.setHeaderText(null);
                             }
 
-                            // Meta's template listing does not necessarily
-                            // return the original upload handle.
-                            entity.setHeaderMediaHandle(null);
-                            entity.setHeaderMediaUrl(null);
+                            // Restore saved media for media headers
+                            if (MEDIA_TYPES.contains(format)) {
+
+                                entity.setHeaderMediaHandle(keepHandle);
+                                entity.setHeaderMediaUrl(keepUrl);
+                            }
                         }
 
                         case "FOOTER" -> entity.setFooterText(
@@ -985,35 +1137,20 @@ public class TemplateService {
     private TemplateResponse map(TemplateEntity entity) {
 
         return new TemplateResponse(
-
                 entity.getId(),
-
                 entity.getName(),
-
                 entity.getLanguage(),
-
                 entity.getCategory(),
-
                 entity.getHeaderText(),
-
                 entity.getBody(),
-
                 entity.getFooterText(),
-
                 entity.getButtonsJson(),
-
                 entity.getVariableCount(),
-
                 entity.getStatus(),
-
                 entity.getRejectionReason(),
-
                 entity.getCreatedAt(),
-
                 entity.getHeaderType(),
-
                 entity.getHeaderMediaHandle(),
-
                 entity.getHeaderMediaUrl()
         );
     }

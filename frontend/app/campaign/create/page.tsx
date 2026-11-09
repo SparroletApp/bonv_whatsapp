@@ -1,3 +1,4 @@
+
 "use client";
 
 import campaignService from "@/app/apiservice/campaignservice";
@@ -18,7 +19,6 @@ import { useEffect, useMemo, useState } from "react";
 
 import "./create-campaign.css";
 
-
 const CAMPAIGNS_PAGE = "/campaign";
 
 type Kind = "NAME" | "PHONE" | "EMAIL" | "TEXT";
@@ -36,53 +36,17 @@ const SAMPLE: Record<Exclude<Kind, "TEXT">, string> = {
 
 const MEDIA_HEADERS = ["IMAGE", "VIDEO", "DOCUMENT"];
 
-const MEDIA_RULES: Record<
-    string,
-    { accept: string; mimes: string[]; maxMb: number; label: string }
-> = {
-    IMAGE: {
-        accept: "image/jpeg,image/png",
-        mimes: ["image/jpeg", "image/png"],
-        maxMb: 5,
-        label: "JPEG or PNG image",
-    },
-    VIDEO: {
-        accept: "video/mp4",
-        mimes: ["video/mp4"],
-        maxMb: 16,
-        label: "MP4 video",
-    },
-    DOCUMENT: {
-        accept: "application/pdf",
-        mimes: ["application/pdf"],
-        maxMb: 100,
-        label: "PDF document",
-    },
-};
-
 export default function CampaignCreatePage() {
     const nav = useRouter();
 
     const [name, setName] = useState("");
     const [categories, setCategories] = useState<CategorySummary[]>([]);
     const [selected, setSelected] = useState<number[]>([]);
+
     const [templates, setTemplates] = useState<TemplateResponse[]>([]);
     const [templateId, setTemplateId] = useState<number | "">("");
-    const [mapping, setMapping] = useState<VarMap[]>([]);
-    // Holds the uploaded WhatsApp media ID (sent to the backend as headerMediaUrl)
-    const [headerMediaUrl, setHeaderMediaUrl] = useState("");
-    const [mediaName, setMediaName] = useState("");
-    const [mediaPreview, setMediaPreview] = useState("");
-    const [uploading, setUploading] = useState(false);
 
-    const clearMedia = () => {
-        setHeaderMediaUrl("");
-        setMediaName("");
-        setMediaPreview((old) => {
-            if (old) URL.revokeObjectURL(old);
-            return "";
-        });
-    };
+    const [mapping, setMapping] = useState<VarMap[]>([]);
 
     const [showTemplateForm, setShowTemplateForm] = useState(false);
     const [launching, setLaunching] = useState(false);
@@ -91,63 +55,42 @@ export default function CampaignCreatePage() {
     const [error, setError] = useState("");
     const [info, setInfo] = useState("");
 
+    // Only approved templates can be selected.
     const approvedTemplates = useMemo(
-        () => templates.filter((t) => t.status?.toUpperCase() === "APPROVED"),
+        () =>
+            templates.filter(
+                (t) => t.status?.toUpperCase() === "APPROVED"
+            ),
         [templates]
     );
 
-    const template = approvedTemplates.find((t) => t.id === templateId);
+    const template = approvedTemplates.find(
+        (t) => t.id === templateId
+    );
 
     const headerType = template?.headerType?.toUpperCase() ?? "";
+
     const needsMedia = MEDIA_HEADERS.includes(headerType);
-    const mediaRule = MEDIA_RULES[headerType];
 
-    const handleMediaPick = async (file: File | undefined) => {
-        if (!file || !mediaRule) return;
+    // Get the media URL already saved against the selected template.
+    const savedMediaUrl = template?.headerMediaUrl?.trim() ?? "";
 
-        setError("");
+    const mediaReady =
+        !!template && (!needsMedia || !!savedMediaUrl);
 
-        if (!mediaRule.mimes.includes(file.type)) {
-            setError(`Please select a valid ${mediaRule.label}.`);
-            return;
-        }
+    const variablesReady =
+        !!template &&
+        !mapping.some(
+            (m) => m.kind === "TEXT" && !m.text.trim()
+        );
 
-        if (file.size > mediaRule.maxMb * 1024 * 1024) {
-            setError(`File is too large. Maximum size is ${mediaRule.maxMb} MB.`);
-            return;
-        }
-
-        setUploading(true);
-
-        try {
-            const res: any = await campaignService.uploadMedia(file);
-                      const publicUrl: string | undefined =
-                res?.data?.url ?? res?.url;
-
-            if (!publicUrl) {
-                throw new Error("Upload did not return a public URL");
-            }
-
-            clearMedia();
-            setHeaderMediaUrl(publicUrl);
-            setMediaName(file.name);
-
-            if (file.type.startsWith("image/")) {
-                setMediaPreview(URL.createObjectURL(file));
-            }
-        } catch (e) {
-            clearMedia();
-            setError("Media upload failed: " + apiError(e));
-        } finally {
-            setUploading(false);
-        }
-    };
-
+    // Load templates from backend.
     const loadTemplates = async () => {
         const data = await templateService.list();
         setTemplates(data);
     };
 
+    // Synchronize templates with Meta.
     const refreshFromMeta = async (silent = false) => {
         setSyncing(true);
 
@@ -160,16 +103,19 @@ export default function CampaignCreatePage() {
                 setError("");
             }
         } catch (e) {
-            await loadTemplates().catch(() => { });
+            await loadTemplates().catch(() => {});
 
             if (!silent) {
-                setError("Could not refresh templates: " + apiError(e));
+                setError(
+                    "Could not refresh templates: " + apiError(e)
+                );
             }
         } finally {
             setSyncing(false);
         }
     };
 
+    // Initial data loading.
     useEffect(() => {
         categoryInsightService
             .list()
@@ -177,25 +123,35 @@ export default function CampaignCreatePage() {
             .catch((e) => setError(apiError(e)));
 
         refreshFromMeta(true);
+
+        // Initial loading only.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Clear selected template if it is no longer approved.
     useEffect(() => {
         if (
             templateId !== "" &&
-            !approvedTemplates.some((t) => t.id === templateId)
+            !approvedTemplates.some(
+                (t) => t.id === templateId
+            )
         ) {
             setTemplateId("");
             setMapping([]);
-            clearMedia();
         }
     }, [approvedTemplates, templateId]);
 
+    // Calculate selected contact count.
     const totalContacts = useMemo(() => {
         return categories
             .filter((c) => selected.includes(c.id))
-            .reduce((sum, c) => sum + c.contactCount, 0);
+            .reduce(
+                (sum, c) => sum + c.contactCount,
+                0
+            );
     }, [categories, selected]);
 
+    // Select or deselect a category.
     const toggleCategory = (id: number) => {
         setSelected((current) =>
             current.includes(id)
@@ -204,6 +160,7 @@ export default function CampaignCreatePage() {
         );
     };
 
+    // Select all categories.
     const selectAllCategories = () => {
         setSelected((current) =>
             current.length === categories.length
@@ -212,15 +169,19 @@ export default function CampaignCreatePage() {
         );
     };
 
+    // Select a template and initialize its variable mapping.
     const pickTemplate = (id: number | "") => {
         setTemplateId(id);
-        clearMedia();
 
-        const selectedTemplate = approvedTemplates.find((t) => t.id === id);
+        const selectedTemplate = approvedTemplates.find(
+            (t) => t.id === id
+        );
 
         setMapping(
             Array.from(
-                { length: selectedTemplate?.variableCount ?? 0 },
+                {
+                    length: selectedTemplate?.variableCount ?? 0,
+                },
                 (_, i) => ({
                     kind: i === 0 ? "NAME" : "TEXT",
                     text: "",
@@ -229,26 +190,28 @@ export default function CampaignCreatePage() {
         );
     };
 
-    const updateMap = (index: number, patch: Partial<VarMap>) => {
+    // Update variable mapping.
+    const updateMap = (
+        index: number,
+        patch: Partial<VarMap>
+    ) => {
         setMapping((current) =>
             current.map((item, i) =>
-                i === index ? { ...item, ...patch } : item
+                i === index
+                    ? { ...item, ...patch }
+                    : item
             )
         );
     };
 
+    // Preview variable values.
     const previewValues = mapping.map((item) =>
-        item.kind === "TEXT" ? item.text : SAMPLE[item.kind]
+        item.kind === "TEXT"
+            ? item.text
+            : SAMPLE[item.kind]
     );
 
-    const mediaUploaded = headerMediaUrl.trim() !== "";
-
-    const variablesReady =
-        !!template &&
-        !mapping.some((m) => m.kind === "TEXT" && !m.text.trim());
-
-    const mediaReady = !!template && (!needsMedia || mediaUploaded);
-
+    // Launch campaign.
     const launch = async () => {
         setError("");
         setInfo("");
@@ -259,7 +222,9 @@ export default function CampaignCreatePage() {
         }
 
         if (selected.length === 0) {
-            setError("Please select at least one contact category.");
+            setError(
+                "Please select at least one contact category."
+            );
             return;
         }
 
@@ -268,32 +233,41 @@ export default function CampaignCreatePage() {
             return;
         }
 
-        if (mapping.some((m) => m.kind === "TEXT" && !m.text.trim())) {
-            setError("Please fill in all custom variable values.");
+        if (
+            mapping.some(
+                (m) =>
+                    m.kind === "TEXT" &&
+                    !m.text.trim()
+            )
+        ) {
+            setError(
+                "Please fill in all custom variable values."
+            );
             return;
         }
 
-        if (uploading) {
-            setError("Please wait for the media upload to finish.");
-            return;
-        }
-
-        if (needsMedia && !mediaUploaded) {
-            setError(`Please select a ${mediaRule?.label ?? "media file"} for the header.`);
+        // Validate previously saved template media.
+        if (needsMedia && !savedMediaUrl) {
+            setError(
+                `The selected ${headerType.toLowerCase()} template has no saved media. Please recreate the template with its media.`
+            );
             return;
         }
 
         setLaunching(true);
 
         try {
+            // Media URL is NOT sent from frontend.
+            // Backend must retrieve it from TemplateEntity.
             await campaignService.create({
                 name: name.trim(),
                 templateId: template.id,
                 categoryIds: selected,
                 variableMapping: mapping.map((m) =>
-                    m.kind === "TEXT" ? `TEXT:${m.text}` : m.kind
+                    m.kind === "TEXT"
+                        ? `TEXT:${m.text}`
+                        : m.kind
                 ),
-                headerMediaUrl: needsMedia ? headerMediaUrl.trim() : undefined,
             });
 
             nav.push(CAMPAIGNS_PAGE);
@@ -304,7 +278,8 @@ export default function CampaignCreatePage() {
     };
 
     const allSelected =
-        categories.length > 0 && selected.length === categories.length;
+        categories.length > 0 &&
+        selected.length === categories.length;
 
     return (
         <div className="cc-page">
@@ -312,6 +287,7 @@ export default function CampaignCreatePage() {
             {/* HERO */}
             <div className="cc-hero">
                 <div className="cc-hero-content">
+
                     <div className="cc-breadcrumb">
                         <span>Campaigns</span>
                         <i className="bi bi-chevron-right" />
@@ -341,6 +317,7 @@ export default function CampaignCreatePage() {
                     </div>
 
                     <div className="cc-progress">
+
                         <div className="cc-progress-item active">
                             <span>01</span>
                             <div>
@@ -351,7 +328,11 @@ export default function CampaignCreatePage() {
 
                         <div className="cc-progress-line" />
 
-                        <div className={`cc-progress-item ${selected.length ? "active" : ""}`}>
+                        <div
+                            className={`cc-progress-item ${
+                                selected.length ? "active" : ""
+                            }`}
+                        >
                             <span>02</span>
                             <div>
                                 <strong>Audience</strong>
@@ -361,13 +342,18 @@ export default function CampaignCreatePage() {
 
                         <div className="cc-progress-line" />
 
-                        <div className={`cc-progress-item ${template ? "active" : ""}`}>
+                        <div
+                            className={`cc-progress-item ${
+                                template ? "active" : ""
+                            }`}
+                        >
                             <span>03</span>
                             <div>
                                 <strong>Message</strong>
                                 <small>Choose your template</small>
                             </div>
                         </div>
+
                     </div>
                 </div>
             </div>
@@ -376,7 +362,9 @@ export default function CampaignCreatePage() {
             {error && (
                 <div className="cc-alert cc-alert-error">
                     <i className="bi bi-exclamation-circle-fill" />
+
                     <span>{error}</span>
+
                     <button onClick={() => setError("")}>
                         <i className="bi bi-x-lg" />
                     </button>
@@ -386,7 +374,9 @@ export default function CampaignCreatePage() {
             {info && (
                 <div className="cc-alert cc-alert-success">
                     <i className="bi bi-check-circle-fill" />
+
                     <span>{info}</span>
+
                     <button onClick={() => setInfo("")}>
                         <i className="bi bi-x-lg" />
                     </button>
@@ -400,6 +390,7 @@ export default function CampaignCreatePage() {
 
                     {/* CAMPAIGN NAME */}
                     <section className="cc-card">
+
                         <div className="cc-card-header">
                             <div className="cc-section-icon">
                                 <i className="bi bi-pencil-square" />
@@ -407,7 +398,9 @@ export default function CampaignCreatePage() {
 
                             <div>
                                 <h2>Campaign information</h2>
-                                <p>Give your campaign a recognizable name.</p>
+                                <p>
+                                    Give your campaign a recognizable name.
+                                </p>
                             </div>
 
                             <span className="cc-step">STEP 01</span>
@@ -422,7 +415,9 @@ export default function CampaignCreatePage() {
                                 id="campaignName"
                                 type="text"
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                onChange={(e) =>
+                                    setName(e.target.value)
+                                }
                                 placeholder="e.g. Diwali Special Offers - November 2026"
                                 maxLength={100}
                             />
@@ -430,15 +425,20 @@ export default function CampaignCreatePage() {
                             <div className="cc-field-bottom">
                                 <span>
                                     <i className="bi bi-info-circle" />
-                                    Choose a name that helps you identify this campaign.
+                                    Choose a name that helps you identify
+                                    this campaign.
                                 </span>
-                                <small>{name.length}/100</small>
+
+                                <small>
+                                    {name.length}/100
+                                </small>
                             </div>
                         </div>
                     </section>
 
                     {/* CATEGORY SELECTION */}
                     <section className="cc-card">
+
                         <div className="cc-card-header">
                             <div className="cc-section-icon">
                                 <i className="bi bi-people" />
@@ -446,19 +446,24 @@ export default function CampaignCreatePage() {
 
                             <div>
                                 <h2>Choose your audience</h2>
-                                <p>Select the contact groups you want to reach.</p>
+                                <p>
+                                    Select the contact groups you want to reach.
+                                </p>
                             </div>
 
                             <span className="cc-step">STEP 02</span>
                         </div>
 
                         <div className="cc-audience-summary">
+
                             <div className="cc-audience-summary-icon">
                                 <i className="bi bi-person-check" />
                             </div>
 
                             <div>
-                                <strong>{totalContacts.toLocaleString("en-IN")}</strong>
+                                <strong>
+                                    {totalContacts.toLocaleString("en-IN")}
+                                </strong>
                                 <span>Contacts selected</span>
                             </div>
 
@@ -475,56 +480,80 @@ export default function CampaignCreatePage() {
                                 onClick={selectAllCategories}
                                 disabled={categories.length === 0}
                             >
-                                {allSelected ? "Deselect all" : "Select all"}
+                                {allSelected
+                                    ? "Deselect all"
+                                    : "Select all"}
                             </button>
                         </div>
 
                         {categories.length > 0 ? (
                             <div className="cc-category-grid">
+
                                 {categories.map((category) => {
-                                    const isSelected = selected.includes(category.id);
+                                    const isSelected =
+                                        selected.includes(category.id);
 
                                     return (
                                         <button
                                             type="button"
                                             key={category.id}
-                                            className={`cc-category-card ${isSelected ? "selected" : ""}`}
-                                            onClick={() => toggleCategory(category.id)}
+                                            className={`cc-category-card ${
+                                                isSelected ? "selected" : ""
+                                            }`}
+                                            onClick={() =>
+                                                toggleCategory(category.id)
+                                            }
                                         >
                                             <span className="cc-category-icon">
                                                 <i className="bi bi-people-fill" />
                                             </span>
 
                                             <span className="cc-category-content">
-                                                <strong>{category.name}</strong>
+                                                <strong>
+                                                    {category.name}
+                                                </strong>
+
                                                 <small>
                                                     {category.contactCount.toLocaleString("en-IN")} contacts
                                                 </small>
                                             </span>
 
                                             <span className="cc-category-check">
-                                                <i className={`bi ${isSelected ? "bi-check-lg" : "bi-plus-lg"}`} />
+                                                <i
+                                                    className={`bi ${
+                                                        isSelected
+                                                            ? "bi-check-lg"
+                                                            : "bi-plus-lg"
+                                                    }`}
+                                                />
                                             </span>
                                         </button>
                                     );
                                 })}
+
                             </div>
                         ) : (
                             <div className="cc-empty">
                                 <i className="bi bi-people" />
                                 <strong>No categories found</strong>
-                                <span>Create contact categories to build your audience.</span>
+                                <span>
+                                    Create contact categories to build your
+                                    audience.
+                                </span>
                             </div>
                         )}
 
                         <div className="cc-selected-footer">
                             <i className="bi bi-shield-check" />
-                            Your campaign will target contacts from the selected categories.
+                            Your campaign will target contacts from the
+                            selected categories.
                         </div>
+
                     </section>
 
                     {/* TEMPLATE SELECTION */}
                     <section className="cc-card">
+
                         <div className="cc-card-header">
                             <div className="cc-section-icon">
                                 <i className="bi bi-chat-square-text" />
@@ -532,37 +561,54 @@ export default function CampaignCreatePage() {
 
                             <div>
                                 <h2>Message template</h2>
-                                <p>Choose an approved WhatsApp message template.</p>
+                                <p>
+                                    Choose an approved WhatsApp message template.
+                                </p>
                             </div>
 
                             <span className="cc-step">STEP 03</span>
                         </div>
 
                         <div className="cc-template-actions">
+
                             <button
                                 type="button"
                                 className="cc-refresh-btn"
                                 onClick={() => refreshFromMeta(false)}
                                 disabled={syncing}
                             >
-                                <i className={`bi bi-arrow-repeat ${syncing ? "cc-spinning" : ""}`} />
-                                {syncing ? "Refreshing..." : "Sync from Meta"}
+                                <i
+                                    className={`bi bi-arrow-repeat ${
+                                        syncing ? "cc-spinning" : ""
+                                    }`}
+                                />
+
+                                {syncing
+                                    ? "Refreshing..."
+                                    : "Sync from Meta"}
                             </button>
 
                             <button
                                 type="button"
                                 className="cc-create-template-btn"
-                                onClick={() => setShowTemplateForm(true)}
+                                onClick={() =>
+                                    setShowTemplateForm(true)
+                                }
                             >
                                 <i className="bi bi-plus-lg" />
                                 New template
                             </button>
+
                         </div>
 
                         <div className="cc-template-select-wrapper">
-                            <label htmlFor="templateSelect">Select template</label>
+
+                            <label htmlFor="templateSelect">
+                                Select template
+                            </label>
 
                             <div className="cc-select-container">
+
                                 <i className="bi bi-file-earmark-text" />
 
                                 <select
@@ -583,34 +629,44 @@ export default function CampaignCreatePage() {
                                     </option>
 
                                     {approvedTemplates.map((t) => (
-                                        <option key={t.id} value={t.id}>
+                                        <option
+                                            key={t.id}
+                                            value={t.id}
+                                        >
                                             {t.name} ({t.language})
                                         </option>
                                     ))}
                                 </select>
 
                                 <i className="bi bi-chevron-down cc-select-arrow" />
+
                             </div>
 
                             <small>
                                 {approvedTemplates.length} approved template
-                                {approvedTemplates.length === 1 ? "" : "s"} available.
-                                Pending or rejected templates appear here once Meta approves them.
+                                {approvedTemplates.length === 1 ? "" : "s"}{" "}
+                                available. Pending or rejected templates
+                                appear here once Meta approves them.
                             </small>
+
                         </div>
 
                         {template && (
                             <div className="cc-template-config">
 
+                                {/* SELECTED TEMPLATE */}
                                 <div className="cc-template-selected">
+
                                     <div className="cc-template-selected-icon">
                                         <i className="bi bi-whatsapp" />
                                     </div>
 
                                     <div>
                                         <strong>{template.name}</strong>
+
                                         <span>
-                                            {template.language} · {template.variableCount} variable(s)
+                                            {template.language} ·{" "}
+                                            {template.variableCount} variable(s)
                                         </span>
                                     </div>
 
@@ -618,74 +674,137 @@ export default function CampaignCreatePage() {
                                         <i className="bi bi-check-circle-fill" />
                                         Selected
                                     </span>
+
                                 </div>
 
+                                {/* SAVED TEMPLATE MEDIA */}
                                 {needsMedia && (
-                                    <div className="cc-field">
-                                        <label htmlFor="headerMediaFile">
-                                            Header {headerType.toLowerCase()}{" "}
-                                            <span>*</span>
-                                        </label>
+                                    <div className="cc-saved-media-section">
 
-                                        <input
-                                            id="headerMediaFile"
-                                            type="file"
-                                            accept={mediaRule?.accept}
-                                            disabled={uploading}
-                                            onChange={(e) => {
-                                                handleMediaPick(e.target.files?.[0]);
-                                                e.target.value = "";
-                                            }}
-                                        />
+                                        <div className="cc-saved-media-heading">
 
-                                        {mediaPreview && (
-                                            <img
-                                                src={mediaPreview}
-                                                alt="Selected header"
-                                                style={{
-                                                    marginTop: 10,
-                                                    maxWidth: 220,
-                                                    maxHeight: 160,
-                                                    borderRadius: 8,
-                                                    objectFit: "cover",
-                                                }}
-                                            />
+                                            <div className="cc-saved-media-icon">
+                                                <i className="bi bi-cloud-check" />
+                                            </div>
+
+                                            <div className="cc-saved-media-info">
+                                                <strong>
+                                                    Template header media
+                                                </strong>
+
+                                                <small>
+                                                    Previously uploaded media
+                                                    from this template.
+                                                </small>
+                                            </div>
+
+                                            {savedMediaUrl ? (
+                                                <span className="cc-media-status">
+                                                    <i className="bi bi-check-circle-fill" />
+                                                    Available
+                                                </span>
+                                            ) : (
+                                                <span className="cc-media-missing">
+                                                    <i className="bi bi-exclamation-circle-fill" />
+                                                    Missing
+                                                </span>
+                                            )}
+
+                                        </div>
+
+                                        {savedMediaUrl && (
+                                            <div className="cc-saved-media-preview">
+
+                                                {headerType === "IMAGE" && (
+                                                    <img
+                                                        src={savedMediaUrl}
+                                                        alt="Saved template header"
+                                                    />
+                                                )}
+
+                                                {headerType === "VIDEO" && (
+                                                    <video
+                                                        src={savedMediaUrl}
+                                                        controls
+                                                    />
+                                                )}
+
+                                                {headerType === "DOCUMENT" && (
+                                                    <a
+                                                        href={savedMediaUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                    >
+                                                        <i className="bi bi-file-earmark-pdf" />
+
+                                                        View saved template document
+
+                                                        <i className="bi bi-box-arrow-up-right" />
+                                                    </a>
+                                                )}
+
+                                                <p>
+                                                    <i className="bi bi-info-circle" />
+                                                    This media is retrieved
+                                                    from the selected template.
+                                                    No additional upload is needed.
+                                                </p>
+
+                                            </div>
                                         )}
 
-                                        <div className="cc-field-bottom">
-                                            <span>
-                                                <i className="bi bi-info-circle" />
-                                                {uploading
-                                                    ? "Uploading..."
-                                                    : mediaName
-                                                        ? `Uploaded: ${mediaName}`
-                                                        : `Select a ${mediaRule?.label} (max ${mediaRule?.maxMb} MB).`}
-                                            </span>
-                                        </div>
+                                        {!savedMediaUrl && (
+                                            <div className="cc-media-warning">
+                                                <i className="bi bi-exclamation-triangle" />
+
+                                                <span>
+                                                    No saved media URL was found
+                                                    for this template. Recreate
+                                                    the template with its media
+                                                    before launching this campaign.
+                                                </span>
+                                            </div>
+                                        )}
+
                                     </div>
                                 )}
 
+                                {/* VARIABLE MAPPING */}
                                 {template.variableCount > 0 && (
                                     <div className="cc-variable-section">
+
                                         <div className="cc-variable-heading">
                                             <div>
-                                                <h3>Personalize your message</h3>
+                                                <h3>
+                                                    Personalize your message
+                                                </h3>
+
                                                 <p>
-                                                    Map each template variable to a contact field or custom value.
+                                                    Map each template variable
+                                                    to a contact field or
+                                                    custom value.
                                                 </p>
                                             </div>
 
-                                            <span>{mapping.length} variables</span>
+                                            <span>
+                                                {mapping.length} variables
+                                            </span>
                                         </div>
 
                                         <div className="cc-variable-list">
+
                                             {mapping.map((item, index) => (
-                                                <div className="cc-variable-row" key={index}>
+                                                <div
+                                                    className="cc-variable-row"
+                                                    key={index}
+                                                >
+
                                                     <div className="cc-variable-number">
                                                         {"{{" + (index + 1) + "}}"}
                                                     </div>
 
                                                     <div className="cc-variable-control">
+
                                                         <label>
                                                             Variable {index + 1}
                                                         </label>
@@ -699,16 +818,31 @@ export default function CampaignCreatePage() {
                                                                 })
                                                             }
                                                         >
-                                                            <option value="NAME">Contact name</option>
-                                                            <option value="PHONE">Contact phone</option>
-                                                            <option value="EMAIL">Contact email</option>
-                                                            <option value="TEXT">Custom text</option>
+                                                            <option value="NAME">
+                                                                Contact name
+                                                            </option>
+
+                                                            <option value="PHONE">
+                                                                Contact phone
+                                                            </option>
+
+                                                            <option value="EMAIL">
+                                                                Contact email
+                                                            </option>
+
+                                                            <option value="TEXT">
+                                                                Custom text
+                                                            </option>
                                                         </select>
+
                                                     </div>
 
                                                     {item.kind === "TEXT" ? (
                                                         <div className="cc-variable-control cc-variable-custom">
-                                                            <label>Custom value</label>
+
+                                                            <label>
+                                                                Custom value
+                                                            </label>
 
                                                             <input
                                                                 type="text"
@@ -720,34 +854,51 @@ export default function CampaignCreatePage() {
                                                                 }
                                                                 placeholder="Enter message value"
                                                             />
+
                                                         </div>
                                                     ) : (
                                                         <div className="cc-variable-preview">
+
                                                             <small>
                                                                 {item.kind === "NAME"
                                                                     ? "Each contact's name · example"
                                                                     : "Example value"}
                                                             </small>
-                                                            <strong>{SAMPLE[item.kind]}</strong>
+
+                                                            <strong>
+                                                                {SAMPLE[item.kind]}
+                                                            </strong>
+
                                                         </div>
                                                     )}
+
                                                 </div>
                                             ))}
+
                                         </div>
 
                                         <div className="cc-variable-note">
                                             <i className="bi bi-lightbulb" />
-                                            Contact fields are dynamically populated for each recipient.
-                                            Custom text is shared with everyone in this campaign.
+
+                                            Contact fields are dynamically
+                                            populated for each recipient.
+                                            Custom text is shared with everyone
+                                            in this campaign.
                                         </div>
+
                                     </div>
                                 )}
 
+                                {/* MESSAGE PREVIEW */}
                                 <div className="cc-preview-section">
+
                                     <div className="cc-preview-heading">
                                         <div>
                                             <h3>Message preview</h3>
-                                            <p>See how your selected template will look.</p>
+                                            <p>
+                                                See how your selected template
+                                                will look.
+                                            </p>
                                         </div>
 
                                         <span>
@@ -762,35 +913,48 @@ export default function CampaignCreatePage() {
                                             values={previewValues}
                                         />
                                     </div>
+
                                 </div>
+
                             </div>
                         )}
 
                         {approvedTemplates.length === 0 && !syncing && (
                             <div className="cc-empty cc-template-empty">
+
                                 <i className="bi bi-file-earmark-plus" />
-                                <strong>No approved templates available</strong>
+
+                                <strong>
+                                    No approved templates available
+                                </strong>
+
                                 <span>
-                                    Create a template and wait for Meta approval.
-                                    Then sync your templates.
+                                    Create a template and wait for Meta
+                                    approval. Then sync your templates.
                                 </span>
 
                                 <button
                                     type="button"
-                                    onClick={() => setShowTemplateForm(true)}
+                                    onClick={() =>
+                                        setShowTemplateForm(true)
+                                    }
                                 >
                                     <i className="bi bi-plus-lg" />
                                     Create template
                                 </button>
+
                             </div>
                         )}
+
                     </section>
 
                 </div>
 
                 {/* SIDEBAR */}
                 <aside className="cc-sidebar">
+
                     <div className="cc-summary-card">
+
                         <div className="cc-summary-header">
                             <div>
                                 <span>CAMPAIGN OVERVIEW</span>
@@ -804,18 +968,26 @@ export default function CampaignCreatePage() {
 
                         <div className="cc-total-contacts">
                             <span>Estimated recipients</span>
-                            <strong>{totalContacts.toLocaleString("en-IN")}</strong>
-                            <small>Contacts in selected categories</small>
+
+                            <strong>
+                                {totalContacts.toLocaleString("en-IN")}
+                            </strong>
+
+                            <small>
+                                Contacts in selected categories
+                            </small>
                         </div>
 
                         <div className="cc-summary-divider" />
 
                         <div className="cc-summary-list">
+
                             <div className="cc-summary-row">
                                 <span>
                                     <i className="bi bi-megaphone" />
                                     Campaign name
                                 </span>
+
                                 <strong title={name}>
                                     {name || "Not provided"}
                                 </strong>
@@ -826,7 +998,10 @@ export default function CampaignCreatePage() {
                                     <i className="bi bi-people" />
                                     Categories
                                 </span>
-                                <strong>{selected.length} selected</strong>
+
+                                <strong>
+                                    {selected.length} selected
+                                </strong>
                             </div>
 
                             <div className="cc-summary-row">
@@ -834,7 +1009,12 @@ export default function CampaignCreatePage() {
                                     <i className="bi bi-chat-square-text" />
                                     Template
                                 </span>
-                                <strong>{template ? template.name : "Not selected"}</strong>
+
+                                <strong>
+                                    {template
+                                        ? template.name
+                                        : "Not selected"}
+                                </strong>
                             </div>
 
                             <div className="cc-summary-row">
@@ -842,47 +1022,89 @@ export default function CampaignCreatePage() {
                                     <i className="bi bi-braces" />
                                     Variables
                                 </span>
-                                <strong>{mapping.length}</strong>
+
+                                <strong>
+                                    {mapping.length}
+                                </strong>
                             </div>
+
                         </div>
 
                         <div className="cc-summary-divider" />
 
+                        {/* LAUNCH CHECKLIST */}
                         <div className="cc-checklist">
+
                             <h4>Launch checklist</h4>
 
                             <div className={name.trim() ? "completed" : ""}>
-                                <i className={`bi ${name.trim() ? "bi-check-circle-fill" : "bi-circle"}`} />
+                                <i
+                                    className={`bi ${
+                                        name.trim()
+                                            ? "bi-check-circle-fill"
+                                            : "bi-circle"
+                                    }`}
+                                />
                                 Campaign name added
                             </div>
 
                             <div className={selected.length ? "completed" : ""}>
-                                <i className={`bi ${selected.length ? "bi-check-circle-fill" : "bi-circle"}`} />
+                                <i
+                                    className={`bi ${
+                                        selected.length
+                                            ? "bi-check-circle-fill"
+                                            : "bi-circle"
+                                    }`}
+                                />
                                 Audience selected
                             </div>
 
                             <div className={template ? "completed" : ""}>
-                                <i className={`bi ${template ? "bi-check-circle-fill" : "bi-circle"}`} />
+                                <i
+                                    className={`bi ${
+                                        template
+                                            ? "bi-check-circle-fill"
+                                            : "bi-circle"
+                                    }`}
+                                />
                                 Template selected
                             </div>
 
                             <div className={variablesReady ? "completed" : ""}>
-                                <i className={`bi ${variablesReady ? "bi-check-circle-fill" : "bi-circle"}`} />
+                                <i
+                                    className={`bi ${
+                                        variablesReady
+                                            ? "bi-check-circle-fill"
+                                            : "bi-circle"
+                                    }`}
+                                />
                                 Variables configured
                             </div>
 
                             {needsMedia && (
                                 <div className={mediaReady ? "completed" : ""}>
-                                    <i className={`bi ${mediaReady ? "bi-check-circle-fill" : "bi-circle"}`} />
-                                    Header media URL added
+                                    <i
+                                        className={`bi ${
+                                            mediaReady
+                                                ? "bi-check-circle-fill"
+                                                : "bi-circle"
+                                        }`}
+                                    />
+                                    Template media available
                                 </div>
                             )}
+
                         </div>
 
+                        {/* LAUNCH BUTTON */}
                         <button
                             type="button"
                             className="cc-launch-btn"
-                            disabled={launching || uploading}
+                            disabled={
+                                launching ||
+                                !template ||
+                                (needsMedia && !mediaReady)
+                            }
                             onClick={launch}
                         >
                             {launching ? (
@@ -902,24 +1124,32 @@ export default function CampaignCreatePage() {
                             <i className="bi bi-shield-lock" />
                             Review your campaign details before launching.
                         </p>
+
                     </div>
 
+                    {/* HELP CARD */}
                     <div className="cc-help-card">
+
                         <div className="cc-help-icon">
                             <i className="bi bi-lightbulb" />
                         </div>
 
                         <div>
                             <strong>Pro tip</strong>
+
                             <p>
                                 Use personalized variables like contact names
                                 to make your WhatsApp messages more engaging.
                             </p>
                         </div>
+
                     </div>
+
                 </aside>
+
             </div>
 
+            {/* CREATE TEMPLATE MODAL */}
             {showTemplateForm && (
                 <Modal
                     title="Create WhatsApp template"
@@ -940,6 +1170,7 @@ export default function CampaignCreatePage() {
                     />
                 </Modal>
             )}
+
         </div>
     );
 }

@@ -551,6 +551,68 @@
     z-index: 5;
 }
 
+.tf-upload-preview {
+    margin-top: 18px;
+    padding: 14px;
+    border: 1px solid #dce9e5;
+    border-radius: 12px;
+    background: #f7faf9;
+}
+
+.tf-upload-preview > strong {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    color: #064e45;
+    font-size: 13px;
+}
+
+.tf-upload-preview-image,
+.tf-upload-preview-video {
+    display: block;
+    width: 100%;
+    max-height: 260px;
+    object-fit: contain;
+    border-radius: 9px;
+    background: #e9efed;
+}
+
+.tf-upload-preview-document {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: #fff;
+    border: 1px solid #e1e9e6;
+    border-radius: 9px;
+}
+
+.tf-upload-preview-document > i {
+    font-size: 32px;
+    color: #d9534f;
+}
+
+.tf-upload-preview-document div {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tf-upload-preview-document span {
+    overflow: hidden;
+    color: #263c38;
+    font-size: 13px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tf-upload-preview-document small {
+    margin-top: 3px;
+    color: #82918d;
+    font-size: 11px;
+}
 .tf-preview-heading {
     display: flex;
     align-items: flex-start;

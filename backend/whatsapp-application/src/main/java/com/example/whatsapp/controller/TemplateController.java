@@ -24,40 +24,63 @@ public class TemplateController {
 
     private final TemplateService service;
 
-    // Get all templates or filter by status
+    // ==========================================
+    // GET ALL TEMPLATES
+    // ==========================================
+
     @GetMapping
     public ResponseEntity<List<TemplateResponse>> list(
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status
+    ) {
 
-        return ResponseEntity.ok(service.list(status));
+        return ResponseEntity.ok(
+                service.list(status)
+        );
     }
 
-    // Create a WhatsApp template
+    // ==========================================
+    // CREATE WHATSAPP TEMPLATE
+    // ==========================================
+
     @PostMapping
     public ResponseEntity<TemplateResponse> create(
-            @Valid @RequestBody TemplateCreateRequestDto req) {
+            @Valid @RequestBody TemplateCreateRequestDto req
+    ) {
 
-        return ResponseEntity.ok(service.create(req));
+        return ResponseEntity.ok(
+                service.create(req)
+        );
     }
 
-    // Upload IMAGE, VIDEO or DOCUMENT sample for a template header
+    // ==========================================
+    // UPLOAD TEMPLATE SAMPLE MEDIA
+    // ==========================================
+
     @PostMapping(
             value = "/media-sample",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
     public ResponseEntity<Map<String, String>> uploadSample(
             @RequestParam("type") String type,
-            @RequestParam("file") MultipartFile file) throws IOException {
+            @RequestParam("file") MultipartFile file
+    ) throws IOException {
 
         String handle = service.uploadMediaSample(type, file);
 
-        return ResponseEntity.ok(Map.of("handle", handle));
+        return ResponseEntity.ok(
+                Map.of("handle", handle)
+        );
     }
 
-    // Synchronize templates from Meta
+    // ==========================================
+    // SYNC TEMPLATES FROM META
+    // ==========================================
+
     @PostMapping("/sync")
     public ResponseEntity<List<TemplateResponse>> sync() {
 
-        return ResponseEntity.ok(service.sync());
+        return ResponseEntity.ok(
+                service.sync()
+        );
     }
 }

@@ -1,3 +1,4 @@
+
 import api from "./apiservice";
 
 export interface CampaignCreateRequest {
@@ -5,7 +6,6 @@ export interface CampaignCreateRequest {
     templateId: number;
     categoryIds: number[];
     variableMapping: string[];
-    headerMediaUrl?: string;
 }
 
 export interface CampaignResponse {
@@ -36,16 +36,20 @@ export interface CampaignMessage {
 }
 
 const campaignService = {
-    create: (req: CampaignCreateRequest) => api.post<CampaignResponse>("/campaigns", req),
-    list: () => api.get<CampaignResponse[]>("/campaigns"),
-    get: (id: number) => api.get<CampaignResponse>(`/campaigns/${id}`),
-    messages: (id: number) => api.get<CampaignMessage[]>(`/campaigns/${id}/messages`),
-    resume: (id: number) => api.post<CampaignResponse>(`/campaigns/${id}/resume`, {}),
-    uploadMedia: (file: File) => {
-        const form = new FormData();
-        form.append("file", file);
-        return api.post<{ url: string }>("/campaigns/media", form);
-    },
+    create: (req: CampaignCreateRequest) =>
+        api.post<CampaignResponse>("/campaigns", req),
+
+    list: () =>
+        api.get<CampaignResponse[]>("/campaigns"),
+
+    get: (id: number) =>
+        api.get<CampaignResponse>(`/campaigns/${id}`),
+
+    messages: (id: number) =>
+        api.get<CampaignMessage[]>(`/campaigns/${id}/messages`),
+
+    resume: (id: number) =>
+        api.post<CampaignResponse>(`/campaigns/${id}/resume`, {}),
 };
 
 export default campaignService;

@@ -3,7 +3,6 @@ package com.example.whatsapp.dto.whatsappdto;
 
 import java.time.LocalDateTime;
 public record TemplateResponse(
-        // Keep all your existing 12 fields in their current order
 
         Long id,
         String name,
@@ -17,8 +16,6 @@ public record TemplateResponse(
         String status,
         String rejectionReason,
         LocalDateTime createdAt,
-
-        // Add these three fields
         String headerType,
         String headerMediaHandle,
         String headerMediaUrl

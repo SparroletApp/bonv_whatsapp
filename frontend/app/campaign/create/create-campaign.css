@@ -1540,3 +1540,143 @@
         height: 32px;
     }
 }
+
+
+.cc-saved-media-section {
+    margin-top: 20px;
+    padding: 18px;
+    background: #f5f8f7;
+    border: 1px solid #dce9e5;
+    border-radius: 12px;
+}
+
+.cc-saved-media-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.cc-saved-media-icon {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e1f1ec;
+    color: #064e45;
+    border-radius: 10px;
+    font-size: 20px;
+}
+
+.cc-saved-media-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cc-saved-media-info strong {
+    color: #263c38;
+    font-size: 14px;
+}
+
+.cc-saved-media-info small {
+    color: #82918d;
+    font-size: 12px;
+}
+
+.cc-media-status,
+.cc-media-missing {
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.cc-media-status {
+    color: #16804a;
+}
+
+.cc-media-missing {
+    color: #c0392b;
+}
+
+.cc-saved-media-preview {
+    margin-top: 16px;
+}
+
+.cc-saved-media-preview img,
+.cc-saved-media-preview video {
+    display: block;
+    max-width: 240px;
+    max-height: 180px;
+    border-radius: 10px;
+    object-fit: contain;
+    background: white;
+    border: 1px solid #dce9e5;
+}
+
+.cc-saved-media-preview a {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 15px;
+    background: white;
+    border: 1px solid #dce9e5;
+    border-radius: 8px;
+    color: #064e45;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.cc-saved-media-preview a:hover {
+    background: #e8f3f0;
+    color: #043c35;
+}
+
+.cc-saved-media-preview p {
+    margin: 12px 0 0;
+    color: #61736d;
+    font-size: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+}
+
+.cc-media-warning {
+    margin-top: 15px;
+    padding: 12px;
+    background: #fff5e8;
+    border: 1px solid #f2d6ae;
+    color: #9a5b12;
+    border-radius: 8px;
+    font-size: 13px;
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+}
+
+.cc-launch-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+@media (max-width: 576px) {
+    .cc-saved-media-heading {
+        flex-wrap: wrap;
+    }
+
+    .cc-media-status,
+    .cc-media-missing {
+        margin-left: 54px;
+    }
+
+    .cc-saved-media-preview img,
+    .cc-saved-media-preview video {
+        max-width: 100%;
+    }
+}
+

@@ -1,3 +1,4 @@
+
 package com.example.whatsapp.service;
 
 import com.example.whatsapp.dto.campaign.*;
@@ -44,7 +45,7 @@ public class CampaignService {
             throw new IllegalArgumentException("Select at least one category");
         }
 
-        // Load template
+        // Load selected template
         TemplateEntity tpl = templateRepo.findById(req.templateId())
                 .orElseThrow(() ->
                         new IllegalArgumentException("Template not found"));
@@ -56,10 +57,22 @@ public class CampaignService {
             );
         }
 
-        String headerMediaUrl = req.headerMediaUrl() == null
-                ? null
-                : req.headerMediaUrl().trim();
+        /*
+         * IMPORTANT:
+         * Get the media URL from the saved template.
+         * The campaign frontend does not need to upload or select media again.
+         */
+        String headerMediaUrl = tpl.getHeaderMediaUrl();
 
+        if (headerMediaUrl != null) {
+            headerMediaUrl = headerMediaUrl.trim();
+
+            if (headerMediaUrl.isBlank()) {
+                headerMediaUrl = null;
+            }
+        }
+
+        // Validate template header and saved media
         validateTemplateHeader(tpl, headerMediaUrl);
 
         int varCount = tpl.getVariableCount();
@@ -74,6 +87,7 @@ public class CampaignService {
             );
         }
 
+        // Find unique contacts from selected categories
         Set<String> seen = new HashSet<>();
 
         List<ContactEntity> contacts = new ArrayList<>();
@@ -102,6 +116,7 @@ public class CampaignService {
             );
         }
 
+        // Create campaign
         CampaignEntity campaign = new CampaignEntity();
 
         campaign.setName(req.name().trim());
@@ -121,6 +136,7 @@ public class CampaignService {
 
         campaign = campaignRepo.save(campaign);
 
+        // Create individual WhatsApp messages
         List<WhatsappEntity> messages = new ArrayList<>();
 
         for (int idx = 0; idx < contacts.size(); idx++) {
@@ -148,6 +164,8 @@ public class CampaignService {
             );
 
             message.setTemplateParams(toJson(params));
+
+            // Save the template's header information with each message
             message.setHeaderType(tpl.getHeaderType());
             message.setHeaderMediaUrl(headerMediaUrl);
 
@@ -164,11 +182,20 @@ public class CampaignService {
         return toResponse(campaign);
     }
 
-    private void validateTemplateHeader(TemplateEntity tpl, String mediaUrl) {
+    /**
+     * Validates the selected template's header.
+     * For IMAGE, VIDEO and DOCUMENT templates, the media URL
+     * must already be saved against the template.
+     */
+    private void validateTemplateHeader(
+            TemplateEntity tpl,
+            String mediaUrl
+    ) {
 
         String headerType = tpl.getHeaderType();
 
-        if (headerType == null || headerType.isBlank()
+        if (headerType == null
+                || headerType.isBlank()
                 || "NONE".equalsIgnoreCase(headerType)
                 || "TEXT".equalsIgnoreCase(headerType)) {
             return;
@@ -176,19 +203,23 @@ public class CampaignService {
 
         if ("LOCATION".equalsIgnoreCase(headerType)) {
             throw new IllegalArgumentException(
-                    "Location header templates are not supported in campaigns yet");
+                    "Location header templates are not supported in campaigns yet"
+            );
         }
 
         if (!List.of("IMAGE", "VIDEO", "DOCUMENT")
                 .contains(headerType.toUpperCase(Locale.ROOT))) {
+
             throw new IllegalArgumentException(
-                    "Unsupported template header type: " + headerType);
+                    "Unsupported template header type: " + headerType
+            );
         }
 
         if (mediaUrl == null || mediaUrl.isBlank()) {
             throw new IllegalArgumentException(
-                    "This " + headerType + " template needs a header media file. "
-                            + "Select a file before launching.");
+                    "This " + headerType + " template does not have saved media. "
+                            + "Please upload the media when creating the template."
+            );
         }
 
         URI uri;
@@ -197,14 +228,18 @@ public class CampaignService {
             uri = URI.create(mediaUrl);
         } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException(
-                    "Invalid header media URL. Please provide a valid public HTTPS URL.");
+                    "Invalid template media URL. "
+                            + "Please check the media saved with this template."
+            );
         }
 
         if (!"https".equalsIgnoreCase(uri.getScheme())
                 || uri.getHost() == null
                 || uri.getHost().isBlank()) {
+
             throw new IllegalArgumentException(
-                    "Header media URL must be a valid public HTTPS URL");
+                    "Template media URL must be a valid public HTTPS URL"
+            );
         }
     }
 

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import "./template-form.css";
 import templateService, {
@@ -64,6 +64,10 @@ export default function TemplateForm({
     const [headerMediaHandle, setHeaderMediaHandle] = useState("");
     const [uploadingMedia, setUploadingMedia] = useState(false);
 
+    const [previewMediaUrl, setPreviewMediaUrl] = useState<string | null>(
+        null
+    );
+
     const [body, setBody] = useState("");
     const [footerText, setFooterText] = useState("");
     const [nameExample, setNameExample] = useState(NAME_EXAMPLE);
@@ -78,6 +82,22 @@ export default function TemplateForm({
         () => (hasNameVariable ? 1 : 0),
         [hasNameVariable]
     );
+
+    // Generate and clean up the local media preview URL.
+    useEffect(() => {
+        if (!headerFile) {
+            setPreviewMediaUrl(null);
+            return;
+        }
+
+        const url = URL.createObjectURL(headerFile);
+
+        setPreviewMediaUrl(url);
+
+        return () => {
+            URL.revokeObjectURL(url);
+        };
+    }, [headerFile]);
 
     const addNameVariable = () => {
         if (hasNameVariable) return;
@@ -110,11 +130,12 @@ export default function TemplateForm({
             return;
         }
 
-        const rule = MEDIA_RULES[headerType];
+        const currentHeaderType = headerType;
+        const rule = MEDIA_RULES[currentHeaderType];
 
         if (file.size > rule.maxSize) {
             setError(
-                `${headerType} file is too large. ${rule.label}.`
+                `${currentHeaderType} file is too large. ${rule.label}.`
             );
             return;
         }
@@ -122,7 +143,9 @@ export default function TemplateForm({
         const validMimeTypes = rule.accept.split(",");
 
         if (!validMimeTypes.includes(file.type)) {
-            setError(`Invalid ${headerType} file. ${rule.label}.`);
+            setError(
+                `Invalid ${currentHeaderType} file. ${rule.label}.`
+            );
             return;
         }
 
@@ -133,7 +156,7 @@ export default function TemplateForm({
 
         try {
             const response = await templateService.uploadMediaSample(
-                headerType,
+                currentHeaderType,
                 file
             );
 
@@ -180,6 +203,13 @@ export default function TemplateForm({
     const submit = async () => {
         setError("");
 
+        if (uploadingMedia) {
+            setError(
+                "Please wait until the media upload is complete."
+            );
+            return;
+        }
+
         const cleanName = name.trim();
         const cleanBody = body.trim();
 
@@ -204,7 +234,9 @@ export default function TemplateForm({
             ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType) &&
             (!headerFile || !headerMediaHandle)
         ) {
-            setError("Please upload your header media and wait for upload to finish.");
+            setError(
+                "Please upload your header media and wait for the upload to finish."
+            );
             return;
         }
 
@@ -254,7 +286,9 @@ export default function TemplateForm({
                     const url = new URL(button.url);
 
                     if (!["http:", "https:"].includes(url.protocol)) {
-                        setError("URL must start with http:// or https://.");
+                        setError(
+                            "URL must start with http:// or https://."
+                        );
                         return;
                     }
                 } catch {
@@ -285,6 +319,7 @@ export default function TemplateForm({
                     headerType === "TEXT"
                         ? headerText.trim()
                         : undefined,
+
                 headerMediaHandle:
                     ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType)
                         ? headerMediaHandle
@@ -479,9 +514,11 @@ export default function TemplateForm({
                                         Upload {headerType.toLowerCase()} sample
                                     </strong>
                                     <small>
-                                        {MEDIA_RULES[
-                                            headerType as UploadableHeaderType
-                                        ].label}
+                                        {
+                                            MEDIA_RULES[
+                                                headerType as UploadableHeaderType
+                                            ].label
+                                        }
                                     </small>
                                 </div>
                             </div>
@@ -496,7 +533,11 @@ export default function TemplateForm({
                                 disabled={uploadingMedia || saving}
                                 onChange={(e) => {
                                     const file = e.target.files?.[0];
-                                    if (file) void uploadHeaderMedia(file);
+
+                                    if (file) {
+                                        void uploadHeaderMedia(file);
+                                    }
+
                                     e.currentTarget.value = "";
                                 }}
                             />
@@ -513,6 +554,7 @@ export default function TemplateForm({
                                         }`}
                                     />
                                     <span>{headerFile.name}</span>
+
                                     {uploadingMedia ? (
                                         <span>Uploading...</span>
                                     ) : headerMediaHandle ? (
@@ -527,6 +569,41 @@ export default function TemplateForm({
                             {uploadingMedia && (
                                 <div className="tf-media-progress">
                                     Uploading media sample to Meta...
+                                </div>
+                            )}
+
+                            {/* MEDIA PREVIEW */}
+                            {previewMediaUrl && (
+                                <div className="tf-upload-preview">
+                                    <strong>
+                                        <i className="bi bi-eye" /> Media preview
+                                    </strong>
+
+                                    {headerType === "IMAGE" && (
+                                        <img
+                                            src={previewMediaUrl}
+                                            alt="Uploaded template header"
+                                            className="tf-upload-preview-image"
+                                        />
+                                    )}
+
+                                    {headerType === "VIDEO" && (
+                                        <video
+                                            src={previewMediaUrl}
+                                            controls
+                                            className="tf-upload-preview-video"
+                                        />
+                                    )}
+
+                                    {headerType === "DOCUMENT" && (
+                                        <div className="tf-upload-preview-document">
+                                            <i className="bi bi-file-earmark-pdf-fill" />
+                                            <div>
+                                                <span>{headerFile?.name}</span>
+                                                <small>PDF document selected</small>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -804,9 +881,9 @@ export default function TemplateForm({
                                 headerType={headerType}
                                 headerText={headerText}
                                 headerMediaUrl={
-                                    headerFile &&
-                                    headerType === "IMAGE"
-                                        ? URL.createObjectURL(headerFile)
+                                    headerType === "IMAGE" ||
+                                    headerType === "VIDEO"
+                                        ? previewMediaUrl
                                         : null
                                 }
                                 body={body || "Your message…"}
