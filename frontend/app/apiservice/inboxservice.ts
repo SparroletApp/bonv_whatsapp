@@ -33,12 +33,16 @@ const inboxService = {
     reply: (phone: string, message: string) =>
         api.post<InboxMessage>(`/inbox/conversations/${phone}/reply`, { message }),
 
-    replyMedia: (phone: string, file: Blob, filename: string, caption?: string) => {
-        const fd = new FormData();
-        fd.append("file", file, filename);
-        if (caption) fd.append("caption", caption);
-        return api.post<InboxMessage>(`/inbox/conversations/${phone}/reply-media`, fd);
-    },
+  replyMedia: (phone: string, file: Blob, filename: string, caption?: string) => {
+    const fd = new FormData();
+    fd.append("file", file, filename);
+    if (caption) fd.append("caption", caption);
+    return api.post<InboxMessage>(
+        `/inbox/conversations/${phone}/reply-media`,
+        fd,
+        { headers: { "Content-Type": "multipart/form-data" } }
+    );
+},
 
     media: (mediaId: string) =>
         api.get<Blob>(`/inbox/media/${mediaId}`, { responseType: "blob" } as any),
