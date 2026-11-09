@@ -141,6 +141,10 @@ public class WhatsappClient {
         if (res.statusCode() < 200 || res.statusCode() >= 300) {
             JsonNode err = json.path("error");
             String msg = err.path("error_user_msg").asText(err.path("message").asText(res.body()));
+            String details = err.path("error_data").path("details").asText("");
+            if (!details.isBlank()) msg += " - " + details;
+            String code = err.path("code").asText("");
+            if (!code.isBlank()) msg += " (code " + code + ")";
             throw new IllegalStateException(msg);
         }
         return json;

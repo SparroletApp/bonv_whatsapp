@@ -185,9 +185,9 @@ public class InboxService {
 
             if (audio) {
                 if (!mime.startsWith("audio/ogg")) {
-                    data = toOggOpus(data);   
+                    data = toOggOpus(data);
                 }
-                sendMime = "audio/ogg; codecs=opus";
+                sendMime = "audio/ogg";
                 filename = "voice.ogg";
             }
 
