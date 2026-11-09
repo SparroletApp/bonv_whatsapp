@@ -1,3 +1,4 @@
+
 package com.example.whatsapp.service;
 
 import com.example.whatsapp.dto.campaign.*;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,147 +28,332 @@ public class CampaignService {
     @Transactional
     public CampaignResponse create(CampaignCreateRequest req) {
 
+        // Validate campaign request
+        if (req == null) {
+            throw new IllegalArgumentException("Campaign request is required");
+        }
+
         if (req.name() == null || req.name().isBlank()) {
             throw new IllegalArgumentException("Campaign name is required");
         }
+
+        if (req.templateId() == null) {
+            throw new IllegalArgumentException("Please select a template");
+        }
+
         if (req.categoryIds() == null || req.categoryIds().isEmpty()) {
             throw new IllegalArgumentException("Select at least one category");
         }
 
+        // Load template
         TemplateEntity tpl = templateRepo.findById(req.templateId())
-                .orElseThrow(() -> new IllegalArgumentException("Template not found"));
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Template not found"));
 
         if (!"APPROVED".equalsIgnoreCase(tpl.getStatus())) {
             throw new IllegalArgumentException(
-                    "Template is not approved yet (status: " + tpl.getStatus() + ")");
+                    "Template is not approved yet. Current status: "
+                            + tpl.getStatus()
+            );
         }
 
+        // Validate header configuration
+        validateTemplateHeader(tpl);
+
+        // Validate template variables
         int varCount = tpl.getVariableCount();
 
-        List<String> mapping = req.variableMapping() == null ? List.of() : req.variableMapping();
+        List<String> mapping = req.variableMapping() == null
+                ? List.of()
+                : req.variableMapping();
+
         if (mapping.size() < varCount) {
-            throw new IllegalArgumentException("Map all " + varCount + " template variables");
+            throw new IllegalArgumentException(
+                    "Map all " + varCount + " template variables"
+            );
         }
 
-        // load contacts, drop invalid numbers, send once per phone number
+        // Load contacts and remove invalid/duplicate phone numbers
         Set<String> seen = new HashSet<>();
+
         List<ContactEntity> contacts = new ArrayList<>();
         List<String> phones = new ArrayList<>();
 
-        for (ContactEntity ct : contactRepo.findByCategoryIdIn(req.categoryIds())) {
+        for (ContactEntity ct :
+                contactRepo.findByCategoryIdIn(req.categoryIds())) {
+
             String phone = PhoneUtil.normalize(ct.getPhone());
-            if (phone == null || phone.isBlank()) continue;      // invalid number
-            if (!seen.add(phone)) continue;                      // duplicate across categories
+
+            if (phone == null || phone.isBlank()) {
+                continue;
+            }
+
+            if (!seen.add(phone)) {
+                continue;
+            }
+
             contacts.add(ct);
             phones.add(phone);
         }
 
         if (contacts.isEmpty()) {
-            throw new IllegalArgumentException("Selected categories have no contacts with a valid phone number");
+            throw new IllegalArgumentException(
+                    "Selected categories have no contacts with valid phone numbers"
+            );
         }
 
-        CampaignEntity c = new CampaignEntity();
-        c.setName(req.name().trim());
-        c.setTemplateId(tpl.getId());
-        c.setTemplateName(tpl.getName());
-        c.setCategoryIds(req.categoryIds().stream().map(String::valueOf).collect(Collectors.joining(",")));
-        c.setVariableMapping(toJson(mapping));
-        c.setTotalCount(contacts.size());
-        c.setStatus("RUNNING");
-        c = campaignRepo.save(c);
+        // Create campaign
+        CampaignEntity campaign = new CampaignEntity();
 
-        List<WhatsappEntity> rows = new ArrayList<>();
+        campaign.setName(req.name().trim());
+        campaign.setTemplateId(tpl.getId());
+        campaign.setTemplateName(tpl.getName());
+
+        campaign.setCategoryIds(
+                req.categoryIds()
+                        .stream()
+                        .map(String::valueOf)
+                        .collect(Collectors.joining(","))
+        );
+
+        campaign.setVariableMapping(toJson(mapping));
+        campaign.setTotalCount(contacts.size());
+        campaign.setStatus("RUNNING");
+
+        campaign = campaignRepo.save(campaign);
+
+        // Prepare outbound messages
+        List<WhatsappEntity> messages = new ArrayList<>();
+
         for (int idx = 0; idx < contacts.size(); idx++) {
-            ContactEntity ct = contacts.get(idx);
 
+            ContactEntity contact = contacts.get(idx);
+
+            // Resolve body variables
             List<String> params = new ArrayList<>();
+
             for (int i = 0; i < varCount; i++) {
-                params.add(resolve(mapping.get(i), ct));
+                params.add(resolve(mapping.get(i), contact));
             }
 
-            WhatsappEntity m = new WhatsappEntity();
-            m.setRecipientName(ct.getName());
-            m.setRecipientPhone(phones.get(idx));
-            m.setTemplateName(tpl.getName());
-            m.setLanguageCode(tpl.getLanguage());
-            m.setMessageType("TEMPLATE");
-            m.setMessage(render(tpl.getBody(), params));
-            m.setTemplateParams(toJson(params));
-            m.setCampaignId(c.getId());
-            m.setDirection("OUTBOUND");
-            m.setStatus("PENDING");
-            rows.add(m);
-        }
-        messageRepo.saveAll(rows);
+            WhatsappEntity message = new WhatsappEntity();
 
-        return toResponse(c);
+            message.setRecipientName(contact.getName());
+            message.setRecipientPhone(phones.get(idx));
+
+            message.setTemplateName(tpl.getName());
+            message.setLanguageCode(tpl.getLanguage());
+
+            message.setMessageType("TEMPLATE");
+
+            message.setMessage(
+                    render(tpl.getBody(), params)
+            );
+
+            message.setTemplateParams(toJson(params));
+
+            message.setCampaignId(campaign.getId());
+
+            message.setDirection("OUTBOUND");
+            message.setStatus("PENDING");
+
+            messages.add(message);
+        }
+
+        messageRepo.saveAll(messages);
+
+        return toResponse(campaign);
+    }
+
+    /**
+     * Validate media header configuration.
+     *
+     * headerMediaHandle is used during template creation.
+     * headerMediaUrl is the URL that can be used as the
+     * media source when sending, provided it is publicly accessible.
+     */
+    private void validateTemplateHeader(TemplateEntity tpl) {
+
+        String headerType = tpl.getHeaderType();
+
+        if (headerType == null || headerType.isBlank()
+                || "NONE".equalsIgnoreCase(headerType)
+                || "TEXT".equalsIgnoreCase(headerType)) {
+            return;
+        }
+
+        if (!List.of("IMAGE", "VIDEO", "DOCUMENT")
+                .contains(headerType.toUpperCase(Locale.ROOT))) {
+
+            throw new IllegalArgumentException(
+                    "Unsupported template header type: " + headerType
+            );
+        }
+
+        String mediaUrl = tpl.getHeaderMediaUrl();
+
+        if (mediaUrl == null || mediaUrl.isBlank()) {
+            throw new IllegalArgumentException(
+                    "The " + headerType
+                            + " template does not have a media URL. "
+                            + "A sending media URL or uploaded WhatsApp media ID "
+                            + "must be provided before creating the campaign."
+            );
+        }
+
+        try {
+            URI uri = URI.create(mediaUrl.trim());
+
+            if (!"https".equalsIgnoreCase(uri.getScheme())
+                    || uri.getHost() == null
+                    || uri.getHost().isBlank()) {
+
+                throw new IllegalArgumentException(
+                        "Template media URL must be a valid public HTTPS URL"
+                );
+            }
+
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException(
+                    "Invalid template media URL. Please provide a valid public HTTPS URL."
+            );
+        }
     }
 
     @Transactional(readOnly = true)
     public List<CampaignResponse> list() {
-        return campaignRepo.findAllByOrderByCreatedAtDesc().stream().map(this::toResponse).toList();
+
+        return campaignRepo.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public CampaignResponse get(Long id) {
-        return toResponse(campaignRepo.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Campaign not found")));
+
+        CampaignEntity campaign = campaignRepo.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Campaign not found"));
+
+        return toResponse(campaign);
     }
 
     @Transactional(readOnly = true)
     public List<CampaignMessageDto> messages(Long id) {
-        return messageRepo.findByCampaignIdOrderByIdAsc(id).stream()
-                .map(m -> new CampaignMessageDto(m.getId(), m.getRecipientName(), m.getRecipientPhone(),
-                        m.getStatus(), m.getErrorMessage(), m.getSentAt(), m.getDeliveredAt(), m.getReadAt()))
+
+        if (!campaignRepo.existsById(id)) {
+            throw new IllegalArgumentException("Campaign not found");
+        }
+
+        return messageRepo.findByCampaignIdOrderByIdAsc(id)
+                .stream()
+                .map(m -> new CampaignMessageDto(
+                        m.getId(),
+                        m.getRecipientName(),
+                        m.getRecipientPhone(),
+                        m.getStatus(),
+                        m.getErrorMessage(),
+                        m.getSentAt(),
+                        m.getDeliveredAt(),
+                        m.getReadAt()
+                ))
                 .toList();
     }
 
-    private CampaignResponse toResponse(CampaignEntity c) {
-        Map<String, Long> n = new HashMap<>();
-        for (Object[] r : messageRepo.statusCounts(c.getId())) {
-            n.put(String.valueOf(r[0]), ((Number) r[1]).longValue());   // safe for Long / BigInteger
+    private CampaignResponse toResponse(CampaignEntity campaign) {
+
+        Map<String, Long> counts = new HashMap<>();
+
+        for (Object[] row : messageRepo.statusCounts(campaign.getId())) {
+            counts.put(
+                    String.valueOf(row[0]),
+                    ((Number) row[1]).longValue()
+            );
         }
 
-        long pending   = n.getOrDefault("PENDING", 0L) + n.getOrDefault("PROCESSING", 0L);
-        long read      = n.getOrDefault("READ", 0L);
-        long delivered = read + n.getOrDefault("DELIVERED", 0L);   // includes read
-        long sent      = delivered + n.getOrDefault("SENT", 0L);   // includes delivered + read
-        long failed    = n.getOrDefault("FAILED", 0L);
+        long pending =
+                counts.getOrDefault("PENDING", 0L)
+                        + counts.getOrDefault("PROCESSING", 0L);
 
-        long replied = c.getCreatedAt() == null
+        long read = counts.getOrDefault("READ", 0L);
+
+        long delivered =
+                read + counts.getOrDefault("DELIVERED", 0L);
+
+        long sent =
+                delivered + counts.getOrDefault("SENT", 0L);
+
+        long failed = counts.getOrDefault("FAILED", 0L);
+
+        long replied = campaign.getCreatedAt() == null
                 ? 0L
-                : messageRepo.countReplies(c.getId(), c.getCreatedAt());
+                : messageRepo.countReplies(
+                campaign.getId(),
+                campaign.getCreatedAt()
+        );
 
-        return new CampaignResponse(c.getId(), c.getName(), c.getTemplateName(), c.getStatus(),
-                c.getTotalCount(), pending, sent, delivered, read, failed, replied,
-                c.getCreatedAt(), c.getCompletedAt());
+        return new CampaignResponse(
+                campaign.getId(),
+                campaign.getName(),
+                campaign.getTemplateName(),
+                campaign.getStatus(),
+                campaign.getTotalCount(),
+                pending,
+                sent,
+                delivered,
+                read,
+                failed,
+                replied,
+                campaign.getCreatedAt(),
+                campaign.getCompletedAt()
+        );
     }
 
-    private String resolve(String src, ContactEntity c) {
-        if (src == null || src.isBlank()) return "-";
-        if (src.startsWith("TEXT:")) {
-            String t = src.substring(5);
-            return t.isBlank() ? "-" : t;
+    private String resolve(String source, ContactEntity contact) {
+
+        if (source == null || source.isBlank()) {
+            return "-";
         }
-        String v = switch (src) {
-            case "NAME"  -> c.getName();
-            case "PHONE" -> c.getPhone();
-            case "EMAIL" -> c.getEmail();
-            default      -> src;
+
+        if (source.startsWith("TEXT:")) {
+            String value = source.substring(5);
+            return value.isBlank() ? "-" : value;
+        }
+
+        String value = switch (source) {
+            case "NAME" -> contact.getName();
+            case "PHONE" -> contact.getPhone();
+            case "EMAIL" -> contact.getEmail();
+            default -> source;
         };
-        return (v == null || v.isBlank()) ? "-" : v;      // Meta rejects empty parameters
+
+        return value == null || value.isBlank() ? "-" : value;
     }
 
     private String render(String body, List<String> params) {
-        String out = body == null ? "" : body;
+
+        String result = body == null ? "" : body;
+
         for (int i = 0; i < params.size(); i++) {
-            out = out.replace("{{" + (i + 1) + "}}", params.get(i));
+            result = result.replace(
+                    "{{" + (i + 1) + "}}",
+                    params.get(i)
+            );
         }
-        return out;
+
+        return result;
     }
 
-    private String toJson(Object o) {
-        try { return mapper.writeValueAsString(o); }
-        catch (JsonProcessingException e) { throw new IllegalStateException(e); }
+    private String toJson(Object value) {
+
+        try {
+            return mapper.writeValueAsString(value);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException(
+                    "Unable to convert campaign data to JSON",
+                    ex
+            );
+        }
     }
 }

@@ -5,6 +5,7 @@ export interface CampaignCreateRequest {
     templateId: number;
     categoryIds: number[];
     variableMapping: string[];
+    headerMediaUrl?: string;
 }
 
 export interface CampaignResponse {
