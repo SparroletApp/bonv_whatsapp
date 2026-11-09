@@ -1,3 +1,4 @@
+
 import api from "./apiservice";
 
 export interface Conversation {
@@ -20,8 +21,14 @@ export interface InboxMessage {
     messageType: string;
     errorMessage: string | null;
     createdAt: string;
+
+    // Normal image/audio media
     mediaId: string | null;
     mimeType: string | null;
+
+    // WhatsApp template header media
+    headerType: string | null;
+    headerMediaUrl: string | null;
 }
 
 export interface InboxTemplateRequest {
@@ -32,31 +39,28 @@ export interface InboxTemplateRequest {
 }
 
 const inboxService = {
-    // Get all conversations
+
+
     conversations: () =>
         api.get<Conversation[]>("/inbox/conversations"),
 
-    // Get messages for a customer
     messages: (phone: string) =>
         api.get<InboxMessage[]>(
             `/inbox/conversations/${encodeURIComponent(phone)}/messages`
         ),
 
-    // Mark conversation as read
     markRead: (phone: string) =>
         api.post<void>(
             `/inbox/conversations/${encodeURIComponent(phone)}/read`,
             {}
         ),
 
-    // Send normal text message
     reply: (phone: string, message: string) =>
         api.post<InboxMessage>(
             `/inbox/conversations/${encodeURIComponent(phone)}/reply`,
             { message }
         ),
 
-    // Send image or audio media
     replyMedia: (
         phone: string,
         file: Blob,
@@ -82,7 +86,6 @@ const inboxService = {
         );
     },
 
-    // Send approved WhatsApp template
     sendTemplate: (
         phone: string,
         request: InboxTemplateRequest
@@ -92,7 +95,6 @@ const inboxService = {
             request
         ),
 
-    // Download WhatsApp media
     media: (mediaId: string) =>
         api.get<Blob>(
             `/inbox/media/${encodeURIComponent(mediaId)}`,

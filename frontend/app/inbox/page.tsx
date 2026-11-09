@@ -67,7 +67,6 @@ function formatRemaining(ms: number) {
     if (ms <= 0) return "0m";
 
     const totalSeconds = Math.floor(ms / 1000);
-
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
@@ -106,15 +105,29 @@ function remainingFor(
     return Math.max(0, expiry - now);
 }
 
+function replaceTemplateVariables(
+    body: string,
+    parameters: string[]
+) {
+    let result = body || "";
+
+    parameters.forEach((value, index) => {
+        const number = index + 1;
+
+        result = result.replace(
+            new RegExp(`\\{\\{\\s*${number}\\s*\\}\\}`, "g"),
+            value
+        );
+    });
+
+    return result;
+}
+
 /* ==========================================
-   MEDIA BUBBLE
+   NORMAL MEDIA BUBBLE
 ========================================== */
 
-function MediaBubble({
-    m,
-}: {
-    m: InboxMessage;
-}) {
+function MediaBubble({ m }: { m: InboxMessage }) {
     const [url, setUrl] = useState("");
     const [failed, setFailed] = useState(false);
 
@@ -139,17 +152,13 @@ function MediaBubble({
                 setUrl(objectUrl);
             })
             .catch(() => {
-                if (!cancelled) {
-                    setFailed(true);
-                }
+                if (!cancelled) setFailed(true);
             });
 
         return () => {
             cancelled = true;
 
-            if (objectUrl) {
-                URL.revokeObjectURL(objectUrl);
-            }
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
     }, [m.mediaId]);
 
@@ -169,17 +178,75 @@ function MediaBubble({
         );
     }
 
-    return m.messageType === "IMAGE" ? (
-        <img
-            src={url}
-            alt="Message attachment"
-            className="wa-media-image"
-        />
-    ) : (
+    if (m.messageType === "IMAGE") {
+        return (
+            <img
+                src={url}
+                alt="Message attachment"
+                className="wa-media-image"
+            />
+        );
+    }
+
+    if (m.messageType === "VIDEO") {
+        return (
+            <video
+                src={url}
+                controls
+                className="wa-media-video"
+            />
+        );
+    }
+
+    if (m.messageType === "DOCUMENT") {
+        return (
+            <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="wa-document-link"
+            >
+                <i className="bi bi-file-earmark-pdf" />
+                Open document
+            </a>
+        );
+    }
+
+    return (
         <audio
             controls
             src={url}
             className="wa-media-audio"
+        />
+    );
+}
+
+/* ==========================================
+   TEMPLATE HEADER MEDIA
+========================================== */
+
+function TemplateHeaderMedia({
+    imageUrl,
+}: {
+    imageUrl: string;
+}) {
+    const [failed, setFailed] = useState(false);
+
+    if (!imageUrl || failed) {
+        return (
+            <div className="wa-media-missing">
+                <i className="bi bi-image" />
+                Template image unavailable
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={imageUrl}
+            alt="Template header"
+            className="wa-media-image wa-template-header-image"
+            onError={() => setFailed(true)}
         />
     );
 }
@@ -224,17 +291,11 @@ export default function InboxPage() {
     /* REFS */
 
     const fileInput = useRef<HTMLInputElement>(null);
-
     const recRef = useRef<MediaRecorder | null>(null);
-
     const chunksRef = useRef<Blob[]>([]);
-
     const cancelRef = useRef(false);
-
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
     const bottom = useRef<HTMLDivElement>(null);
-
     const activePhoneRef = useRef<string | null>(null);
 
     /* ==========================================
@@ -244,14 +305,13 @@ export default function InboxPage() {
     const loadConvs = async () => {
         try {
             const response = await inboxService.conversations();
-
             const data = unwrapResponse<Conversation[]>(response);
 
             if (Array.isArray(data)) {
                 setConvs(data);
             }
         } catch {
-            // Keep existing conversations if polling fails.
+            // Retain existing conversations if polling fails.
         }
     };
 
@@ -262,7 +322,6 @@ export default function InboxPage() {
     const loadMsgs = async (phone: string) => {
         try {
             const response = await inboxService.messages(phone);
-
             const data = unwrapResponse<InboxMessage[]>(response);
 
             if (
@@ -272,7 +331,7 @@ export default function InboxPage() {
                 setMsgs(data);
             }
         } catch {
-            // Keep existing messages if polling fails.
+            // Retain existing messages if polling fails.
         }
     };
 
@@ -283,9 +342,7 @@ export default function InboxPage() {
     useEffect(() => {
         loadConvs();
 
-        const interval = setInterval(() => {
-            loadConvs();
-        }, 5000);
+        const interval = setInterval(loadConvs, 5000);
 
         return () => clearInterval(interval);
     }, []);
@@ -301,9 +358,7 @@ export default function InboxPage() {
             loadMsgs(active.phone);
         }, 5000);
 
-        return () => {
-            clearInterval(interval);
-        };
+        return () => clearInterval(interval);
     }, [active?.phone]);
 
     /* ==========================================
@@ -365,12 +420,9 @@ export default function InboxPage() {
     ========================================== */
 
     const activeConv =
-        convs.find(
-            (c) => c.phone === active?.phone
-        ) ?? active;
+        convs.find((c) => c.phone === active?.phone) ?? active;
 
     const remainingMs = remainingFor(activeConv, now);
-
     const windowOpen = remainingMs > 0;
 
     /* ==========================================
@@ -423,8 +475,7 @@ export default function InboxPage() {
         ];
 
         return Array.from(
-            new Set(
-                matches.map((match) => Number(match[1]))
+            new Set(matches.map((match) => Number(match[1]))
             )
         ).sort((a, b) => a - b);
     }, [selectedTemplate]);
@@ -437,14 +488,10 @@ export default function InboxPage() {
         if (!selectedTemplate) return "";
 
         const headerType =
-            selectedTemplate.headerType || "NONE";
+            selectedTemplate.headerType?.toUpperCase() || "NONE";
 
-        if (
-            ["IMAGE", "VIDEO", "DOCUMENT", "LOCATION"].includes(
-                headerType
-            )
-        ) {
-            return `This template uses a ${headerType} header. Media/location header sending needs additional header-component support in the backend.`;
+        if (headerType === "LOCATION") {
+            return "Location header templates are not supported by this send form yet.";
         }
 
         if (
@@ -468,9 +515,7 @@ export default function InboxPage() {
 
         setTemplateError("");
         setError("");
-
         setShowTemplateModal(true);
-
         setSelectedTemplateId("");
         setTemplateParameters([]);
 
@@ -478,7 +523,6 @@ export default function InboxPage() {
             setLoadingTemplates(true);
 
             const response = await templateService.list("APPROVED");
-
             const data = unwrapResponse<TemplateResponse[]>(response);
 
             const templates = Array.isArray(data) ? data : [];
@@ -527,8 +571,7 @@ export default function InboxPage() {
         ];
 
         const numbers = Array.from(
-            new Set(
-                matches.map((match) => Number(match[1]))
+            new Set(matches.map((match) => Number(match[1]))
             )
         ).sort((a, b) => a - b);
 
@@ -621,7 +664,6 @@ export default function InboxPage() {
             });
 
             setShowTemplateModal(false);
-
             setSelectedTemplateId("");
             setTemplateParameters([]);
 
@@ -688,18 +730,14 @@ export default function InboxPage() {
        PICK IMAGE
     ========================================== */
 
-    const pickImage = (
-        e: ChangeEvent<HTMLInputElement>
-    ) => {
+    const pickImage = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
 
         e.target.value = "";
 
         if (!file) return;
 
-        if (
-            !["image/jpeg", "image/png"].includes(file.type)
-        ) {
+        if (!["image/jpeg", "image/png"].includes(file.type)) {
             setError("Only JPEG or PNG images are supported.");
             return;
         }
@@ -710,7 +748,6 @@ export default function InboxPage() {
         }
 
         setError("");
-
         setPendingImage(file);
         setPreviewUrl(URL.createObjectURL(file));
     };
@@ -752,15 +789,13 @@ export default function InboxPage() {
                 "audio/webm",
             ];
 
-            const selectedType = supportedTypes.find(
-                (type) => MediaRecorder.isTypeSupported(type)
+            const selectedType = supportedTypes.find((type) =>
+                MediaRecorder.isTypeSupported(type)
             );
 
             const recorder = new MediaRecorder(
                 stream,
-                selectedType
-                    ? { mimeType: selectedType }
-                    : undefined
+                selectedType ? { mimeType: selectedType } : undefined
             );
 
             chunksRef.current = [];
@@ -773,9 +808,7 @@ export default function InboxPage() {
             };
 
             recorder.onstop = async () => {
-                stream.getTracks().forEach(
-                    (track) => track.stop()
-                );
+                stream.getTracks().forEach((track) => track.stop());
 
                 if (timerRef.current) {
                     clearInterval(timerRef.current);
@@ -824,16 +857,13 @@ export default function InboxPage() {
             };
 
             recorder.onerror = () => {
-                stream.getTracks().forEach(
-                    (track) => track.stop()
-                );
+                stream.getTracks().forEach((track) => track.stop());
 
                 setRecording(false);
                 setError("Audio recording failed.");
             };
 
             recorder.start(500);
-
             recRef.current = recorder;
 
             setRecording(true);
@@ -897,9 +927,7 @@ export default function InboxPage() {
     return (
         <div className="wa-app">
 
-            {/* ======================================
-                SIDEBAR
-            ====================================== */}
+            {/* SIDEBAR */}
 
             <aside className="wa-sidebar">
 
@@ -924,20 +952,15 @@ export default function InboxPage() {
                     </div>
                 </div>
 
-                {/* SEARCH */}
-
                 <div className="wa-search-area">
                     <div className="wa-search-box">
-
                         <i className="bi bi-search"></i>
 
                         <input
                             type="text"
                             placeholder="Search or start a new chat"
                             value={search}
-                            onChange={(e) =>
-                                setSearch(e.target.value)
-                            }
+                            onChange={(e) => setSearch(e.target.value)}
                         />
 
                         {search && (
@@ -948,19 +971,14 @@ export default function InboxPage() {
                                 <i className="bi bi-x-lg"></i>
                             </button>
                         )}
-
                     </div>
                 </div>
-
-                {/* FILTERS */}
 
                 <div className="wa-filter-area">
                     <span className="wa-filter-active">All</span>
                     <span>Unread</span>
                     <span>Favorites</span>
                 </div>
-
-                {/* CONVERSATIONS */}
 
                 <div className="wa-conversation-list">
 
@@ -977,7 +995,6 @@ export default function InboxPage() {
                                 }`}
                                 onClick={() => open(c)}
                             >
-
                                 <div className="wa-contact-avatar">
                                     {getInitials(c.name)}
                                 </div>
@@ -991,7 +1008,6 @@ export default function InboxPage() {
                                     </div>
 
                                     <div className="wa-conversation-preview">
-
                                         <span>
                                             {c.lastDirection === "OUTBOUND" && (
                                                 <i className="bi bi-check2-all wa-preview-tick"></i>
@@ -1005,11 +1021,9 @@ export default function InboxPage() {
                                                 {c.unreadCount}
                                             </span>
                                         )}
-
                                     </div>
 
                                     <div className="wa-conversation-phone">
-
                                         +{c.phone}
 
                                         <span
@@ -1025,7 +1039,6 @@ export default function InboxPage() {
                                                 ? `${formatRemaining(rem)} left`
                                                 : "Window closed"}
                                         </span>
-
                                     </div>
 
                                 </div>
@@ -1035,7 +1048,6 @@ export default function InboxPage() {
 
                     {filteredConvs.length === 0 && (
                         <div className="wa-no-conversations">
-
                             <div className="wa-no-chat-icon">
                                 <i className="bi bi-chat-dots"></i>
                             </div>
@@ -1047,7 +1059,6 @@ export default function InboxPage() {
                                     ? "Try searching with another name or number."
                                     : "Your conversations will appear here."}
                             </span>
-
                         </div>
                     )}
 
@@ -1060,27 +1071,21 @@ export default function InboxPage() {
 
             </aside>
 
-            {/* ======================================
-                CHAT PANEL
-            ====================================== */}
+            {/* CHAT PANEL */}
 
             <section className="wa-chat-panel">
 
                 {active ? (
                     <>
 
-                        {/* CHAT HEADER */}
-
                         <header className="wa-chat-header">
 
                             <div className="wa-chat-contact">
-
                                 <div className="wa-contact-avatar wa-header-avatar">
                                     {getInitials(active.name)}
                                 </div>
 
                                 <div className="wa-chat-contact-info">
-
                                     <strong>
                                         {active.name || active.phone}
                                     </strong>
@@ -1092,15 +1097,10 @@ export default function InboxPage() {
                                             ? `${formatRemaining(remainingMs)} left to reply`
                                             : "reply window closed"}
                                     </span>
-
                                 </div>
-
                             </div>
 
-                            {/* NO TEMPLATE BUTTON IN HEADER */}
-
                             <div className="wa-chat-header-actions">
-
                                 <button
                                     type="button"
                                     title="Search messages"
@@ -1114,12 +1114,11 @@ export default function InboxPage() {
                                 >
                                     <i className="bi bi-three-dots-vertical"></i>
                                 </button>
-
                             </div>
 
                         </header>
 
-                        {/* CHAT BODY */}
+                        {/* CHAT MESSAGES */}
 
                         <div className="wa-chat-messages">
 
@@ -1128,72 +1127,91 @@ export default function InboxPage() {
                                 Messages are displayed in your WhatsApp Business inbox.
                             </div>
 
-                            {msgs.map((m) => (
+                            {msgs.map((m) => {
+                                const isTemplate =
+                                    m.messageType === "TEMPLATE";
 
-                                <div
-                                    key={m.id}
-                                    className={`wa-message-row ${
-                                        m.direction === "OUTBOUND"
-                                            ? "wa-message-outgoing"
-                                            : "wa-message-incoming"
-                                    }`}
-                                >
+                                const hasTemplateImage =
+                                    isTemplate &&
+                                    m.headerType?.toUpperCase() === "IMAGE" &&
+                                    !!m.headerMediaUrl;
 
-                                    <div className="wa-message-bubble">
+                                return (
+                                    <div
+                                        key={m.id}
+                                        className={`wa-message-row ${
+                                            m.direction === "OUTBOUND"
+                                                ? "wa-message-outgoing"
+                                                : "wa-message-incoming"
+                                        }`}
+                                    >
 
-                                        {m.mediaId && (
-                                            <MediaBubble m={m} />
-                                        )}
+                                        <div
+                                            className={`wa-message-bubble ${
+                                                isTemplate
+                                                    ? "wa-template-message-bubble"
+                                                    : ""
+                                            }`}
+                                        >
 
-                                        {!(
-                                            m.mediaId &&
-                                            /^\[.*\]$/.test(m.text || "")
-                                        ) && (
-                                            <div className="wa-message-text">
-                                                {m.text}
-                                            </div>
-                                        )}
+                                            {/* TEMPLATE IMAGE HEADER */}
 
-                                        {m.errorMessage && (
-                                            <div className="wa-message-error">
-                                                <i className="bi bi-exclamation-circle"></i>
-                                                {m.errorMessage}
-                                            </div>
-                                        )}
-
-                                        <div className="wa-message-meta">
-
-                                            <span>
-                                                {formatMessageTime(m.createdAt)}
-                                            </span>
-
-                                            {m.direction === "OUTBOUND" && (
-                                                <span
-                                                    className={`wa-message-tick ${
-                                                        m.status === "READ"
-                                                            ? "wa-tick-read"
-                                                            : m.status === "FAILED"
-                                                                ? "wa-tick-failed"
-                                                                : ""
-                                                    }`}
-                                                >
-                                                    {tick(m)}
-                                                </span>
+                                            {hasTemplateImage && (
+                                                <TemplateHeaderMedia
+                                                    imageUrl={m.headerMediaUrl!}
+                                                />
                                             )}
+
+                                            {/* NORMAL IMAGE / AUDIO / VIDEO */}
+
+                                            {m.mediaId && (
+                                                <MediaBubble m={m} />
+                                            )}
+
+                                            {/* ACTUAL MESSAGE BODY */}
+
+                                            {m.text && (
+                                                <div className="wa-message-text">
+                                                    {m.text}
+                                                </div>
+                                            )}
+
+                                            {m.errorMessage && (
+                                                <div className="wa-message-error">
+                                                    <i className="bi bi-exclamation-circle"></i>
+                                                    {m.errorMessage}
+                                                </div>
+                                            )}
+
+                                            <div className="wa-message-meta">
+                                                <span>
+                                                    {formatMessageTime(m.createdAt)}
+                                                </span>
+
+                                                {m.direction === "OUTBOUND" && (
+                                                    <span
+                                                        className={`wa-message-tick ${
+                                                            m.status === "READ"
+                                                                ? "wa-tick-read"
+                                                                : m.status === "FAILED"
+                                                                    ? "wa-tick-failed"
+                                                                    : ""
+                                                        }`}
+                                                    >
+                                                        {tick(m)}
+                                                    </span>
+                                                )}
+                                            </div>
 
                                         </div>
 
                                     </div>
-
-                                </div>
-
-                            ))}
+                                );
+                            })}
 
                             <div ref={bottom} />
 
                         </div>
-
-                        {/* ERROR */}
 
                         {error && (
                             <div className="wa-chat-error">
@@ -1201,8 +1219,6 @@ export default function InboxPage() {
                                 {error}
                             </div>
                         )}
-
-                        {/* 24 HOUR WINDOW */}
 
                         {windowOpen ? (
                             <div className="wa-window-info">
@@ -1222,7 +1238,6 @@ export default function InboxPage() {
 
                         {pendingImage && (
                             <div className="wa-image-preview">
-
                                 <img
                                     src={previewUrl}
                                     alt="Selected attachment"
@@ -1237,13 +1252,10 @@ export default function InboxPage() {
                                 >
                                     <i className="bi bi-x-lg"></i>
                                 </button>
-
                             </div>
                         )}
 
-                        {/* ==================================
-                            MESSAGE COMPOSER
-                        ================================== */}
+                        {/* COMPOSER */}
 
                         <footer className="wa-composer">
 
@@ -1257,7 +1269,6 @@ export default function InboxPage() {
 
                             {recording ? (
                                 <>
-
                                     <button
                                         type="button"
                                         className="wa-composer-icon"
@@ -1279,13 +1290,9 @@ export default function InboxPage() {
                                     >
                                         <i className="bi bi-send-fill"></i>
                                     </button>
-
                                 </>
                             ) : (
                                 <>
-
-                                    {/* COMPOSER ACTIONS */}
-
                                     <div className="wa-composer-actions">
 
                                         <button
@@ -1301,14 +1308,10 @@ export default function InboxPage() {
                                             title="Attach image"
                                             className="wa-composer-icon"
                                             disabled={!windowOpen}
-                                            onClick={() =>
-                                                fileInput.current?.click()
-                                            }
+                                            onClick={() => fileInput.current?.click()}
                                         >
                                             <i className="bi bi-plus-lg"></i>
                                         </button>
-
-                                        {/* SMALL LIGHT TEMPLATE BUTTON */}
 
                                         <button
                                             type="button"
@@ -1317,26 +1320,20 @@ export default function InboxPage() {
                                             onClick={openTemplateModal}
                                         >
                                             <i className="bi bi-file-earmark-text"></i>
-
                                             <span>Template</span>
-
                                             <i className="bi bi-chevron-down wa-template-bottom-arrow"></i>
                                         </button>
 
                                     </div>
 
-                                    {/* MESSAGE INPUT */}
-
                                     <div className="wa-input-wrapper">
-
                                         <input
                                             value={text}
                                             disabled={!windowOpen}
-                                            onChange={(e) =>
-                                                setText(e.target.value)
-                                            }
+                                            onChange={(e) => setText(e.target.value)}
                                             onKeyDown={(e) => {
-                                                if (e.key === "Enter") {
+                                                if (e.key === "Enter" && !e.shiftKey) {
+                                                    e.preventDefault();
                                                     send();
                                                 }
                                             }}
@@ -1348,10 +1345,7 @@ export default function InboxPage() {
                                                     : "Window closed - template only"
                                             }
                                         />
-
                                     </div>
-
-                                    {/* SEND / MICROPHONE */}
 
                                     {text.trim() || pendingImage ? (
                                         <button
@@ -1372,7 +1366,6 @@ export default function InboxPage() {
                                             <i className="bi bi-mic-fill"></i>
                                         </button>
                                     )}
-
                                 </>
                             )}
 
@@ -1381,10 +1374,7 @@ export default function InboxPage() {
                     </>
                 ) : (
 
-                    /* WELCOME SCREEN */
-
                     <div className="wa-welcome-screen">
-
                         <div className="wa-welcome-content">
 
                             <div className="wa-welcome-icon">
@@ -1411,19 +1401,15 @@ export default function InboxPage() {
                             <i className="bi bi-laptop"></i>
                             Stay connected with your customers
                         </div>
-
                     </div>
 
                 )}
 
             </section>
 
-            {/* ======================================
-                SEND TEMPLATE MODAL
-            ====================================== */}
+            {/* SEND TEMPLATE MODAL */}
 
             {showTemplateModal && active && (
-
                 <div
                     className="wa-template-overlay"
                     onClick={() => {
@@ -1438,12 +1424,8 @@ export default function InboxPage() {
                         onClick={(e) => e.stopPropagation()}
                     >
 
-                        {/* MODAL HEADER */}
-
                         <div className="wa-template-modal-header">
-
                             <div>
-
                                 <h3>
                                     <i className="bi bi-file-earmark-text"></i>
                                     Send WhatsApp Template
@@ -1452,64 +1434,39 @@ export default function InboxPage() {
                                 <p>
                                     Send an approved template to this customer.
                                 </p>
-
                             </div>
 
                             <button
                                 type="button"
                                 disabled={sendingTemplate}
-                                onClick={() =>
-                                    setShowTemplateModal(false)
-                                }
+                                onClick={() => setShowTemplateModal(false)}
                             >
                                 <i className="bi bi-x-lg"></i>
                             </button>
-
                         </div>
-
-                        {/* MODAL BODY */}
 
                         <div className="wa-template-modal-body">
 
-                            {/* RECIPIENT */}
-
                             <div className="wa-template-recipient">
-
                                 <i className="bi bi-person-circle"></i>
 
                                 <div>
-
                                     <strong>
                                         {active.name || "Customer"}
                                     </strong>
 
-                                    <span>
-                                        +{active.phone}
-                                    </span>
-
+                                    <span>+{active.phone}</span>
                                 </div>
-
                             </div>
 
-                            {/* TEMPLATE SELECT */}
-
                             <div className="wa-template-field">
-
-                                <label>
-                                    Select approved template
-                                </label>
+                                <label>Select approved template</label>
 
                                 <select
                                     value={selectedTemplateId}
-                                    onChange={(e) =>
-                                        selectTemplate(e.target.value)
-                                    }
-                                    disabled={
-                                        loadingTemplates ||
-                                        sendingTemplate
-                                    }
+                                    onChange={(e) => selectTemplate(e.target.value)}
+                                    disabled={loadingTemplates || sendingTemplate}
                                 >
-
                                     <option value="">
                                         {loadingTemplates
                                             ? "Loading templates..."
@@ -1517,100 +1474,116 @@ export default function InboxPage() {
                                     </option>
 
                                     {approvedTemplates.map((template) => (
-
                                         <option
                                             key={template.id}
                                             value={template.id}
                                         >
                                             {template.name} ({template.language})
                                         </option>
-
                                     ))}
-
                                 </select>
 
                                 {!loadingTemplates &&
                                     approvedTemplates.length === 0 && (
-
                                         <small className="wa-template-help">
                                             No approved templates found.
                                             Create and approve a template first.
                                         </small>
-
                                     )}
-
                             </div>
 
-                            {/* SELECTED TEMPLATE DETAILS */}
-
                             {selectedTemplate && (
-
                                 <>
-
                                     <div className="wa-template-details">
-
                                         <div>
                                             <span>Template</span>
-                                            <strong>
-                                                {selectedTemplate.name}
-                                            </strong>
+                                            <strong>{selectedTemplate.name}</strong>
                                         </div>
 
                                         <div>
                                             <span>Language</span>
-                                            <strong>
-                                                {selectedTemplate.language}
-                                            </strong>
+                                            <strong>{selectedTemplate.language}</strong>
                                         </div>
 
                                         <div>
                                             <span>Category</span>
-                                            <strong>
-                                                {selectedTemplate.category}
-                                            </strong>
+                                            <strong>{selectedTemplate.category}</strong>
                                         </div>
-
                                     </div>
 
-                                    {/* HEADER PREVIEW */}
+                                    {/* TEXT HEADER */}
 
-                                    {selectedTemplate.headerType === "TEXT" &&
+                                    {selectedTemplate.headerType?.toUpperCase() === "TEXT" &&
                                         selectedTemplate.headerText && (
-
                                             <div className="wa-template-preview">
-
                                                 <span>HEADER</span>
-
                                                 <strong>
                                                     {selectedTemplate.headerText}
                                                 </strong>
-
                                             </div>
-
                                         )}
+
+                                    {/* IMAGE HEADER */}
+
+                                    {selectedTemplate.headerType?.toUpperCase() === "IMAGE" &&
+                                        selectedTemplate.headerMediaUrl && (
+                                            <div className="wa-template-preview">
+                                                <span>IMAGE HEADER</span>
+
+                                                <img
+                                                    src={selectedTemplate.headerMediaUrl}
+                                                    alt="Template header preview"
+                                                    className="wa-media-image"
+                                                />
+                                            </div>
+                                        )}
+
+                                    {/* VIDEO HEADER */}
+
+                                    {selectedTemplate.headerType?.toUpperCase() === "VIDEO" &&
+                                        selectedTemplate.headerMediaUrl && (
+                                            <div className="wa-template-preview">
+                                                <span>VIDEO HEADER</span>
+
+                                                <video
+                                                    src={selectedTemplate.headerMediaUrl}
+                                                    controls
+                                                    className="wa-media-video"
+                                                />
+                                            </div>
+                                        )}
+
+                                    {/* DOCUMENT HEADER */}
+
+                                    {selectedTemplate.headerType?.toUpperCase() === "DOCUMENT" && (
+                                        <div className="wa-template-preview">
+                                            <span>DOCUMENT HEADER</span>
+
+                                            <div className="wa-document-link">
+                                                <i className="bi bi-file-earmark-pdf" />
+                                                {selectedTemplate.headerMediaUrl
+                                                    ? "Document attached"
+                                                    : "Document header"}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* BODY PREVIEW */}
 
                                     <div className="wa-template-preview">
-
                                         <span>MESSAGE PREVIEW</span>
 
                                         <p>{templatePreview}</p>
 
                                         {selectedTemplate.footerText && (
-                                            <small>
-                                                {selectedTemplate.footerText}
-                                            </small>
+                                            <small>{selectedTemplate.footerText}</small>
                                         )}
-
                                     </div>
 
-                                    {/* VARIABLES */}
+                                    {/* BODY VARIABLES */}
 
                                     {bodyVariableNumbers.length > 0 && (
-
                                         <div className="wa-template-variables">
-
                                             <h4>
                                                 <i className="bi bi-braces"></i>
                                                 Template variables
@@ -1621,89 +1594,56 @@ export default function InboxPage() {
                                                 each variable in the message.
                                             </p>
 
-                                            {bodyVariableNumbers.map(
-                                                (number, index) => (
+                                            {bodyVariableNumbers.map((number, index) => (
+                                                <div
+                                                    className="wa-template-field"
+                                                    key={number}
+                                                >
+                                                    <label>
+                                                        Variable {"{{"}{number}{"}}"}
+                                                    </label>
 
-                                                    <div
-                                                        className="wa-template-field"
-                                                        key={number}
-                                                    >
-
-                                                        <label>
-                                                            Variable {"{{"}
-                                                            {number}
-                                                            {"}}"}
-                                                        </label>
-
-                                                        <input
-                                                            type="text"
-                                                            value={
-                                                                templateParameters[index] || ""
-                                                            }
-                                                            onChange={(e) =>
-                                                                updateTemplateParameter(
-                                                                    index,
-                                                                    e.target.value
-                                                                )
-                                                            }
-                                                            placeholder={`Enter value for {{${number}}}`}
-                                                            disabled={sendingTemplate}
-                                                        />
-
-                                                    </div>
-
-                                                )
-                                            )}
-
+                                                    <input
+                                                        type="text"
+                                                        value={templateParameters[index] || ""}
+                                                        onChange={(e) =>
+                                                            updateTemplateParameter(
+                                                                index,
+                                                                e.target.value
+                                                            )
+                                                        }
+                                                        placeholder={`Enter value for {{${number}}}`}
+                                                        disabled={sendingTemplate}
+                                                    />
+                                                </div>
+                                            ))}
                                         </div>
-
                                     )}
-
-                                    {/* UNSUPPORTED HEADER WARNING */}
 
                                     {unsupportedTemplateReason && (
-
                                         <div className="wa-template-warning">
-
                                             <i className="bi bi-exclamation-triangle"></i>
-
                                             {unsupportedTemplateReason}
-
                                         </div>
-
                                     )}
-
                                 </>
-
                             )}
 
-                            {/* TEMPLATE ERROR */}
-
                             {templateError && (
-
                                 <div className="wa-template-error">
-
                                     <i className="bi bi-exclamation-circle"></i>
-
                                     {templateError}
-
                                 </div>
-
                             )}
 
                         </div>
 
-                        {/* MODAL FOOTER */}
-
                         <div className="wa-template-modal-footer">
-
                             <button
                                 type="button"
                                 className="wa-template-cancel"
                                 disabled={sendingTemplate}
-                                onClick={() =>
-                                    setShowTemplateModal(false)
-                                }
+                                onClick={() => setShowTemplateModal(false)}
                             >
                                 Cancel
                             </button>
@@ -1722,7 +1662,6 @@ export default function InboxPage() {
                                 }
                                 onClick={sendTemplate}
                             >
-
                                 {sendingTemplate ? (
                                     <>
                                         <span className="wa-template-spinner"></span>
@@ -1734,15 +1673,11 @@ export default function InboxPage() {
                                         Send Template
                                     </>
                                 )}
-
                             </button>
-
                         </div>
 
                     </div>
-
                 </div>
-
             )}
 
         </div>
