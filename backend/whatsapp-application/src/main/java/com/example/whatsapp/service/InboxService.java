@@ -372,12 +372,7 @@ public class InboxService {
                         : "DOCUMENT".equals(headerType) ? "application/pdf"
                         : null
         );
-        out.setMessage(
-                parameters.isEmpty()
-                        ? "[template] " + templateName
-                        : "[template] " + templateName + " - "
-                        + String.join(", ", parameters)
-        );
+        out.setMessage(render(template.getBody(), parameters));
         out.setStatus("PROCESSING");
 
         try {
@@ -415,6 +410,19 @@ public class InboxService {
                 : "[" + m.getMessageType() + "]";
     }
 
+    private String render(String body, List<String> parameters) {
+
+        String result = body == null ? "" : body;
+
+        for (int i = 0; i < parameters.size(); i++) {
+            result = result.replace(
+                    "{{" + (i + 1) + "}}",
+                    parameters.get(i)
+            );
+        }
+
+        return result;
+    }
     private InboxMessageDto toDto(WhatsappEntity m) {
 
         return new InboxMessageDto(
