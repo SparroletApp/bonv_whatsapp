@@ -59,6 +59,6 @@ whatsapp:
 
 app:
   media:
-    dir: ${APP_MEDIA_DIR:/tmp/campaign-media}
-    public-base-url: ${APP_MEDIA_PUBLIC_BASE_URL:}
+    dir: ${APP_MEDIA_DIR:/var/data/campaign-media}
+    public-base-url: ${APP_MEDIA_PUBLIC_BASE_URL:https://bonv-whatsapp-1.onrender.com}
 
