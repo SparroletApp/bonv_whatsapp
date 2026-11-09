@@ -183,12 +183,20 @@ public class InboxService {
             String sendMime = mime;
             String filename = file.getOriginalFilename() == null ? "file" : file.getOriginalFilename();
 
-            if (audio && !mime.startsWith("audio/ogg")) {
-                data = toOggOpus(data);               // WebM/MP4 -> OGG Opus
-                sendMime = "audio/ogg; codecs=opus";
-                filename = "voice.ogg";
-            } else if (audio) {
-                sendMime = "audio/ogg; codecs=opus";
+            if (audio) {
+                boolean ogg = mime.startsWith("audio/ogg");
+                boolean direct = mime.startsWith("audio/mp4") || mime.startsWith("audio/mpeg")
+                        || mime.startsWith("audio/aac") || mime.startsWith("audio/amr");
+
+                if (ogg) {
+                    sendMime = "audio/ogg; codecs=opus";
+                } else if (direct) {
+                    sendMime = mime.split(";")[0].trim(); 
+                } else {
+                    data = toOggOpus(data);
+                    sendMime = "audio/ogg; codecs=opus";
+                    filename = "voice.ogg";
+                }
             }
 
             String mediaId = client.uploadMedia(data, sendMime, filename);

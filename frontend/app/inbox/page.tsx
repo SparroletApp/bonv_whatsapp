@@ -210,7 +210,10 @@ export default function InboxPage() {
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const rec = new MediaRecorder(stream);
+            const mimeType = ["audio/ogg;codecs=opus", "audio/mp4"].find((t) =>
+                MediaRecorder.isTypeSupported(t)
+            );
+            const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
             chunksRef.current = [];
             cancelRef.current = false;
 
@@ -227,7 +230,9 @@ export default function InboxPage() {
 
                 const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
                 try {
-                    await inboxService.replyMedia(phone, blob, "voice");
+                    const ext = (rec.mimeType || "").includes("mp4") ? "m4a"
+                        : (rec.mimeType || "").includes("ogg") ? "ogg" : "webm";
+                    await inboxService.replyMedia(phone, blob, `voice.${ext}`);
                     loadMsgs(phone);
                     loadConvs();
                 } catch (e) {
