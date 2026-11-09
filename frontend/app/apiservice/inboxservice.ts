@@ -7,6 +7,8 @@ export interface Conversation {
     lastMessageAt: string;
     lastDirection: "INBOUND" | "OUTBOUND";
     unreadCount: number;
+    lastInboundAt: string | null;
+    windowExpiresAt: string | null;
 }
 
 export interface InboxMessage {
@@ -24,6 +26,7 @@ const inboxService = {
     conversations: () => api.get<Conversation[]>("/inbox/conversations"),
     messages: (phone: string) =>
         api.get<InboxMessage[]>(`/inbox/conversations/${phone}/messages`),
+
     markRead: (phone: string) => api.post<void>(`/inbox/conversations/${phone}/read`, {}),
     reply: (phone: string, message: string) =>
         api.post<InboxMessage>(`/inbox/conversations/${phone}/reply`, { message }),

@@ -135,11 +135,8 @@ function EditCategory({
                            Broadcast Name
                             <span className="required-star">*</span>
                         </label>
-
                         <div className="category-input-wrapper">
-
                             <i className="bi bi-folder2-open"></i>
-
                             <input
                                 type="text"
                                 id="editCategoryName"
@@ -152,29 +149,23 @@ function EditCategory({
                                 disabled={loading}
                                 autoFocus
                             />
-
                         </div>
-
                         {error && (
                             <p className="category-error">
                                 <i className="bi bi-exclamation-circle"></i>
                                 {error}
                             </p>
                         )}
-
                         <p className="category-input-hint">
                             Update the broadcast name to organize your contacts.
                         </p>
-
                     </div>
                     <div className="category-modal-footer">
-
                         <button
                             type="button"
                             className="category-cancel-btn"
                             onClick={handleClose}
-                            disabled={loading}
-                        >
+                            disabled={loading}>
                             Cancel
                         </button>
 
@@ -195,13 +186,9 @@ function EditCategory({
                                 </>
                             )}
                         </button>
-
                     </div>
-
                 </form>
-
             </section>
-
         </div>
     );
 }

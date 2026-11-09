@@ -18,6 +18,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class InboxService {
 
+    private static final long WINDOW_HOURS = 24;
+
     private final WhatsappRepository repo;
     private final WhatsappClient client;
 
@@ -26,14 +28,24 @@ public class InboxService {
         Map<String, Long> unread = new HashMap<>();
         for (Object[] r : repo.unreadCounts()) unread.put((String) r[0], (Long) r[1]);
 
+        // last INBOUND message time per phone (used for the 24h window)
+        Map<String, LocalDateTime> lastInbound = new HashMap<>();
+        for (Object[] r : repo.lastInboundTimes())
+            lastInbound.put((String) r[0], (LocalDateTime) r[1]);
+
         return repo.findLatestPerPhone().stream()
-                .map(m -> new ConversationDto(
-                        m.getRecipientPhone(),
-                        m.getRecipientName(),
-                        preview(m),
-                        m.getCreatedAt(),
-                        m.getDirection(),
-                        unread.getOrDefault(m.getRecipientPhone(), 0L)))
+                .map(m -> {
+                    LocalDateTime in = lastInbound.get(m.getRecipientPhone());
+                    return new ConversationDto(
+                            m.getRecipientPhone(),
+                            m.getRecipientName(),
+                            preview(m),
+                            m.getCreatedAt(),
+                            m.getDirection(),
+                            unread.getOrDefault(m.getRecipientPhone(), 0L),
+                            in,
+                            in == null ? null : in.plusHours(WINDOW_HOURS));
+                })
                 .sorted(Comparator.comparing(ConversationDto::lastMessageAt).reversed())
                 .toList();
     }
@@ -56,7 +68,7 @@ public class InboxService {
                 .orElseThrow(() -> new IllegalStateException(
                         "This contact has not messaged you yet. Send a template (campaign) first."));
 
-        if (lastIn.getCreatedAt().isBefore(LocalDateTime.now().minusHours(24))) {
+        if (lastIn.getCreatedAt().isBefore(LocalDateTime.now().minusHours(WINDOW_HOURS))) {
             throw new IllegalStateException(
                     "The 24-hour reply window is closed. Send an approved template instead.");
         }

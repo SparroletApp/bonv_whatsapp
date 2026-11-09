@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -17,6 +16,9 @@ export default function InboxPage() {
     const [text, setText] = useState("");
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
+
+    // ---- 24h WINDOW: clock that ticks every 30 seconds ----
+    const [now, setNow] = useState(Date.now());
 
     const bottom = useRef<HTMLDivElement>(null);
 
@@ -38,8 +40,31 @@ export default function InboxPage() {
     }, [active?.phone]);
 
     useEffect(() => {
+        const t = setInterval(() => setNow(Date.now()), 30_000);
+        return () => clearInterval(t);
+    }, []);
+
+    useEffect(() => {
         bottom.current?.scrollIntoView({ behavior: "smooth" });
     }, [msgs.length]);
+
+    // ---- 24h WINDOW helpers ----
+    const remainingFor = (c?: Conversation | null) =>
+        c?.windowExpiresAt
+            ? new Date(c.windowExpiresAt).getTime() - now
+            : 0;
+
+    const formatRemaining = (ms: number) => {
+        const totalMinutes = Math.max(0, Math.floor(ms / 60000));
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        return `${h}h ${m}m`;
+    };
+
+    // always use the latest polled data, not the stale `active` copy
+    const activeConv = convs.find((c) => c.phone === active?.phone) ?? active;
+    const remainingMs = remainingFor(activeConv);
+    const windowOpen = remainingMs > 0;
 
     const open = async (c: Conversation) => {
         setActive(c);
@@ -54,7 +79,7 @@ export default function InboxPage() {
     };
 
     const send = async () => {
-        if (!active || !text.trim()) return;
+        if (!active || !text.trim() || !windowOpen) return;
 
         setError("");
 
@@ -115,9 +140,6 @@ export default function InboxPage() {
                             <button type="button" title="New chat">
                                 <i className="bi bi-chat-square-plus"></i>
                             </button>
-                            {/* <button type="button" title="More options">
-                                <i className="bi bi-three-dots-vertical"></i>
-                            </button> */}
                         </div>
                     </div>
                 </div>
@@ -154,49 +176,65 @@ export default function InboxPage() {
                 {/* CONVERSATIONS */}
                 <div className="wa-conversation-list">
 
-                    {filteredConvs.map((c) => (
-                        <div
-                            key={c.phone}
-                            className={`wa-conversation ${
-                                active?.phone === c.phone
-                                    ? "wa-conversation-active"
-                                    : ""
-                            }`}
-                            onClick={() => open(c)}
-                        >
-                            <div className="wa-contact-avatar">
-                                {getInitials(c.name)}
-                            </div>
+                    {filteredConvs.map((c) => {
+                        const rem = remainingFor(c);
 
-                            <div className="wa-conversation-content">
-
-                                <div className="wa-conversation-heading">
-                                    <strong>{c.name || c.phone}</strong>
+                        return (
+                            <div
+                                key={c.phone}
+                                className={`wa-conversation ${
+                                    active?.phone === c.phone
+                                        ? "wa-conversation-active"
+                                        : ""
+                                }`}
+                                onClick={() => open(c)}
+                            >
+                                <div className="wa-contact-avatar">
+                                    {getInitials(c.name)}
                                 </div>
 
-                                <div className="wa-conversation-preview">
-                                    <span>
-                                        {c.lastDirection === "OUTBOUND" && (
-                                            <i className="bi bi-check2-all wa-preview-tick"></i>
-                                        )}
+                                <div className="wa-conversation-content">
 
-                                        {c.lastMessage || "No messages yet"}
-                                    </span>
+                                    <div className="wa-conversation-heading">
+                                        <strong>{c.name || c.phone}</strong>
+                                    </div>
 
-                                    {c.unreadCount > 0 && (
-                                        <span className="wa-unread-badge">
-                                            {c.unreadCount}
+                                    <div className="wa-conversation-preview">
+                                        <span>
+                                            {c.lastDirection === "OUTBOUND" && (
+                                                <i className="bi bi-check2-all wa-preview-tick"></i>
+                                            )}
+
+                                            {c.lastMessage || "No messages yet"}
                                         </span>
-                                    )}
-                                </div>
 
-                                <div className="wa-conversation-phone">
-                                    +{c.phone}
-                                </div>
+                                        {c.unreadCount > 0 && (
+                                            <span className="wa-unread-badge">
+                                                {c.unreadCount}
+                                            </span>
+                                        )}
+                                    </div>
 
+                                    <div className="wa-conversation-phone">
+                                        +{c.phone}
+                                        <span
+                                            className={`wa-window-tag ${
+                                                rem > 0
+                                                    ? "wa-window-tag-open"
+                                                    : "wa-window-tag-closed"
+                                            }`}
+                                        >
+                                            <i className="bi bi-clock"></i>
+                                            {rem > 0
+                                                ? `${formatRemaining(rem)} left`
+                                                : "Window closed"}
+                                        </span>
+                                    </div>
+
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
 
                     {filteredConvs.length === 0 && (
                         <div className="wa-no-conversations">
@@ -239,7 +277,13 @@ export default function InboxPage() {
 
                                 <div className="wa-chat-contact-info">
                                     <strong>{active.name || active.phone}</strong>
-                                    <span>+{active.phone}</span>
+                                    <span>
+                                        +{active.phone}
+                                        {" · "}
+                                        {windowOpen
+                                            ? `${formatRemaining(remainingMs)} left to reply`
+                                            : "reply window closed"}
+                                    </span>
                                 </div>
 
                             </div>
@@ -327,6 +371,21 @@ export default function InboxPage() {
                             </div>
                         )}
 
+                        {/* 24H WINDOW STATUS */}
+                        {windowOpen ? (
+                            <div className="wa-window-info">
+                                <i className="bi bi-clock"></i>
+                                Reply window open: {formatRemaining(remainingMs)} left
+                            </div>
+                        ) : (
+                            <div className="wa-window-closed">
+                                <i className="bi bi-clock-history"></i>
+                                24-hour window closed. You can reply only after the
+                                customer messages you again, or send an approved
+                                template.
+                            </div>
+                        )}
+
                         {/* MESSAGE COMPOSER */}
                         <footer className="wa-composer">
 
@@ -351,18 +410,23 @@ export default function InboxPage() {
                             <div className="wa-input-wrapper">
                                 <input
                                     value={text}
+                                    disabled={!windowOpen}
                                     onChange={(e) => setText(e.target.value)}
                                     onKeyDown={(e) =>
                                         e.key === "Enter" && send()
                                     }
-                                    placeholder="Type a message"
+                                    placeholder={
+                                        windowOpen
+                                            ? "Type a message"
+                                            : "Window closed - template only"
+                                    }
                                 />
                             </div>
 
                             <button
                                 className="wa-send-button"
                                 onClick={send}
-                                disabled={!text.trim()}
+                                disabled={!text.trim() || !windowOpen}
                                 title="Send message"
                             >
                                 <i className="bi bi-send-fill"></i>

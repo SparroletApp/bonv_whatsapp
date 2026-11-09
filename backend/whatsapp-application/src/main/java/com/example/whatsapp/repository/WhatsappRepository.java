@@ -53,4 +53,12 @@ public interface WhatsappRepository extends JpaRepository<WhatsappEntity, Long> 
                                   where m.campaignId = :cid)
        """)
     long countReplies(@Param("cid") Long cid, @Param("since") LocalDateTime since);
+
+    @Query("""
+        select m.recipientPhone, max(m.createdAt)
+        from WhatsappEntity m
+        where m.direction = 'INBOUND'
+        group by m.recipientPhone
+        """)
+    List<Object[]> lastInboundTimes();
 }
