@@ -9,7 +9,6 @@ import templateService, { TemplateResponse } from "@/app/apiservice/templateserv
 import inboxService, { Conversation } from "@/app/apiservice/inboxservice";
 import categoryInsightService, { CategorySummary } from "@/app/apiservice/categoryinsightservice";
 
-// Change these if your page paths are different
 const ROUTES = {
     campaigns: "/campaign",
     createCampaign: "/campaign/create",
@@ -50,14 +49,12 @@ function Dashboard() {
     const [error, setError] = useState("");
     const [days, setDays] = useState(30);
 
-    // FIX: Keep the current timestamp outside the prerender phase.
     const [currentTime, setCurrentTime] = useState<number | null>(null);
 
     useEffect(() => {
         setCurrentTime(Date.now());
     }, []);
 
-    // Load dashboard data
     const load = useCallback(async () => {
         setRefreshing(true);
 
@@ -69,7 +66,6 @@ function Dashboard() {
                 categoryInsightService.list(),
             ]);
 
-            // One failing source must not blank the whole dashboard
             if (c.status === "fulfilled") setCampaigns(c.value);
             if (t.status === "fulfilled") setTemplates(t.value);
             if (i.status === "fulfilled") setConversations(i.value);
@@ -93,7 +89,6 @@ function Dashboard() {
         }
     }, []);
 
-    // Initial loading and automatic refresh
     useEffect(() => {
         load();
 
@@ -104,7 +99,6 @@ function Dashboard() {
         return () => clearInterval(timer);
     }, [load]);
 
-    // Campaigns inside the selected date range
     const inRange = useMemo(() => {
         if (!days || currentTime === null) return campaigns;
 
@@ -116,7 +110,6 @@ function Dashboard() {
         );
     }, [campaigns, days, currentTime]);
 
-    // Campaign totals
     const totals = useMemo(() => {
         const sum = (f: (c: CampaignResponse) => number) =>
             inRange.reduce((s, c) => s + (f(c) || 0), 0);
@@ -137,7 +130,6 @@ function Dashboard() {
         };
     }, [inRange]);
 
-    // Total contacts
     const contacts = useMemo(
         () =>
             categories.reduce(
@@ -147,7 +139,7 @@ function Dashboard() {
         [categories]
     );
 
-    // Unread messages
+
     const unread = useMemo(
         () =>
             conversations.reduce(
@@ -161,7 +153,6 @@ function Dashboard() {
         (c) => c.unreadCount > 0
     ).length;
 
-    // Template statistics
     const approved = templates.filter(
         (t) => t.status === "APPROVED"
     ).length;
@@ -170,7 +161,6 @@ function Dashboard() {
         (t) => t.status === "PENDING"
     ).length;
 
-    // Recent campaigns
     const recent = useMemo(
         () =>
             [...campaigns]
@@ -179,7 +169,6 @@ function Dashboard() {
         [campaigns]
     );
 
-    // Dashboard statistics
     const stats = [
         {
             title: "Total Contacts",
@@ -221,7 +210,6 @@ function Dashboard() {
         },
     ];
 
-    // Delivery percentages
     const failedPct =
         totals.sent + totals.failed
             ? Math.round(
@@ -242,7 +230,6 @@ function Dashboard() {
 
     return (
         <section className="dashboard">
-            {/* ---------- Header ---------- */}
             <div className="dashboard-header">
                 <div>
                     <span className="dashboard-subtitle">
@@ -293,7 +280,6 @@ function Dashboard() {
                 </div>
             )}
 
-            {/* ---------- Stat Cards ---------- */}
             <div className="dashboard-stats">
                 {stats.map((item) => (
                     <div className="stat-card" key={item.title}>
@@ -320,7 +306,6 @@ function Dashboard() {
                 ))}
             </div>
 
-            {/* ---------- Create Buttons + Quick Actions ---------- */}
             <div className="dashboard-middle">
                 <div className="dashboard-panel analytics-panel">
                     <div className="panel-header">
@@ -393,7 +378,6 @@ function Dashboard() {
                     </div>
                 </div>
 
-                {/* Quick Actions */}
                 <div className="dashboard-panel quick-actions-panel">
                     <div className="panel-header">
                         <div>
@@ -489,7 +473,6 @@ function Dashboard() {
                 </div>
             </div>
 
-            {/* ---------- Recent Activity + Delivery ---------- */}
             <div className="dashboard-bottom">
                 <div className="dashboard-panel recent-activity-panel">
                     <div className="panel-header">
@@ -593,7 +576,6 @@ function Dashboard() {
                     </div>
                 </div>
 
-                {/* Delivery Overview */}
                 <div className="dashboard-panel delivery-panel">
                     <div className="panel-header">
                         <div>

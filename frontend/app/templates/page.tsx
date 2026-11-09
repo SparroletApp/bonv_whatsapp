@@ -57,7 +57,7 @@ export default function Template() {
         (async () => {
             try { await load(); } catch (e) { setError(apiError(e)); }
             setLoading(false);
-            syncNow(true);                         // then pull the latest from Meta
+            syncNow(true);                         
         })();
     }, []);
 

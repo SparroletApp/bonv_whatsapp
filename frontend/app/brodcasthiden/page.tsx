@@ -28,14 +28,12 @@ export default function Broadcast() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
 
-    // View broadcast: save ID and navigate to broadcast/view
     const handleViewBroadcast = (broadcast: BroadcastResponse) => {
         localStorage.setItem("broadcastId", String(broadcast.id));
 
         router.push("/broadcasts/view");
     };
 
-    // SweetAlert toast
     const showToast = (
         icon: "success" | "error" | "warning",
         title: string
@@ -51,7 +49,6 @@ export default function Broadcast() {
         });
     };
 
-    // Fetch broadcasts
     const fetchBroadcasts = async () => {
         try {
             setLoading(true);
@@ -80,20 +77,18 @@ export default function Broadcast() {
         fetchBroadcasts();
     }, []);
 
-    // Filter broadcasts
     const filteredBroadcasts = useMemo(() => {
         return broadcasts.filter((broadcast) =>
             broadcast.name?.toLowerCase().includes(search.toLowerCase())
         );
     }, [broadcasts, search]);
 
-    // Open create popup
     const openCreateModal = () => {
         setError("");
         setShowCreateBroadcast(true);
     };
 
-    // Open edit popup
+
     const openEditModal = (broadcast: BroadcastResponse) => {
         setName(broadcast.name);
         setEditingId(broadcast.id);
@@ -101,7 +96,7 @@ export default function Broadcast() {
         setShowModal(true);
     };
 
-    // Close edit popup
+
     const closeModal = () => {
         if (saving) return;
 
@@ -111,7 +106,7 @@ export default function Broadcast() {
         setError("");
     };
 
-    // Create broadcast
+
     const handleCreate = async (broadcastName: string) => {
         try {
             setSaving(true);
@@ -144,7 +139,7 @@ export default function Broadcast() {
         }
     };
 
-    // Update broadcast
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
@@ -190,7 +185,6 @@ export default function Broadcast() {
         }
     };
 
-    // Delete broadcast
     const handleDelete = async (id: number) => {
         const result = await Swal.fire({
             title: "Delete Broadcast?",
@@ -239,7 +233,7 @@ export default function Broadcast() {
         <>
             <div className="broadcast-page">
 
-                {/* Page Header */}
+
                 <div className="broadcast-header">
                     <div className="broadcast-header-content">
                         <div className="broadcast-breadcrumb">
@@ -266,7 +260,6 @@ export default function Broadcast() {
                     </button>
                 </div>
 
-                {/* Error Message */}
                 {error && !showModal && (
                     <div className="broadcast-error-message">
                         <i className="bi bi-exclamation-circle-fill"></i>
@@ -281,7 +274,7 @@ export default function Broadcast() {
                     </div>
                 )}
 
-                {/* Statistics */}
+
                 <div className="broadcast-stats">
                     <div className="broadcast-stat-card">
                         <div className="broadcast-stat-icon">
@@ -306,7 +299,6 @@ export default function Broadcast() {
                     </div>
                 </div>
 
-                {/* Broadcast Table Container */}
                 <div className="broadcast-list-container">
 
                     <div className="broadcast-list-header">
@@ -354,7 +346,6 @@ export default function Broadcast() {
                         </div>
                     </div>
 
-                    {/* Loading */}
                     {loading ? (
                         <div className="broadcast-state">
                             <div className="broadcast-loader"></div>
@@ -434,7 +425,6 @@ export default function Broadcast() {
                                                 <td>
                                                     <div className="broadcast-action-buttons">
 
-                                                        {/* View */}
                                                         <button
                                                             type="button"
                                                             className="broadcast-view-btn"
@@ -448,7 +438,7 @@ export default function Broadcast() {
                                                             <i className="bi bi-eye"></i>
                                                         </button>
 
-                                                        {/* Edit */}
+                                     
                                                         <button
                                                             type="button"
                                                             className="broadcast-edit-btn"
@@ -462,7 +452,6 @@ export default function Broadcast() {
                                                             <i className="bi bi-pencil-square"></i>
                                                         </button>
 
-                                                        {/* Delete */}
                                                         <button
                                                             type="button"
                                                             className="broadcast-delete-btn"
@@ -496,7 +485,6 @@ export default function Broadcast() {
                 </div>
             </div>
 
-            {/* Create Broadcast Popup */}
             {showCreateBroadcast && (
                 <CreateBroadcast
                     onClose={() => setShowCreateBroadcast(false)}
@@ -504,7 +492,6 @@ export default function Broadcast() {
                 />
             )}
 
-            {/* Edit Broadcast Popup */}
             {showModal && (
                 <div
                     className="broadcast-modal-overlay"

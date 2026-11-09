@@ -19,10 +19,8 @@ function CreateBroadcast({ onClose, onSubmit }: CreateBroadcastProps) {
 
         onSubmit(name.trim());
 
-        // Close popup
         onClose();
 
-        // Show success toast
         Swal.fire({
             toast: true,
             position: "top-end",

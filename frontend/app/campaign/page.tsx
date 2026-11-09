@@ -18,8 +18,6 @@ export default function CampaignsPage() {
     const [error, setError] = useState("");
     const [q, setQ] = useState("");
     const [status, setStatus] = useState("ALL");
-
-    // selected campaign (side panel)
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [msgs, setMsgs] = useState<CampaignMessage[]>([]);
     const [msgFilter, setMsgFilter] = useState("ALL");
@@ -33,7 +31,7 @@ export default function CampaignsPage() {
 
     useEffect(() => {
         loadList();
-        const t = setInterval(loadList, 5000);                  // live counts
+        const t = setInterval(loadList, 5000);                
         return () => clearInterval(t);
     }, []);
 
@@ -58,7 +56,7 @@ export default function CampaignsPage() {
         finally { setResuming(false); }
     };
 
-    // totals across all campaigns (sent/delivered are cumulative on the backend)
+
     const t = useMemo(() => {
         const sum = (f: (c: CampaignResponse) => number) => items.reduce((s, c) => s + (f(c) || 0), 0);
         return {

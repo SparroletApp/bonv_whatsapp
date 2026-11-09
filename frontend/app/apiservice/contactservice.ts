@@ -52,7 +52,6 @@ export interface BroadcastIdDto {
 
 const contactService = {
 
-    // Create Contact
     createContact: async (
         data: ContactCreateDto
     ): Promise<ContactResponseDto> => {
@@ -62,7 +61,7 @@ const contactService = {
         );
     },
 
-    // Get All Contacts
+
     getAllContacts: async (): Promise<ContactResponseDto[]> => {
         return await api.post<ContactResponseDto[]>(
             "/contacts/get-all",
@@ -70,7 +69,7 @@ const contactService = {
         );
     },
 
-    // Get Contact By ID
+
     getContactById: async (
         data: ContactIdDto
     ): Promise<ContactResponseDto> => {
@@ -80,7 +79,6 @@ const contactService = {
         );
     },
 
-    // Update Contact
     updateContact: async (
         data: ContactUpdateDto
     ): Promise<ContactResponseDto> => {
@@ -90,7 +88,6 @@ const contactService = {
         );
     },
 
-    // Delete Contact
     deleteContact: async (
         data: ContactIdDto
     ): Promise<string> => {

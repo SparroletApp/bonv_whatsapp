@@ -43,7 +43,7 @@ export default function TemplateForm({
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
 
-    // Only one supported variable: Name
+
     const hasNameVariable = body.includes(NAME_VARIABLE);
 
     const varCount = useMemo(
@@ -51,7 +51,6 @@ export default function TemplateForm({
         [hasNameVariable]
     );
 
-    // Insert the Name variable automatically as {{1}}
     const addNameVariable = () => {
         if (hasNameVariable) return;
 
@@ -110,7 +109,6 @@ export default function TemplateForm({
             return;
         }
 
-        // Reject every variable except {{1}}.
         const variableMatches = [
             ...cleanBody.matchAll(/\{\{(\d+)\}\}/g),
         ];
@@ -126,7 +124,7 @@ export default function TemplateForm({
             return;
         }
 
-        // Name variable must not be at the beginning or end.
+
         if (/^\s*\{\{1\}\}/.test(cleanBody)) {
             setError("Message body cannot start with a variable.");
             return;
@@ -142,7 +140,7 @@ export default function TemplateForm({
             return;
         }
 
-        // Validate buttons.
+
         for (const button of buttons) {
             if (!button.text.trim()) {
                 setError("Every button must have button text.");
@@ -190,7 +188,6 @@ export default function TemplateForm({
                 body: cleanBody,
                 footerText: footerText.trim() || undefined,
 
-                // Only Name example is sent.
                 bodyExamples: hasNameVariable
                     ? [nameExample.trim()]
                     : [],

@@ -45,12 +45,10 @@ function CreateCategory({
 
             console.log("Broadcast created successfully:", response);
 
-            // Close modal immediately after successful API response
             setCategoryName("");
             setError("");
             onClose();
 
-            // Show success toast
             Swal.fire({
                 toast: true,
                 position: "top-end",

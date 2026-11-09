@@ -75,7 +75,6 @@ function AddContact() {
 
 
 
-    // Manual form input
     const handleChange = (
         event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
     ) => {
@@ -88,7 +87,6 @@ function AddContact() {
         }));
     };
 
-    // Manual contact creation
     const handleManualSubmit = async (
         event: React.FormEvent<HTMLFormElement>
     ) => {
@@ -151,7 +149,6 @@ function AddContact() {
         XLSX.writeFile(workbook, "contacts-template.xlsx");
     };
 
-    // Excel file selection
     const handleFileChange = async (
         event: React.ChangeEvent<HTMLInputElement>
     ) => {

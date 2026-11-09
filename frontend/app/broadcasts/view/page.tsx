@@ -18,7 +18,6 @@ function CategoryView() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
-    // Fetch contacts belonging to the selected category
     const fetchContacts = useCallback(async (categoryId: number) => {
         try {
             setLoading(true);
@@ -55,7 +54,6 @@ function CategoryView() {
 
     }, [fetchContacts]);
 
-    // Format date
     const formatDate = (date: string) => {
         if (!date) return "-";
 

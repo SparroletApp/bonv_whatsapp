@@ -8,13 +8,16 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -141,5 +144,74 @@ public class WhatsappClient {
             throw new IllegalStateException(msg);
         }
         return json;
+    }
+
+    public record MediaFile(byte[] data, String mimeType) {}
+
+    public String uploadMedia(byte[] data, String mimeType, String filename) {
+        String boundary = "----wa" + UUID.randomUUID();
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"messaging_product\"\r\n\r\nwhatsapp\r\n")
+                    .getBytes(StandardCharsets.UTF_8));
+            out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\n" + mimeType + "\r\n")
+                    .getBytes(StandardCharsets.UTF_8));
+            out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + filename
+                    + "\"\r\nContent-Type: " + mimeType + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+            out.write(data);
+            out.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(root() + "/" + config.getPhoneNumberId() + "/media"))
+                    .timeout(Duration.ofSeconds(60))
+                    .header("Authorization", "Bearer " + config.getAccessToken())
+                    .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(out.toByteArray()))
+                    .build();
+            JsonNode res = handle(http.send(req, HttpResponse.BodyHandlers.ofString()));
+            String id = res.path("id").asText(null);
+            if (id == null || id.isBlank()) throw new IllegalStateException("WhatsApp API did not return a media ID");
+            return id;
+        } catch (IOException e) {
+            throw new IllegalStateException("Media upload failed: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Media upload interrupted", e);
+        }
+    }
+
+    public String sendImage(String to, String mediaId, String caption) {
+        ObjectNode p = baseMessage(to, "image");
+        ObjectNode image = p.putObject("image");
+        image.put("id", mediaId);
+        if (caption != null && !caption.isBlank()) image.put("caption", caption);
+        return messageId(post(root() + "/" + config.getPhoneNumberId() + "/messages", p));
+    }
+
+    public String sendAudio(String to, String mediaId) {
+        ObjectNode p = baseMessage(to, "audio");
+        p.putObject("audio").put("id", mediaId);
+        return messageId(post(root() + "/" + config.getPhoneNumberId() + "/messages", p));
+    }
+
+    public MediaFile downloadMedia(String mediaId) {
+        try {
+            JsonNode meta = get(root() + "/" + mediaId);
+            String url = meta.path("url").asText(null);
+            if (url == null) throw new IllegalStateException("Media URL not found");
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(60))
+                    .header("Authorization", "Bearer " + config.getAccessToken())
+                    .GET().build();
+            HttpResponse<byte[]> res = http.send(req, HttpResponse.BodyHandlers.ofByteArray());
+            if (res.statusCode() != 200) throw new IllegalStateException("Media download failed: " + res.statusCode());
+            return new MediaFile(res.body(), meta.path("mime_type").asText("application/octet-stream"));
+        } catch (IOException e) {
+            throw new IllegalStateException("Media download failed: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Media download interrupted", e);
+        }
     }
 }

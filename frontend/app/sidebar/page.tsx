@@ -11,10 +11,8 @@ function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
 
-    // Sidebar collapsed by default
     const [collapsed, setCollapsed] = useState(true);
 
-    // Update main content width
     useEffect(() => {
         document.documentElement.style.setProperty(
             "--sidebar-width",
@@ -29,12 +27,10 @@ function Sidebar() {
        const menuItems = [
     { name: "Overview", icon: "bi-grid-1x2", path: "/dashboard" },
     { name: "Broadcasts", icon: "bi-tags", path: "/broadcasts" },
-    // { name: "BroadCasts", icon: "bi-diagram-3", path: "/broadcasts" },
     { name: "Contacts", icon: "bi-people", path: "/contacts" },
     { name: "Campaigns", icon: "bi-megaphone", path: "/campaign" },
     { name: "Templates", icon: "bi-file-earmark-text", path: "/templates" },
     { name: "Inbox", icon: "bi-inbox", path: "/inbox" },
-    // { name: "Settings", icon: "bi-gear", path: "/settings" },
 
     ];
 

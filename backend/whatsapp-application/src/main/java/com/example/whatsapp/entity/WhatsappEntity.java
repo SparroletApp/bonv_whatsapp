@@ -64,6 +64,8 @@ public class WhatsappEntity {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+    private String mediaId;
+    private String mimeType;
 
     @PrePersist
     public void onCreate() {

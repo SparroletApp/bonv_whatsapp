@@ -17,7 +17,16 @@ export default function InboxPage() {
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
     const [now, setNow] = useState<number>(0);
+    const [pendingImage, setPendingImage] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState("");
+    const [recording, setRecording] = useState(false);
+    const [recSecs, setRecSecs] = useState(0);
 
+    const fileInput = useRef<HTMLInputElement>(null);
+    const recRef = useRef<MediaRecorder | null>(null);
+    const chunksRef = useRef<Blob[]>([]);
+    const cancelRef = useRef(false);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const bottom = useRef<HTMLDivElement>(null);
 
     const formatMessageTime = (value: string) => {
@@ -65,6 +74,36 @@ export default function InboxPage() {
     useEffect(() => {
         bottom.current?.scrollIntoView({ behavior: "smooth" });
     }, [msgs.length]);
+
+    function MediaBubble({ m }: { m: InboxMessage }) {
+        const [url, setUrl] = useState("");
+        const [failed, setFailed] = useState(false);
+
+        useEffect(() => {
+            if (!m.mediaId) return;
+            let objectUrl = "";
+            let cancelled = false;
+            inboxService
+                .media(m.mediaId)
+                .then((blob) => {
+                    if (cancelled) return;
+                    objectUrl = URL.createObjectURL(blob);
+                    setUrl(objectUrl);
+                })
+                .catch(() => setFailed(true));
+            return () => {
+                cancelled = true;
+                if (objectUrl) URL.revokeObjectURL(objectUrl);
+            };
+        }, [m.mediaId]);
+
+        if (failed) return <div className="wa-media-missing">Media unavailable</div>;
+        if (!url) return <div className="wa-media-loading">Loading…</div>;
+
+        return m.messageType === "IMAGE"
+            ? <img src={url} alt="" className="wa-media-image" />
+            : <audio controls src={url} className="wa-media-audio" />;
+    }
 
     const remainingFor = (c?: Conversation | null) => {
         if (!c?.windowExpiresAt || !now) return 0;
@@ -121,13 +160,20 @@ export default function InboxPage() {
     };
 
     const send = async () => {
-        if (!active || !text.trim() || !windowOpen) return;
-
+        if (!active || !windowOpen) return;
         setError("");
 
         try {
-            await inboxService.reply(active.phone, text.trim());
-
+            if (pendingImage) {
+                await inboxService.replyMedia(
+                    active.phone, pendingImage, pendingImage.name, text.trim() || undefined
+                );
+                clearImage();
+            } else if (text.trim()) {
+                await inboxService.reply(active.phone, text.trim());
+            } else {
+                return;
+            }
             setText("");
             loadMsgs(active.phone);
             loadConvs();
@@ -135,6 +181,78 @@ export default function InboxPage() {
             setError(apiError(e));
         }
     };
+
+    const pickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const f = e.target.files?.[0];
+        e.target.value = "";
+        if (!f) return;
+        if (!["image/jpeg", "image/png"].includes(f.type)) {
+            setError("Only JPEG or PNG images are supported.");
+            return;
+        }
+        if (f.size > 5 * 1024 * 1024) {
+            setError("Image must be 5 MB or smaller.");
+            return;
+        }
+        setError("");
+        setPendingImage(f);
+        setPreviewUrl(URL.createObjectURL(f));
+    };
+
+    const clearImage = () => {
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setPendingImage(null);
+        setPreviewUrl("");
+    };
+
+    const startRecording = async () => {
+        if (!active || !windowOpen) return;
+        setError("");
+        const phone = active.phone;
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const rec = new MediaRecorder(stream);
+            chunksRef.current = [];
+            cancelRef.current = false;
+
+            rec.ondataavailable = (e) => {
+                if (e.data.size) chunksRef.current.push(e.data);
+            };
+
+            rec.onstop = async () => {
+                stream.getTracks().forEach((t) => t.stop());
+                if (timerRef.current) clearInterval(timerRef.current);
+                setRecording(false);
+                setRecSecs(0);
+                if (cancelRef.current || chunksRef.current.length === 0) return;
+
+                const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
+                try {
+                    await inboxService.replyMedia(phone, blob, "voice");
+                    loadMsgs(phone);
+                    loadConvs();
+                } catch (e) {
+                    setError(apiError(e));
+                }
+            };
+
+            rec.start();
+            recRef.current = rec;
+            setRecording(true);
+            timerRef.current = setInterval(() => setRecSecs((s) => s + 1), 1000);
+        } catch {
+            setError("Microphone access was denied or is unavailable (needs HTTPS or localhost).");
+        }
+    };
+
+    const stopRecording = (cancel = false) => {
+        cancelRef.current = cancel;
+        recRef.current?.stop();
+    };
+
+    const fmtSecs = (s: number) =>
+        `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
     const tick = (m: InboxMessage) =>
         m.direction === "OUTBOUND"
@@ -359,7 +477,11 @@ export default function InboxPage() {
                                     <div className="wa-message-bubble">
 
                                         <div className="wa-message-text">
-                                            {m.text}
+                                            {m.mediaId && <MediaBubble m={m} />}
+
+                                            {!(m.mediaId && /^\[.*\]$/.test(m.text)) && (
+                                                <div className="wa-message-text">{m.text}</div>
+                                            )}
                                         </div>
 
                                         {m.errorMessage && (
@@ -419,53 +541,80 @@ export default function InboxPage() {
                             </div>
                         )}
 
-                        {/* MESSAGE COMPOSER */}
-                        <footer className="wa-composer">
+                       {pendingImage && (
+    <div className="wa-image-preview">
+        <img src={previewUrl} alt="" />
+        <span>{pendingImage.name}</span>
+        <button type="button" onClick={clearImage} title="Remove">
+            <i className="bi bi-x-lg"></i>
+        </button>
+    </div>
+)}
 
-                            <div className="wa-composer-actions">
-                                <button
-                                    type="button"
-                                    title="Emoji"
-                                    className="wa-composer-icon"
-                                >
-                                    <i className="bi bi-emoji-smile"></i>
-                                </button>
+<footer className="wa-composer">
+    <input
+        ref={fileInput}
+        type="file"
+        accept="image/jpeg,image/png"
+        hidden
+        onChange={pickImage}
+    />
 
-                                <button
-                                    type="button"
-                                    title="Attach"
-                                    className="wa-composer-icon"
-                                >
-                                    <i className="bi bi-plus-lg"></i>
-                                </button>
-                            </div>
+    {recording ? (
+        <>
+            <button type="button" className="wa-composer-icon" title="Cancel"
+                onClick={() => stopRecording(true)}>
+                <i className="bi bi-trash"></i>
+            </button>
+            <div className="wa-recording">
+                <span className="wa-rec-dot" /> Recording {fmtSecs(recSecs)}
+            </div>
+            <button className="wa-send-button" title="Send voice message"
+                onClick={() => stopRecording(false)}>
+                <i className="bi bi-send-fill"></i>
+            </button>
+        </>
+    ) : (
+        <>
+            <div className="wa-composer-actions">
+                <button type="button" title="Emoji" className="wa-composer-icon">
+                    <i className="bi bi-emoji-smile"></i>
+                </button>
+                <button type="button" title="Attach image" className="wa-composer-icon"
+                    disabled={!windowOpen}
+                    onClick={() => fileInput.current?.click()}>
+                    <i className="bi bi-plus-lg"></i>
+                </button>
+            </div>
 
-                            <div className="wa-input-wrapper">
-                                <input
-                                    value={text}
-                                    disabled={!windowOpen}
-                                    onChange={(e) => setText(e.target.value)}
-                                    onKeyDown={(e) =>
-                                        e.key === "Enter" && send()
-                                    }
-                                    placeholder={
-                                        windowOpen
-                                            ? "Type a message"
-                                            : "Window closed - template only"
-                                    }
-                                />
-                            </div>
+            <div className="wa-input-wrapper">
+                <input
+                    value={text}
+                    disabled={!windowOpen}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && send()}
+                    placeholder={
+                        windowOpen
+                            ? pendingImage ? "Add a caption" : "Type a message"
+                            : "Window closed - template only"
+                    }
+                />
+            </div>
 
-                            <button
-                                className="wa-send-button"
-                                onClick={send}
-                                disabled={!text.trim() || !windowOpen}
-                                title="Send message"
-                            >
-                                <i className="bi bi-send-fill"></i>
-                            </button>
-
-                        </footer>
+            {text.trim() || pendingImage ? (
+                <button className="wa-send-button" onClick={send}
+                    disabled={!windowOpen} title="Send message">
+                    <i className="bi bi-send-fill"></i>
+                </button>
+            ) : (
+                <button className="wa-send-button" onClick={startRecording}
+                    disabled={!windowOpen} title="Record voice message">
+                    <i className="bi bi-mic-fill"></i>
+                </button>
+            )}
+        </>
+    )}
+</footer>
 
                     </>
                 ) : (

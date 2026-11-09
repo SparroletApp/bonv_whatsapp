@@ -14,8 +14,8 @@ export interface CampaignResponse {
     status: "RUNNING" | "COMPLETED" | "FAILED";
     total: number;
     pending: number;
-    sent: number;        // cumulative: includes delivered and read
-    delivered: number;   // cumulative: includes read
+    sent: number;       
+    delivered: number;  
     read: number;
     failed: number;
     replied: number;

@@ -14,7 +14,6 @@ export interface BroadcastIdRequest {
 }
 
 const broadcastService = {
-    // Create broadcast
     createBroadcast: async (
         data: BroadcastRequest
     ): Promise<BroadcastResponse> => {
@@ -24,14 +23,12 @@ const broadcastService = {
         );
     },
 
-    // Get all broadcasts
     getAllBroadcasts: async (): Promise<BroadcastResponse[]> => {
         return api.get<BroadcastResponse[]>(
             "/broadcasts/all"
         );
     },
 
-    // Get broadcast by ID
     getBroadcastById: async (
         id: number
     ): Promise<BroadcastResponse> => {
@@ -41,7 +38,6 @@ const broadcastService = {
         );
     },
 
-    // Update broadcast
     updateBroadcast: async (
         data: BroadcastResponse
     ): Promise<BroadcastResponse> => {
@@ -51,7 +47,6 @@ const broadcastService = {
         );
     },
 
-    // Delete broadcast
     deleteBroadcast: async (
         id: number
     ): Promise<string> => {

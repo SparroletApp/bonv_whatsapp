@@ -18,7 +18,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import "./create-campaign.css";
 
-// change if your campaigns list page lives at a different path
+
 const CAMPAIGNS_PAGE = "/campaign";
 
 type Kind = "NAME" | "PHONE" | "EMAIL" | "TEXT";
@@ -51,7 +51,6 @@ export default function CampaignCreatePage() {
     const [error, setError] = useState("");
     const [info, setInfo] = useState("");
 
-    // only approved templates can be sent
     const approvedTemplates = useMemo(
         () => templates.filter((t) => t.status?.toUpperCase() === "APPROVED"),
         [templates]
@@ -95,7 +94,6 @@ export default function CampaignCreatePage() {
         refreshFromMeta(true);
     }, []);
 
-    // if the chosen template stops being approved (status changed in Meta), clear it
     useEffect(() => {
         if (
             templateId !== "" &&
@@ -137,7 +135,6 @@ export default function CampaignCreatePage() {
             Array.from(
                 { length: selectedTemplate?.variableCount ?? 0 },
                 (_, i) => ({
-                    // {{1}} defaults to the contact's name from the contacts table
                     kind: i === 0 ? "NAME" : "TEXT",
                     text: "",
                 })

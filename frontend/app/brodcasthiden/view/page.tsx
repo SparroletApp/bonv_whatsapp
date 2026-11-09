@@ -24,12 +24,9 @@ import categoryService, {
 export default function BroadcastView() {
     const [broadcastId, setBroadcastId] = useState<number | null>(null);
     const [broadcastIdLoaded, setBroadcastIdLoaded] = useState(false);
-
-    // Assigned contacts
     const [assignedContacts, setAssignedContacts] = useState<ContactResponseDto[]>([]);
     const [assignedLoading, setAssignedLoading] = useState(true);
 
-    // Available contacts
     const [contacts, setContacts] = useState<ContactResponseDto[]>([]);
     const [categories, setCategories] = useState<CategoryResponseDto[]>([]);
 
@@ -46,7 +43,6 @@ export default function BroadcastView() {
 
     const addContactsRef = useRef<HTMLDivElement>(null);
 
-    // Get broadcast ID
     useEffect(() => {
         const storedBroadcastId = localStorage.getItem("broadcastId");
 
@@ -65,7 +61,6 @@ export default function BroadcastView() {
         setBroadcastIdLoaded(true);
     }, []);
 
-    // Toast
     const showToast = (
         icon: "success" | "error" | "warning",
         title: string
@@ -81,7 +76,6 @@ export default function BroadcastView() {
         });
     };
 
-    // Fetch contacts already assigned to this broadcast
     const fetchAssignedContacts = useCallback(async () => {
         if (!broadcastId) return;
 
@@ -112,7 +106,6 @@ export default function BroadcastView() {
         }
     }, [broadcastId]);
 
-    // Fetch assigned contacts when broadcast ID is available
     useEffect(() => {
         if (broadcastIdLoaded && broadcastId) {
             fetchAssignedContacts();
@@ -121,7 +114,6 @@ export default function BroadcastView() {
         }
     }, [broadcastIdLoaded, broadcastId, fetchAssignedContacts]);
 
-    // Fetch all contacts and categories only when Add Contacts is clicked
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
@@ -151,11 +143,9 @@ export default function BroadcastView() {
         }
     }, []);
 
-    // Open Add Contacts section and scroll to it
     const handleOpenAddContacts = async () => {
         setShowAddContacts(true);
 
-        // Scroll after the section becomes visible
         setTimeout(() => {
             addContactsRef.current?.scrollIntoView({
                 behavior: "smooth",
@@ -163,13 +153,11 @@ export default function BroadcastView() {
             });
         }, 100);
 
-        // Fetch only when opening for the first time
         if (contacts.length === 0) {
             await fetchData();
         }
     };
 
-    // Hide Add Contacts section
     const handleCloseAddContacts = () => {
         setShowAddContacts(false);
         setSelectedContacts([]);
@@ -177,7 +165,6 @@ export default function BroadcastView() {
         setSelectedCategory("all");
     };
 
-    // Exclude contacts already assigned to this broadcast
     const availableContacts = useMemo(() => {
         const assignedIds = new Set(
             assignedContacts.map((contact) => contact.id)
@@ -188,7 +175,6 @@ export default function BroadcastView() {
         );
     }, [contacts, assignedContacts]);
 
-    // Filter available contacts
     const filteredContacts = useMemo(() => {
         return availableContacts.filter((contact) => {
             const searchText = search.toLowerCase();
@@ -206,7 +192,6 @@ export default function BroadcastView() {
         });
     }, [availableContacts, search, selectedCategory]);
 
-    // Selection status
     const allFilteredSelected =
         filteredContacts.length > 0 &&
         filteredContacts.every((contact) =>
@@ -218,7 +203,6 @@ export default function BroadcastView() {
             selectedContacts.includes(contact.id)
         );
 
-    // Individual selection
     const handleContactSelect = (id: number) => {
         setSelectedContacts((previous) =>
             previous.includes(id)
@@ -227,7 +211,6 @@ export default function BroadcastView() {
         );
     };
 
-    // Select all
     const handleSelectAll = () => {
         const filteredIds = filteredContacts.map(
             (contact) => contact.id
@@ -244,12 +227,10 @@ export default function BroadcastView() {
         }
     };
 
-    // Clear selection
     const clearSelection = () => {
         setSelectedContacts([]);
     };
 
-    // Assign contacts
     const handleAssignContacts = async (
         e: FormEvent<HTMLFormElement>
     ) => {
@@ -291,10 +272,8 @@ export default function BroadcastView() {
 
             setSelectedContacts([]);
 
-            // Refresh assigned contacts after successful assignment
             await fetchAssignedContacts();
 
-            // Close Add Contacts section
             setShowAddContacts(false);
 
             showToast(
@@ -322,7 +301,6 @@ export default function BroadcastView() {
     return (
         <div className="broadcast-view-page">
 
-            {/* Page Header */}
             <div className="broadcast-view-header">
                 <div>
                     <div className="broadcast-view-breadcrumb">
@@ -345,7 +323,6 @@ export default function BroadcastView() {
                 </div>
             </div>
 
-            {/* Broadcast Information */}
             <div className="broadcast-info-card">
                 <div className="broadcast-info-left">
                     <div className="broadcast-info-icon">
@@ -375,7 +352,6 @@ export default function BroadcastView() {
                 </div>
             </div>
 
-            {/* Assigned Contacts Section */}
             <div className="broadcast-contact-container assigned-contact-container">
 
                 <div className="broadcast-contact-header">
@@ -505,7 +481,6 @@ export default function BroadcastView() {
                 )}
             </div>
 
-            {/* Add Contacts Section - Hidden by Default */}
             {showAddContacts && (
                 <div
                     className="broadcast-contact-container add-contact-section"
@@ -548,7 +523,6 @@ export default function BroadcastView() {
                         </div>
                     </div>
 
-                    {/* Statistics */}
                     <div className="broadcast-contact-stats">
                         <div className="broadcast-contact-stat">
                             <div className="broadcast-contact-stat-icon">
@@ -583,7 +557,6 @@ export default function BroadcastView() {
 
                     <form onSubmit={handleAssignContacts}>
 
-                        {/* Filters */}
                         <div className="broadcast-contact-filters">
 
                             <div className="broadcast-contact-search">
@@ -629,7 +602,6 @@ export default function BroadcastView() {
                             </div>
                         </div>
 
-                        {/* Selection Toolbar */}
                         <div className="broadcast-selection-toolbar">
                             <div className="broadcast-select-all">
                                 <label>
@@ -669,7 +641,7 @@ export default function BroadcastView() {
                             </button>
                         </div>
 
-                        {/* Error */}
+                 
                         {error && (
                             <div className="broadcast-contact-error">
                                 <i className="bi bi-exclamation-circle-fill"></i>
@@ -684,7 +656,7 @@ export default function BroadcastView() {
                             </div>
                         )}
 
-                        {/* Contacts Table */}
+               
                         {loading ? (
                             <div className="broadcast-contact-state">
                                 <div className="broadcast-view-loader"></div>
@@ -789,7 +761,7 @@ export default function BroadcastView() {
                             </div>
                         )}
 
-                        {/* Footer */}
+          
                         <div className="broadcast-contact-footer">
                             <div className="broadcast-footer-selection">
                                 <div className="broadcast-footer-check-icon">
