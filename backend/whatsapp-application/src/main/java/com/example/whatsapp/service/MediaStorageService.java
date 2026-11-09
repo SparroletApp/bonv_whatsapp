@@ -27,20 +27,25 @@ public class MediaStorageService {
     private final String baseUrl;
 
     public MediaStorageService(
-            @Value("${app.media.dir:uploads/campaign-media}") String dir,
-            @Value("${app.media.public-base-url}") String baseUrl
-    ) throws IOException {
-
+            @Value("${app.media.dir:/tmp/campaign-media}") String dir,
+            @Value("${app.media.public-base-url:}") String baseUrl
+    ) {
         this.dir = Paths.get(dir).toAbsolutePath().normalize();
-        Files.createDirectories(this.dir);
 
-        this.baseUrl = baseUrl.endsWith("/")
-                ? baseUrl.substring(0, baseUrl.length() - 1)
-                : baseUrl;
+        String trimmed = baseUrl == null ? "" : baseUrl.trim();
+        this.baseUrl = trimmed.endsWith("/")
+                ? trimmed.substring(0, trimmed.length() - 1)
+                : trimmed;
     }
 
     /** Saves the file and returns its public HTTPS URL. */
     public String save(MultipartFile file) throws IOException {
+
+        if (baseUrl.isBlank()) {
+            throw new IllegalStateException(
+                    "Media upload is not configured: set app.media.public-base-url"
+            );
+        }
 
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Please select a file");
@@ -53,6 +58,8 @@ public class MediaStorageService {
                     "Only JPEG, PNG, MP4 and PDF files are allowed"
             );
         }
+
+        Files.createDirectories(dir);
 
         String filename = UUID.randomUUID() + extension;
 
