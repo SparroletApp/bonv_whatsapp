@@ -16,15 +16,17 @@ export default function InboxPage() {
     const [text, setText] = useState("");
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
-const [now, setNow] = useState<number>(0);
+    const [now, setNow] = useState<number>(0);
 
     const bottom = useRef<HTMLDivElement>(null);
 
     const loadConvs = () =>
-        inboxService.conversations().then(setConvs).catch(() => {});
+        inboxService.conversations().then(setConvs).catch(() => { });
 
     const loadMsgs = (phone: string) =>
-        inboxService.messages(phone).then(setMsgs).catch(() => {});
+        inboxService.messages(phone).then(setMsgs).catch(() => { });
+
+
 
     useEffect(() => {
         loadConvs();
@@ -38,7 +40,12 @@ const [now, setNow] = useState<number>(0);
     }, [active?.phone]);
 
     useEffect(() => {
-        const t = setInterval(() => setNow(Date.now()), 30_000);
+        setNow(Date.now());
+
+        const t = setInterval(() => {
+            setNow(Date.now());
+        }, 1000);
+
         return () => clearInterval(t);
     }, []);
 
@@ -46,11 +53,15 @@ const [now, setNow] = useState<number>(0);
         bottom.current?.scrollIntoView({ behavior: "smooth" });
     }, [msgs.length]);
 
-    // ---- 24h WINDOW helpers ----
-    const remainingFor = (c?: Conversation | null) =>
-        c?.windowExpiresAt
-            ? new Date(c.windowExpiresAt).getTime() - now
-            : 0;
+    const remainingFor = (c?: Conversation | null) => {
+        if (!c?.windowExpiresAt || !now) return 0;
+
+        const expiry = new Date(c.windowExpiresAt).getTime();
+
+        if (isNaN(expiry)) return 0;
+
+        return Math.max(0, expiry - now);
+    };
 
     const formatRemaining = (ms: number) => {
         const totalMinutes = Math.max(0, Math.floor(ms / 60000));
@@ -95,11 +106,11 @@ const [now, setNow] = useState<number>(0);
     const tick = (m: InboxMessage) =>
         m.direction === "OUTBOUND"
             ? ({
-                  SENT: "✓",
-                  DELIVERED: "✓✓",
-                  READ: "✓✓",
-                  FAILED: "⚠",
-              } as any)[m.status] || "…"
+                SENT: "✓",
+                DELIVERED: "✓✓",
+                READ: "✓✓",
+                FAILED: "⚠",
+            } as any)[m.status] || "…"
             : "";
 
     const getInitials = (name: string) =>
@@ -180,11 +191,10 @@ const [now, setNow] = useState<number>(0);
                         return (
                             <div
                                 key={c.phone}
-                                className={`wa-conversation ${
-                                    active?.phone === c.phone
-                                        ? "wa-conversation-active"
-                                        : ""
-                                }`}
+                                className={`wa-conversation ${active?.phone === c.phone
+                                    ? "wa-conversation-active"
+                                    : ""
+                                    }`}
                                 onClick={() => open(c)}
                             >
                                 <div className="wa-contact-avatar">
@@ -216,11 +226,10 @@ const [now, setNow] = useState<number>(0);
                                     <div className="wa-conversation-phone">
                                         +{c.phone}
                                         <span
-                                            className={`wa-window-tag ${
-                                                rem > 0
-                                                    ? "wa-window-tag-open"
-                                                    : "wa-window-tag-closed"
-                                            }`}
+                                            className={`wa-window-tag ${rem > 0
+                                                ? "wa-window-tag-open"
+                                                : "wa-window-tag-closed"
+                                                }`}
                                         >
                                             <i className="bi bi-clock"></i>
                                             {rem > 0
@@ -309,11 +318,10 @@ const [now, setNow] = useState<number>(0);
                             {msgs.map((m) => (
                                 <div
                                     key={m.id}
-                                    className={`wa-message-row ${
-                                        m.direction === "OUTBOUND"
-                                            ? "wa-message-outgoing"
-                                            : "wa-message-incoming"
-                                    }`}
+                                    className={`wa-message-row ${m.direction === "OUTBOUND"
+                                        ? "wa-message-outgoing"
+                                        : "wa-message-incoming"
+                                        }`}
                                 >
                                     <div className="wa-message-bubble">
 
@@ -340,13 +348,12 @@ const [now, setNow] = useState<number>(0);
 
                                             {m.direction === "OUTBOUND" && (
                                                 <span
-                                                    className={`wa-message-tick ${
-                                                        m.status === "READ"
-                                                            ? "wa-tick-read"
-                                                            : m.status === "FAILED"
+                                                    className={`wa-message-tick ${m.status === "READ"
+                                                        ? "wa-tick-read"
+                                                        : m.status === "FAILED"
                                                             ? "wa-tick-failed"
                                                             : ""
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {tick(m)}
                                                 </span>
