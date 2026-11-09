@@ -34,6 +34,8 @@ const SAMPLE: Record<Exclude<Kind, "TEXT">, string> = {
     EMAIL: "rahul@example.com",
 };
 
+const MEDIA_HEADERS = ["IMAGE", "VIDEO", "DOCUMENT"];
+
 export default function CampaignCreatePage() {
     const nav = useRouter();
 
@@ -43,6 +45,7 @@ export default function CampaignCreatePage() {
     const [templates, setTemplates] = useState<TemplateResponse[]>([]);
     const [templateId, setTemplateId] = useState<number | "">("");
     const [mapping, setMapping] = useState<VarMap[]>([]);
+    const [headerMediaUrl, setHeaderMediaUrl] = useState("");
 
     const [showTemplateForm, setShowTemplateForm] = useState(false);
     const [launching, setLaunching] = useState(false);
@@ -57,6 +60,10 @@ export default function CampaignCreatePage() {
     );
 
     const template = approvedTemplates.find((t) => t.id === templateId);
+
+    const needsMedia = MEDIA_HEADERS.includes(
+        template?.headerType?.toUpperCase() ?? ""
+    );
 
     const loadTemplates = async () => {
         const data = await templateService.list();
@@ -75,7 +82,7 @@ export default function CampaignCreatePage() {
                 setError("");
             }
         } catch (e) {
-            await loadTemplates().catch(() => {});
+            await loadTemplates().catch(() => { });
 
             if (!silent) {
                 setError("Could not refresh templates: " + apiError(e));
@@ -101,6 +108,7 @@ export default function CampaignCreatePage() {
         ) {
             setTemplateId("");
             setMapping([]);
+            setHeaderMediaUrl("");
         }
     }, [approvedTemplates, templateId]);
 
@@ -128,6 +136,7 @@ export default function CampaignCreatePage() {
 
     const pickTemplate = (id: number | "") => {
         setTemplateId(id);
+        setHeaderMediaUrl("");
 
         const selectedTemplate = approvedTemplates.find((t) => t.id === id);
 
@@ -154,9 +163,16 @@ export default function CampaignCreatePage() {
         item.kind === "TEXT" ? item.text : SAMPLE[item.kind]
     );
 
+    const mediaUrlValid = headerMediaUrl
+        .trim()
+        .toLowerCase()
+        .startsWith("https://");
+
     const variablesReady =
         !!template &&
         !mapping.some((m) => m.kind === "TEXT" && !m.text.trim());
+
+    const mediaReady = !!template && (!needsMedia || mediaUrlValid);
 
     const launch = async () => {
         setError("");
@@ -182,6 +198,11 @@ export default function CampaignCreatePage() {
             return;
         }
 
+        if (needsMedia && !mediaUrlValid) {
+            setError("Please enter a public HTTPS URL for the header media.");
+            return;
+        }
+
         setLaunching(true);
 
         try {
@@ -192,6 +213,7 @@ export default function CampaignCreatePage() {
                 variableMapping: mapping.map((m) =>
                     m.kind === "TEXT" ? `TEXT:${m.text}` : m.kind
                 ),
+                headerMediaUrl: needsMedia ? headerMediaUrl.trim() : undefined,
             });
 
             nav.push(CAMPAIGNS_PAGE);
@@ -518,6 +540,33 @@ export default function CampaignCreatePage() {
                                     </span>
                                 </div>
 
+                                {needsMedia && (
+                                    <div className="cc-field">
+                                        <label htmlFor="headerMediaUrl">
+                                            Header {template.headerType?.toLowerCase()} URL{" "}
+                                            <span>*</span>
+                                        </label>
+
+                                        <input
+                                            id="headerMediaUrl"
+                                            type="url"
+                                            value={headerMediaUrl}
+                                            onChange={(e) =>
+                                                setHeaderMediaUrl(e.target.value)
+                                            }
+                                            placeholder="https://example.com/banner.jpg"
+                                        />
+
+                                        <div className="cc-field-bottom">
+                                            <span>
+                                                <i className="bi bi-info-circle" />
+                                                Must be a public HTTPS link (JPEG/PNG for
+                                                images, MP4 for video, PDF for documents).
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {template.variableCount > 0 && (
                                     <div className="cc-variable-section">
                                         <div className="cc-variable-heading">
@@ -723,6 +772,13 @@ export default function CampaignCreatePage() {
                                 <i className={`bi ${variablesReady ? "bi-check-circle-fill" : "bi-circle"}`} />
                                 Variables configured
                             </div>
+
+                            {needsMedia && (
+                                <div className={mediaReady ? "completed" : ""}>
+                                    <i className={`bi ${mediaReady ? "bi-check-circle-fill" : "bi-circle"}`} />
+                                    Header media URL added
+                                </div>
+                            )}
                         </div>
 
                         <button
