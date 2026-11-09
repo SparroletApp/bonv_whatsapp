@@ -9,6 +9,36 @@ import inboxService, {
 
 import "./inbox.css";
 
+function MediaBubble({ m }: { m: InboxMessage }) {
+    const [url, setUrl] = useState("");
+    const [failed, setFailed] = useState(false);
+
+    useEffect(() => {
+        if (!m.mediaId) return;
+        let objectUrl = "";
+        let cancelled = false;
+        inboxService
+            .media(m.mediaId)
+            .then((blob) => {
+                if (cancelled) return;
+                objectUrl = URL.createObjectURL(blob);
+                setUrl(objectUrl);
+            })
+            .catch(() => setFailed(true));
+        return () => {
+            cancelled = true;
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [m.mediaId]);
+
+    if (failed) return <div className="wa-media-missing">Media unavailable</div>;
+    if (!url) return <div className="wa-media-loading">Loading…</div>;
+
+    return m.messageType === "IMAGE"
+        ? <img src={url} alt="" className="wa-media-image" />
+        : <audio controls src={url} className="wa-media-audio" />;
+}
+
 export default function InboxPage() {
     const [convs, setConvs] = useState<Conversation[]>([]);
     const [active, setActive] = useState<Conversation | null>(null);
@@ -48,8 +78,6 @@ export default function InboxPage() {
     const loadMsgs = (phone: string) =>
         inboxService.messages(phone).then(setMsgs).catch(() => { });
 
-
-
     useEffect(() => {
         loadConvs();
 
@@ -74,36 +102,6 @@ export default function InboxPage() {
     useEffect(() => {
         bottom.current?.scrollIntoView({ behavior: "smooth" });
     }, [msgs.length]);
-
-    function MediaBubble({ m }: { m: InboxMessage }) {
-        const [url, setUrl] = useState("");
-        const [failed, setFailed] = useState(false);
-
-        useEffect(() => {
-            if (!m.mediaId) return;
-            let objectUrl = "";
-            let cancelled = false;
-            inboxService
-                .media(m.mediaId)
-                .then((blob) => {
-                    if (cancelled) return;
-                    objectUrl = URL.createObjectURL(blob);
-                    setUrl(objectUrl);
-                })
-                .catch(() => setFailed(true));
-            return () => {
-                cancelled = true;
-                if (objectUrl) URL.revokeObjectURL(objectUrl);
-            };
-        }, [m.mediaId]);
-
-        if (failed) return <div className="wa-media-missing">Media unavailable</div>;
-        if (!url) return <div className="wa-media-loading">Loading…</div>;
-
-        return m.messageType === "IMAGE"
-            ? <img src={url} alt="" className="wa-media-image" />
-            : <audio controls src={url} className="wa-media-audio" />;
-    }
 
     const remainingFor = (c?: Conversation | null) => {
         if (!c?.windowExpiresAt || !now) return 0;
@@ -476,13 +474,11 @@ export default function InboxPage() {
                                 >
                                     <div className="wa-message-bubble">
 
-                                        <div className="wa-message-text">
-                                            {m.mediaId && <MediaBubble m={m} />}
+                                        {m.mediaId && <MediaBubble m={m} />}
 
-                                            {!(m.mediaId && /^\[.*\]$/.test(m.text)) && (
-                                                <div className="wa-message-text">{m.text}</div>
-                                            )}
-                                        </div>
+                                        {!(m.mediaId && /^\[.*\]$/.test(m.text)) && (
+                                            <div className="wa-message-text">{m.text}</div>
+                                        )}
 
                                         {m.errorMessage && (
                                             <div className="wa-message-error">
@@ -541,80 +537,82 @@ export default function InboxPage() {
                             </div>
                         )}
 
-                       {pendingImage && (
-    <div className="wa-image-preview">
-        <img src={previewUrl} alt="" />
-        <span>{pendingImage.name}</span>
-        <button type="button" onClick={clearImage} title="Remove">
-            <i className="bi bi-x-lg"></i>
-        </button>
-    </div>
-)}
+                        {/* IMAGE PREVIEW */}
+                        {pendingImage && (
+                            <div className="wa-image-preview">
+                                <img src={previewUrl} alt="" />
+                                <span>{pendingImage.name}</span>
+                                <button type="button" onClick={clearImage} title="Remove">
+                                    <i className="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        )}
 
-<footer className="wa-composer">
-    <input
-        ref={fileInput}
-        type="file"
-        accept="image/jpeg,image/png"
-        hidden
-        onChange={pickImage}
-    />
+                        {/* MESSAGE COMPOSER */}
+                        <footer className="wa-composer">
+                            <input
+                                ref={fileInput}
+                                type="file"
+                                accept="image/jpeg,image/png"
+                                hidden
+                                onChange={pickImage}
+                            />
 
-    {recording ? (
-        <>
-            <button type="button" className="wa-composer-icon" title="Cancel"
-                onClick={() => stopRecording(true)}>
-                <i className="bi bi-trash"></i>
-            </button>
-            <div className="wa-recording">
-                <span className="wa-rec-dot" /> Recording {fmtSecs(recSecs)}
-            </div>
-            <button className="wa-send-button" title="Send voice message"
-                onClick={() => stopRecording(false)}>
-                <i className="bi bi-send-fill"></i>
-            </button>
-        </>
-    ) : (
-        <>
-            <div className="wa-composer-actions">
-                <button type="button" title="Emoji" className="wa-composer-icon">
-                    <i className="bi bi-emoji-smile"></i>
-                </button>
-                <button type="button" title="Attach image" className="wa-composer-icon"
-                    disabled={!windowOpen}
-                    onClick={() => fileInput.current?.click()}>
-                    <i className="bi bi-plus-lg"></i>
-                </button>
-            </div>
+                            {recording ? (
+                                <>
+                                    <button type="button" className="wa-composer-icon" title="Cancel"
+                                        onClick={() => stopRecording(true)}>
+                                        <i className="bi bi-trash"></i>
+                                    </button>
+                                    <div className="wa-recording">
+                                        <span className="wa-rec-dot" /> Recording {fmtSecs(recSecs)}
+                                    </div>
+                                    <button className="wa-send-button" title="Send voice message"
+                                        onClick={() => stopRecording(false)}>
+                                        <i className="bi bi-send-fill"></i>
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="wa-composer-actions">
+                                        <button type="button" title="Emoji" className="wa-composer-icon">
+                                            <i className="bi bi-emoji-smile"></i>
+                                        </button>
+                                        <button type="button" title="Attach image" className="wa-composer-icon"
+                                            disabled={!windowOpen}
+                                            onClick={() => fileInput.current?.click()}>
+                                            <i className="bi bi-plus-lg"></i>
+                                        </button>
+                                    </div>
 
-            <div className="wa-input-wrapper">
-                <input
-                    value={text}
-                    disabled={!windowOpen}
-                    onChange={(e) => setText(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && send()}
-                    placeholder={
-                        windowOpen
-                            ? pendingImage ? "Add a caption" : "Type a message"
-                            : "Window closed - template only"
-                    }
-                />
-            </div>
+                                    <div className="wa-input-wrapper">
+                                        <input
+                                            value={text}
+                                            disabled={!windowOpen}
+                                            onChange={(e) => setText(e.target.value)}
+                                            onKeyDown={(e) => e.key === "Enter" && send()}
+                                            placeholder={
+                                                windowOpen
+                                                    ? pendingImage ? "Add a caption" : "Type a message"
+                                                    : "Window closed - template only"
+                                            }
+                                        />
+                                    </div>
 
-            {text.trim() || pendingImage ? (
-                <button className="wa-send-button" onClick={send}
-                    disabled={!windowOpen} title="Send message">
-                    <i className="bi bi-send-fill"></i>
-                </button>
-            ) : (
-                <button className="wa-send-button" onClick={startRecording}
-                    disabled={!windowOpen} title="Record voice message">
-                    <i className="bi bi-mic-fill"></i>
-                </button>
-            )}
-        </>
-    )}
-</footer>
+                                    {text.trim() || pendingImage ? (
+                                        <button className="wa-send-button" onClick={send}
+                                            disabled={!windowOpen} title="Send message">
+                                            <i className="bi bi-send-fill"></i>
+                                        </button>
+                                    ) : (
+                                        <button className="wa-send-button" onClick={startRecording}
+                                            disabled={!windowOpen} title="Record voice message">
+                                            <i className="bi bi-mic-fill"></i>
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                        </footer>
 
                     </>
                 ) : (
