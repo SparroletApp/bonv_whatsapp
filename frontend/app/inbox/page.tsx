@@ -21,17 +21,17 @@ export default function InboxPage() {
     const bottom = useRef<HTMLDivElement>(null);
 
     const formatMessageTime = (value: string) => {
-        if (!value) return "";
-
-        const utcValue = value.endsWith("Z") ? value : `${value}Z`;
-
-        return new Date(utcValue).toLocaleTimeString("en-IN", {
-            timeZone: "Asia/Kolkata",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-        });
-    };
+    if (!value) return "";
+    const date = new Date(
+        value.endsWith("Z") ? value : `${value}Z`
+    );
+    return date.toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+    });
+};
 
     const loadConvs = () =>
         inboxService.conversations().then(setConvs).catch(() => { });

@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -20,39 +22,74 @@ public class InboxService {
 
     private static final long WINDOW_HOURS = 24;
 
+    private static final ZoneId INDIA_ZONE =
+            ZoneId.of("Asia/Kolkata");
+
     private final WhatsappRepository repo;
     private final WhatsappClient client;
 
+    private final Clock clock =
+            Clock.system(INDIA_ZONE);
+
+    private LocalDateTime currentTime() {
+        return LocalDateTime.now(clock);
+    }
+
     @Transactional(readOnly = true)
     public List<ConversationDto> conversations() {
+
         Map<String, Long> unread = new HashMap<>();
-        for (Object[] r : repo.unreadCounts()) unread.put((String) r[0], (Long) r[1]);
 
-        // last INBOUND message time per phone (used for the 24h window)
+        for (Object[] r : repo.unreadCounts()) {
+            unread.put((String) r[0], (Long) r[1]);
+        }
+
         Map<String, LocalDateTime> lastInbound = new HashMap<>();
-        for (Object[] r : repo.lastInboundTimes())
-            lastInbound.put((String) r[0], (LocalDateTime) r[1]);
 
-        return repo.findLatestPerPhone().stream()
+        for (Object[] r : repo.lastInboundTimes()) {
+            lastInbound.put((String) r[0], (LocalDateTime) r[1]);
+        }
+
+        return repo.findLatestPerPhone()
+                .stream()
                 .map(m -> {
-                    LocalDateTime in = lastInbound.get(m.getRecipientPhone());
+
+                    LocalDateTime inboundTime =
+                            lastInbound.get(m.getRecipientPhone());
+
+                    LocalDateTime expiresAt =
+                            inboundTime == null
+                                    ? null
+                                    : inboundTime.plusHours(WINDOW_HOURS);
+
                     return new ConversationDto(
                             m.getRecipientPhone(),
                             m.getRecipientName(),
                             preview(m),
                             m.getCreatedAt(),
                             m.getDirection(),
-                            unread.getOrDefault(m.getRecipientPhone(), 0L),
-                            in,
-                            in == null ? null : in.plusHours(WINDOW_HOURS));
+                            unread.getOrDefault(
+                                    m.getRecipientPhone(), 0L
+                            ),
+                            inboundTime,
+                            expiresAt
+                    );
                 })
-                .sorted(Comparator.comparing(ConversationDto::lastMessageAt).reversed())
+                .sorted(
+                        Comparator.comparing(
+                                ConversationDto::lastMessageAt
+                        ).reversed()
+                )
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<InboxMessageDto> messages(String phone) {
-        return repo.findByRecipientPhoneOrderByCreatedAtAsc(phone).stream().map(this::toDto).toList();
+
+        return repo.findByRecipientPhoneOrderByCreatedAtAsc(phone)
+                .stream()
+                .map(this::toDto)
+                .toList();
     }
 
     @Transactional
@@ -60,44 +97,70 @@ public class InboxService {
         repo.markConversationRead(phone);
     }
 
-    /** Free-text replies are only allowed within 24h of the customer's last message. */
     @Transactional
     public InboxMessageDto reply(String phone, String text) {
-        WhatsappEntity lastIn = repo
-                .findFirstByRecipientPhoneAndDirectionOrderByCreatedAtDesc(phone, "INBOUND")
-                .orElseThrow(() -> new IllegalStateException(
-                        "This contact has not messaged you yet. Send a template (campaign) first."));
 
-        if (lastIn.getCreatedAt().isBefore(LocalDateTime.now().minusHours(WINDOW_HOURS))) {
+        WhatsappEntity lastIn = repo
+                .findFirstByRecipientPhoneAndDirectionOrderByCreatedAtDesc(
+                        phone, "INBOUND"
+                )
+                .orElseThrow(() -> new IllegalStateException(
+                        "This contact has not messaged you yet. Send a template first."
+                ));
+
+        LocalDateTime expiry =
+                lastIn.getCreatedAt().plusHours(WINDOW_HOURS);
+
+        if (!currentTime().isBefore(expiry)) {
             throw new IllegalStateException(
-                    "The 24-hour reply window is closed. Send an approved template instead.");
+                    "The 24-hour reply window is closed. Send an approved template instead."
+            );
         }
 
         WhatsappEntity out = new WhatsappEntity();
+
         out.setRecipientName(lastIn.getRecipientName());
         out.setRecipientPhone(phone);
         out.setMessage(text);
         out.setMessageType("TEXT");
         out.setDirection("OUTBOUND");
         out.setStatus("PROCESSING");
+
         try {
             out.setWhatsappMessageId(client.sendText(phone, text));
             out.setStatus("SENT");
-            out.setSentAt(LocalDateTime.now());
+            out.setSentAt(currentTime());
+
         } catch (Exception e) {
             out.setStatus("FAILED");
             out.setErrorMessage(e.getMessage());
         }
+
         return toDto(repo.save(out));
     }
 
     private String preview(WhatsappEntity m) {
-        if (m.getMessage() != null && !m.getMessage().isBlank()) return m.getMessage();
-        return m.getTemplateName() != null ? "[template] " + m.getTemplateName() : "[" + m.getMessageType() + "]";
+
+        if (m.getMessage() != null && !m.getMessage().isBlank()) {
+            return m.getMessage();
+        }
+
+        return m.getTemplateName() != null
+                ? "[template] " + m.getTemplateName()
+                : "[" + m.getMessageType() + "]";
     }
 
     private InboxMessageDto toDto(WhatsappEntity m) {
-        return new InboxMessageDto(m.getId(), m.getDirection(), preview(m), m.getStatus(),
-                m.getTemplateName(), m.getMessageType(), m.getErrorMessage(), m.getCreatedAt());
+
+        return new InboxMessageDto(
+                m.getId(),
+                m.getDirection(),
+                preview(m),
+                m.getStatus(),
+                m.getTemplateName(),
+                m.getMessageType(),
+                m.getErrorMessage(),
+                m.getCreatedAt()
+        );
     }
 }
