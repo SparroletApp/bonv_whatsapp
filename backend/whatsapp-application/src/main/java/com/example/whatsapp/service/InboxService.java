@@ -191,7 +191,7 @@ public class InboxService {
                 if (ogg) {
                     sendMime = "audio/ogg; codecs=opus";
                 } else if (direct) {
-                    sendMime = mime.split(";")[0].trim(); 
+                    sendMime = mime.split(";")[0].trim();
                 } else {
                     data = toOggOpus(data);
                     sendMime = "audio/ogg; codecs=opus";
