@@ -44,6 +44,20 @@ const inboxService = {
     );
 },
 
+sendTemplate: (
+    phone: string,
+    request: {
+        templateId: number;
+        templateName: string;
+        language: string;
+        parameters: string[];
+    }
+) =>
+    api.post<InboxMessage>(
+        `/inbox/conversations/${phone}/send-template`,
+        request
+),
+
     media: (mediaId: string) =>
         api.get<Blob>(`/inbox/media/${mediaId}`, { responseType: "blob" } as any),
 };
