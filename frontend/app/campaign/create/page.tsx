@@ -36,6 +36,30 @@ const SAMPLE: Record<Exclude<Kind, "TEXT">, string> = {
 
 const MEDIA_HEADERS = ["IMAGE", "VIDEO", "DOCUMENT"];
 
+const MEDIA_RULES: Record<
+    string,
+    { accept: string; mimes: string[]; maxMb: number; label: string }
+> = {
+    IMAGE: {
+        accept: "image/jpeg,image/png",
+        mimes: ["image/jpeg", "image/png"],
+        maxMb: 5,
+        label: "JPEG or PNG image",
+    },
+    VIDEO: {
+        accept: "video/mp4",
+        mimes: ["video/mp4"],
+        maxMb: 16,
+        label: "MP4 video",
+    },
+    DOCUMENT: {
+        accept: "application/pdf",
+        mimes: ["application/pdf"],
+        maxMb: 100,
+        label: "PDF document",
+    },
+};
+
 export default function CampaignCreatePage() {
     const nav = useRouter();
 
@@ -45,7 +69,20 @@ export default function CampaignCreatePage() {
     const [templates, setTemplates] = useState<TemplateResponse[]>([]);
     const [templateId, setTemplateId] = useState<number | "">("");
     const [mapping, setMapping] = useState<VarMap[]>([]);
+    // Holds the uploaded WhatsApp media ID (sent to the backend as headerMediaUrl)
     const [headerMediaUrl, setHeaderMediaUrl] = useState("");
+    const [mediaName, setMediaName] = useState("");
+    const [mediaPreview, setMediaPreview] = useState("");
+    const [uploading, setUploading] = useState(false);
+
+    const clearMedia = () => {
+        setHeaderMediaUrl("");
+        setMediaName("");
+        setMediaPreview((old) => {
+            if (old) URL.revokeObjectURL(old);
+            return "";
+        });
+    };
 
     const [showTemplateForm, setShowTemplateForm] = useState(false);
     const [launching, setLaunching] = useState(false);
@@ -61,9 +98,50 @@ export default function CampaignCreatePage() {
 
     const template = approvedTemplates.find((t) => t.id === templateId);
 
-    const needsMedia = MEDIA_HEADERS.includes(
-        template?.headerType?.toUpperCase() ?? ""
-    );
+    const headerType = template?.headerType?.toUpperCase() ?? "";
+    const needsMedia = MEDIA_HEADERS.includes(headerType);
+    const mediaRule = MEDIA_RULES[headerType];
+
+    const handleMediaPick = async (file: File | undefined) => {
+        if (!file || !mediaRule) return;
+
+        setError("");
+
+        if (!mediaRule.mimes.includes(file.type)) {
+            setError(`Please select a valid ${mediaRule.label}.`);
+            return;
+        }
+
+        if (file.size > mediaRule.maxMb * 1024 * 1024) {
+            setError(`File is too large. Maximum size is ${mediaRule.maxMb} MB.`);
+            return;
+        }
+
+        setUploading(true);
+
+        try {
+            const res: any = await campaignService.uploadMedia(file);
+            const mediaId: string | undefined =
+                res?.data?.mediaId ?? res?.mediaId;
+
+            if (!mediaId) {
+                throw new Error("Upload did not return a media ID");
+            }
+
+            clearMedia();
+            setHeaderMediaUrl(mediaId);
+            setMediaName(file.name);
+
+            if (file.type.startsWith("image/")) {
+                setMediaPreview(URL.createObjectURL(file));
+            }
+        } catch (e) {
+            clearMedia();
+            setError("Media upload failed: " + apiError(e));
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const loadTemplates = async () => {
         const data = await templateService.list();
@@ -108,7 +186,7 @@ export default function CampaignCreatePage() {
         ) {
             setTemplateId("");
             setMapping([]);
-            setHeaderMediaUrl("");
+            clearMedia();
         }
     }, [approvedTemplates, templateId]);
 
@@ -136,7 +214,7 @@ export default function CampaignCreatePage() {
 
     const pickTemplate = (id: number | "") => {
         setTemplateId(id);
-        setHeaderMediaUrl("");
+        clearMedia();
 
         const selectedTemplate = approvedTemplates.find((t) => t.id === id);
 
@@ -163,16 +241,13 @@ export default function CampaignCreatePage() {
         item.kind === "TEXT" ? item.text : SAMPLE[item.kind]
     );
 
-    const mediaUrlValid = headerMediaUrl
-        .trim()
-        .toLowerCase()
-        .startsWith("https://");
+    const mediaUploaded = headerMediaUrl.trim() !== "";
 
     const variablesReady =
         !!template &&
         !mapping.some((m) => m.kind === "TEXT" && !m.text.trim());
 
-    const mediaReady = !!template && (!needsMedia || mediaUrlValid);
+    const mediaReady = !!template && (!needsMedia || mediaUploaded);
 
     const launch = async () => {
         setError("");
@@ -198,8 +273,13 @@ export default function CampaignCreatePage() {
             return;
         }
 
-        if (needsMedia && !mediaUrlValid) {
-            setError("Please enter a public HTTPS URL for the header media.");
+        if (uploading) {
+            setError("Please wait for the media upload to finish.");
+            return;
+        }
+
+        if (needsMedia && !mediaUploaded) {
+            setError(`Please select a ${mediaRule?.label ?? "media file"} for the header.`);
             return;
         }
 
@@ -542,26 +622,44 @@ export default function CampaignCreatePage() {
 
                                 {needsMedia && (
                                     <div className="cc-field">
-                                        <label htmlFor="headerMediaUrl">
-                                            Header {template.headerType?.toLowerCase()} URL{" "}
+                                        <label htmlFor="headerMediaFile">
+                                            Header {headerType.toLowerCase()}{" "}
                                             <span>*</span>
                                         </label>
 
                                         <input
-                                            id="headerMediaUrl"
-                                            type="url"
-                                            value={headerMediaUrl}
-                                            onChange={(e) =>
-                                                setHeaderMediaUrl(e.target.value)
-                                            }
-                                            placeholder="https://example.com/banner.jpg"
+                                            id="headerMediaFile"
+                                            type="file"
+                                            accept={mediaRule?.accept}
+                                            disabled={uploading}
+                                            onChange={(e) => {
+                                                handleMediaPick(e.target.files?.[0]);
+                                                e.target.value = "";
+                                            }}
                                         />
+
+                                        {mediaPreview && (
+                                            <img
+                                                src={mediaPreview}
+                                                alt="Selected header"
+                                                style={{
+                                                    marginTop: 10,
+                                                    maxWidth: 220,
+                                                    maxHeight: 160,
+                                                    borderRadius: 8,
+                                                    objectFit: "cover",
+                                                }}
+                                            />
+                                        )}
 
                                         <div className="cc-field-bottom">
                                             <span>
                                                 <i className="bi bi-info-circle" />
-                                                Must be a public HTTPS link (JPEG/PNG for
-                                                images, MP4 for video, PDF for documents).
+                                                {uploading
+                                                    ? "Uploading..."
+                                                    : mediaName
+                                                        ? `Uploaded: ${mediaName}`
+                                                        : `Select a ${mediaRule?.label} (max ${mediaRule?.maxMb} MB).`}
                                             </span>
                                         </div>
                                     </div>
@@ -784,7 +882,7 @@ export default function CampaignCreatePage() {
                         <button
                             type="button"
                             className="cc-launch-btn"
-                            disabled={launching}
+                            disabled={launching || uploading}
                             onClick={launch}
                         >
                             {launching ? (

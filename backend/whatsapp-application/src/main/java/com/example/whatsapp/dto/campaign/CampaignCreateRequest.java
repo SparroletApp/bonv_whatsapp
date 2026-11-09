@@ -7,4 +7,6 @@ public record CampaignCreateRequest(
         @NotBlank String name,
         @NotNull Long templateId,
         @NotEmpty List<Long> categoryIds,
-        List<String> variableMapping) {}   // "NAME" | "PHONE" | "EMAIL" | "TEXT:custom value"
+        List<String> variableMapping,
+        String headerMediaUrl
+) {}

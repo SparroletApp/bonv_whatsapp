@@ -15,8 +15,8 @@ export interface CampaignResponse {
     status: "RUNNING" | "COMPLETED" | "FAILED";
     total: number;
     pending: number;
-    sent: number;       
-    delivered: number;  
+    sent: number;
+    delivered: number;
     read: number;
     failed: number;
     replied: number;
@@ -41,6 +41,11 @@ const campaignService = {
     get: (id: number) => api.get<CampaignResponse>(`/campaigns/${id}`),
     messages: (id: number) => api.get<CampaignMessage[]>(`/campaigns/${id}/messages`),
     resume: (id: number) => api.post<CampaignResponse>(`/campaigns/${id}/resume`, {}),
+    uploadMedia: (file: File) => {
+        const form = new FormData();
+        form.append("file", file);
+        return api.post<{ url: string }>("/campaigns/media", form);
+    },
 };
 
 export default campaignService;

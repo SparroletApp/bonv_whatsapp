@@ -1,4 +1,3 @@
-
 package com.example.whatsapp.service;
 
 import com.example.whatsapp.dto.campaign.*;
@@ -57,10 +56,12 @@ public class CampaignService {
             );
         }
 
-        // Validate header configuration
-        validateTemplateHeader(tpl);
+        String headerMediaUrl = req.headerMediaUrl() == null
+                ? null
+                : req.headerMediaUrl().trim();
 
-        // Validate template variables
+        validateTemplateHeader(tpl, headerMediaUrl);
+
         int varCount = tpl.getVariableCount();
 
         List<String> mapping = req.variableMapping() == null
@@ -152,6 +153,10 @@ public class CampaignService {
 
             message.setTemplateParams(toJson(params));
 
+            // Header media used when the message is actually sent
+            message.setHeaderType(tpl.getHeaderType());
+            message.setHeaderMediaUrl(headerMediaUrl);
+
             message.setCampaignId(campaign.getId());
 
             message.setDirection("OUTBOUND");
@@ -168,11 +173,10 @@ public class CampaignService {
     /**
      * Validate media header configuration.
      *
-     * headerMediaHandle is used during template creation.
-     * headerMediaUrl is the URL that can be used as the
-     * media source when sending, provided it is publicly accessible.
+     * Meta only keeps a sample of the header media for approval, so the
+     * real media must be supplied for every campaign as a public HTTPS URL.
      */
-    private void validateTemplateHeader(TemplateEntity tpl) {
+    private void validateTemplateHeader(TemplateEntity tpl, String mediaUrl) {
 
         String headerType = tpl.getHeaderType();
 
@@ -182,41 +186,37 @@ public class CampaignService {
             return;
         }
 
-        if (!List.of("IMAGE", "VIDEO", "DOCUMENT")
-                .contains(headerType.toUpperCase(Locale.ROOT))) {
-
+        if ("LOCATION".equalsIgnoreCase(headerType)) {
             throw new IllegalArgumentException(
-                    "Unsupported template header type: " + headerType
-            );
+                    "Location header templates are not supported in campaigns yet");
         }
 
-        String mediaUrl = tpl.getHeaderMediaUrl();
+        if (!List.of("IMAGE", "VIDEO", "DOCUMENT")
+                .contains(headerType.toUpperCase(Locale.ROOT))) {
+            throw new IllegalArgumentException(
+                    "Unsupported template header type: " + headerType);
+        }
 
         if (mediaUrl == null || mediaUrl.isBlank()) {
             throw new IllegalArgumentException(
-                    "The " + headerType
-                            + " template does not have a media URL. "
-                            + "A sending media URL or uploaded WhatsApp media ID "
-                            + "must be provided before creating the campaign."
-            );
+                    "This " + headerType + " template needs a header media file. "
+                            + "Select a file before launching.");
         }
 
+        URI uri;
+
         try {
-            URI uri = URI.create(mediaUrl.trim());
-
-            if (!"https".equalsIgnoreCase(uri.getScheme())
-                    || uri.getHost() == null
-                    || uri.getHost().isBlank()) {
-
-                throw new IllegalArgumentException(
-                        "Template media URL must be a valid public HTTPS URL"
-                );
-            }
-
+            uri = URI.create(mediaUrl);
         } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException(
-                    "Invalid template media URL. Please provide a valid public HTTPS URL."
-            );
+                    "Invalid header media URL. Please provide a valid public HTTPS URL.");
+        }
+
+        if (!"https".equalsIgnoreCase(uri.getScheme())
+                || uri.getHost() == null
+                || uri.getHost().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Header media URL must be a valid public HTTPS URL");
         }
     }
 
