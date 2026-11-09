@@ -74,7 +74,6 @@ public class CampaignService {
             );
         }
 
-        // Load contacts and remove invalid/duplicate phone numbers
         Set<String> seen = new HashSet<>();
 
         List<ContactEntity> contacts = new ArrayList<>();
@@ -103,7 +102,6 @@ public class CampaignService {
             );
         }
 
-        // Create campaign
         CampaignEntity campaign = new CampaignEntity();
 
         campaign.setName(req.name().trim());
@@ -123,14 +121,12 @@ public class CampaignService {
 
         campaign = campaignRepo.save(campaign);
 
-        // Prepare outbound messages
         List<WhatsappEntity> messages = new ArrayList<>();
 
         for (int idx = 0; idx < contacts.size(); idx++) {
 
             ContactEntity contact = contacts.get(idx);
 
-            // Resolve body variables
             List<String> params = new ArrayList<>();
 
             for (int i = 0; i < varCount; i++) {
@@ -152,8 +148,6 @@ public class CampaignService {
             );
 
             message.setTemplateParams(toJson(params));
-
-            // Header media used when the message is actually sent
             message.setHeaderType(tpl.getHeaderType());
             message.setHeaderMediaUrl(headerMediaUrl);
 
@@ -170,12 +164,6 @@ public class CampaignService {
         return toResponse(campaign);
     }
 
-    /**
-     * Validate media header configuration.
-     *
-     * Meta only keeps a sample of the header media for approval, so the
-     * real media must be supplied for every campaign as a public HTTPS URL.
-     */
     private void validateTemplateHeader(TemplateEntity tpl, String mediaUrl) {
 
         String headerType = tpl.getHeaderType();

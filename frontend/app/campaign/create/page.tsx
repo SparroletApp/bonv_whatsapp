@@ -121,15 +121,15 @@ export default function CampaignCreatePage() {
 
         try {
             const res: any = await campaignService.uploadMedia(file);
-            const mediaId: string | undefined =
-                res?.data?.mediaId ?? res?.mediaId;
+                      const publicUrl: string | undefined =
+                res?.data?.url ?? res?.url;
 
-            if (!mediaId) {
-                throw new Error("Upload did not return a media ID");
+            if (!publicUrl) {
+                throw new Error("Upload did not return a public URL");
             }
 
             clearMedia();
-            setHeaderMediaUrl(mediaId);
+            setHeaderMediaUrl(publicUrl);
             setMediaName(file.name);
 
             if (file.type.startsWith("image/")) {
