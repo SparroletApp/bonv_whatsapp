@@ -96,4 +96,13 @@ databaseChangeLog:
             relativeToChangelogFile: true
 
 
+  - changeSet:
+      id: alter_whatsapp_add_header
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_whatsapp_add_header.sql
+            relativeToChangelogFile: true
+
+
 

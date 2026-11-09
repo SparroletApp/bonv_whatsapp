@@ -18,6 +18,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -53,27 +54,51 @@ public class WhatsappClient {
         ));
     }
 
-    // ==========================================
-    // SEND TEMPLATE
-    // ==========================================
-
     public String sendTemplate(
             String to,
             String name,
             String lang,
-            List<String> bodyParams
+            List<String> bodyParams,
+            String headerType,    // NONE / TEXT / IMAGE / VIDEO / DOCUMENT / LOCATION
+            String headerMedia    // https URL, or an uploaded media ID
     ) {
 
         ObjectNode payload = baseMessage(to, "template");
-
         ObjectNode template = payload.putObject("template");
 
         template.put("name", name);
         template.putObject("language").put("code", lang);
 
-        if (bodyParams != null && !bodyParams.isEmpty()) {
+        ArrayNode components = template.putArray("components");
 
-            ArrayNode components = template.putArray("components");
+        String type = headerType == null ? "NONE" : headerType.toUpperCase();
+
+        if (Set.of("IMAGE", "VIDEO", "DOCUMENT").contains(type)) {
+
+            if (headerMedia == null || headerMedia.isBlank()) {
+                throw new IllegalStateException(
+                        type + " header requires a media URL or media ID");
+            }
+
+            String key = type.toLowerCase();              // image / video / document
+            boolean isUrl = headerMedia.startsWith("http");
+
+            ObjectNode header = components.addObject();
+            header.put("type", "header");
+
+            ObjectNode param = header.putArray("parameters").addObject();
+            param.put("type", key);
+
+            ObjectNode media = param.putObject(key);
+            media.put(isUrl ? "link" : "id", headerMedia.trim());
+
+            if (type.equals("DOCUMENT")) {
+                media.put("filename", "document.pdf");
+            }
+        }
+
+        // ---------- BODY ----------
+        if (bodyParams != null && !bodyParams.isEmpty()) {
 
             ObjectNode body = components.addObject();
             body.put("type", "body");
@@ -81,12 +106,14 @@ public class WhatsappClient {
             ArrayNode parameters = body.putArray("parameters");
 
             for (String value : bodyParams) {
-
-                ObjectNode param = parameters.addObject();
-
-                param.put("type", "text");
-                param.put("text", clean(value));
+                ObjectNode p = parameters.addObject();
+                p.put("type", "text");
+                p.put("text", clean(value));
             }
+        }
+
+        if (components.isEmpty()) {
+            template.remove("components");
         }
 
         return messageId(post(
@@ -95,9 +122,6 @@ public class WhatsappClient {
         ));
     }
 
-    // ==========================================
-    // CREATE TEMPLATE
-    // ==========================================
 
     public JsonNode createTemplate(ObjectNode payload) {
 

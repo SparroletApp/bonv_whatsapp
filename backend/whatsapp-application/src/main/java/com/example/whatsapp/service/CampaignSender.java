@@ -46,7 +46,12 @@ public class CampaignSender {
                         new TypeReference<List<String>>() {});
 
                 String wamid = client.sendTemplate(
-                        m.getRecipientPhone(), m.getTemplateName(), m.getLanguageCode(), params);
+                        m.getRecipientPhone(),
+                        m.getTemplateName(),
+                        m.getLanguageCode(),
+                        params,
+                        m.getHeaderType(),
+                        m.getHeaderMediaUrl());
 
                 m.setWhatsappMessageId(wamid);
                 m.setStatus("SENT");

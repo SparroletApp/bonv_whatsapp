@@ -39,7 +39,6 @@ public class WhatsappEntity {
 
     private LocalDateTime sentAt;
 
-    // ---- new ----
     @Column(nullable = false, length = 10)
     private String direction = "OUTBOUND";   // OUTBOUND / INBOUND
 
@@ -50,6 +49,12 @@ public class WhatsappEntity {
 
     @Column(columnDefinition = "TEXT")
     private String templateParams;           // JSON array of body variables
+
+    @Column(length = 20)
+    private String headerType;               // NONE / TEXT / IMAGE / VIDEO / DOCUMENT
+
+    @Column(length = 1000)
+    private String headerMediaUrl;           // https URL or uploaded media ID
 
     @Column(nullable = false, length = 30)
     private String messageType = "TEXT";
@@ -64,6 +69,7 @@ public class WhatsappEntity {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
     private String mediaId;
     private String mimeType;
 
