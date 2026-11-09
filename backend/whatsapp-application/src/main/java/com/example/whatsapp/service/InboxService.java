@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -187,7 +188,7 @@ public class InboxService {
                 if (!mime.startsWith("audio/ogg")) {
                     data = toOggOpus(data);
                 }
-                sendMime = "audio/ogg";
+                sendMime = "audio/ogg; codecs=opus";
                 filename = "voice.ogg";
             }
 
@@ -212,24 +213,58 @@ public class InboxService {
     }
 
     private byte[] toOggOpus(byte[] input) throws Exception {
-        Path in = Files.createTempFile("wa-in", ".bin");
-        Path outFile = Files.createTempFile("wa-out", ".ogg");
+
+        Path in = Files.createTempFile("wa-input-", ".webm");
+        Path out = Files.createTempFile("wa-output-", ".ogg");
+
         try {
             Files.write(in, input);
-            Process pr = new ProcessBuilder("ffmpeg", "-y", "-i", in.toString(),
-                    "-vn", "-c:a", "libopus", "-b:a", "32k", "-ar", "16000", "-ac", "1",
-                    outFile.toString())
+
+            Process process = new ProcessBuilder(
+                    "ffmpeg",
+                    "-y",
+                    "-i", in.toString(),
+                    "-vn",
+                    "-map_metadata", "-1",
+                    "-ac", "1",
+                    "-ar", "48000",
+                    "-c:a", "libopus",
+                    "-b:a", "32k",
+                    "-application", "voip",
+                    "-f", "ogg",
+                    out.toString()
+            )
                     .redirectErrorStream(true)
-                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectOutput(ProcessBuilder.Redirect.INHERIT)
                     .start();
-            if (!pr.waitFor(30, TimeUnit.SECONDS) || pr.exitValue() != 0) {
-                pr.destroyForcibly();
-                throw new IllegalStateException("Audio conversion failed (is ffmpeg installed?)");
+
+            boolean completed = process.waitFor(60, TimeUnit.SECONDS);
+
+            if (!completed) {
+                process.destroyForcibly();
+                throw new IllegalStateException(
+                        "Audio conversion timed out."
+                );
             }
-            return Files.readAllBytes(outFile);
+
+            if (process.exitValue() != 0) {
+                throw new IllegalStateException(
+                        "FFmpeg audio conversion failed. Exit code: "
+                                + process.exitValue()
+                );
+            }
+
+            if (!Files.exists(out) || Files.size(out) == 0) {
+                throw new IllegalStateException(
+                        "Converted audio file is empty."
+                );
+            }
+
+            return Files.readAllBytes(out);
+
         } finally {
             Files.deleteIfExists(in);
-            Files.deleteIfExists(outFile);
+            Files.deleteIfExists(out);
         }
     }
 

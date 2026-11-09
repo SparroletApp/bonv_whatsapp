@@ -205,47 +205,114 @@ export default function InboxPage() {
 
     const startRecording = async () => {
         if (!active || !windowOpen) return;
+
         setError("");
         const phone = active.phone;
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mimeType = ["audio/ogg;codecs=opus", "audio/mp4"].find((t) =>
-                MediaRecorder.isTypeSupported(t)
+            if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+                throw new Error("Audio recording is not supported by this browser.");
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                },
+            });
+
+            const supportedTypes = [
+                "audio/ogg;codecs=opus",
+                "audio/mp4",
+                "audio/webm;codecs=opus",
+                "audio/webm",
+            ];
+
+            const selectedType = supportedTypes.find(type =>
+                MediaRecorder.isTypeSupported(type)
             );
-            const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
+            const recorder = new MediaRecorder(
+                stream,
+                selectedType ? { mimeType: selectedType } : undefined
+            );
+
             chunksRef.current = [];
             cancelRef.current = false;
 
-            rec.ondataavailable = (e) => {
-                if (e.data.size) chunksRef.current.push(e.data);
+            recorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    chunksRef.current.push(event.data);
+                }
             };
 
-            rec.onstop = async () => {
-                stream.getTracks().forEach((t) => t.stop());
-                if (timerRef.current) clearInterval(timerRef.current);
+            recorder.onstop = async () => {
+                stream.getTracks().forEach(track => track.stop());
+
+                if (timerRef.current) {
+                    clearInterval(timerRef.current);
+                    timerRef.current = null;
+                }
+
                 setRecording(false);
                 setRecSecs(0);
-                if (cancelRef.current || chunksRef.current.length === 0) return;
 
-                const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
+                if (cancelRef.current || chunksRef.current.length === 0) {
+                    return;
+                }
+
+                const mime = recorder.mimeType || "audio/webm";
+
+                const blob = new Blob(chunksRef.current, {
+                    type: mime,
+                });
+
+                if (blob.size > 16 * 1024 * 1024) {
+                    setError("Audio must be 16 MB or smaller.");
+                    return;
+                }
+
+                const extension = mime.includes("ogg") ? "ogg"
+                    : mime.includes("mp4") ? "m4a"
+                        : "webm";
+
                 try {
-                    const ext = (rec.mimeType || "").includes("mp4") ? "m4a"
-                        : (rec.mimeType || "").includes("ogg") ? "ogg" : "webm";
-                    await inboxService.replyMedia(phone, blob, `voice.${ext}`);
-                    loadMsgs(phone);
-                    loadConvs();
+                    await inboxService.replyMedia(
+                        phone,
+                        blob,
+                        `voice.${extension}`
+                    );
+
+                    await loadMsgs(phone);
+                    await loadConvs();
+
                 } catch (e) {
                     setError(apiError(e));
                 }
             };
 
-            rec.start();
-            recRef.current = rec;
+            recorder.onerror = () => {
+                stream.getTracks().forEach(track => track.stop());
+                setRecording(false);
+                setError("Audio recording failed.");
+            };
+
+            recorder.start(500);
+
+            recRef.current = recorder;
             setRecording(true);
-            timerRef.current = setInterval(() => setRecSecs((s) => s + 1), 1000);
-        } catch {
-            setError("Microphone access was denied or is unavailable (needs HTTPS or localhost).");
+
+            timerRef.current = setInterval(() => {
+                setRecSecs(s => s + 1);
+            }, 1000);
+
+        } catch (e) {
+            setError(
+                e instanceof Error
+                    ? e.message
+                    : "Microphone access failed."
+            );
         }
     };
 
