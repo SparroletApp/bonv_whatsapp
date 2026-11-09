@@ -16,7 +16,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -31,25 +33,155 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class TemplateService {
 
-    // {{1}}, {{2}} ...
-    private static final Pattern VAR = Pattern.compile("\\{\\{(\\d+)}}");
-    // any {{ ... }} placeholder, used to reject unsupported ones
-    private static final Pattern ANY_VAR = Pattern.compile("\\{\\{([^}]*)}}");
-    private static final Pattern START_VAR = Pattern.compile("^\\{\\{\\d+}}");
-    private static final Pattern END_VAR = Pattern.compile("\\{\\{\\d+}}$");
-    private static final Pattern NAME_OK = Pattern.compile("^[a-z0-9_]+$");
-    private static final Pattern PHONE_OK = Pattern.compile("^\\+?[0-9]{8,15}$");
+    private static final Pattern VAR =
+            Pattern.compile("\\{\\{(\\d+)}}");
 
-    private static final Set<String> BUTTON_TYPES = Set.of("QUICK_REPLY", "URL", "PHONE_NUMBER");
+    private static final Pattern ANY_VAR =
+            Pattern.compile("\\{\\{([^}]*)}}");
+
+    private static final Pattern START_VAR =
+            Pattern.compile("^\\{\\{\\d+}}");
+
+    private static final Pattern END_VAR =
+            Pattern.compile("\\{\\{\\d+}}$");
+
+    private static final Pattern NAME_OK =
+            Pattern.compile("^[a-z0-9_]+$");
+
+    private static final Pattern PHONE_OK =
+            Pattern.compile("^\\+?[0-9]{8,15}$");
+
+    private static final Set<String> BUTTON_TYPES =
+            Set.of("QUICK_REPLY", "URL", "PHONE_NUMBER");
+
+    private static final Set<String> HEADER_TYPES =
+            Set.of(
+                    "NONE",
+                    "TEXT",
+                    "IMAGE",
+                    "VIDEO",
+                    "DOCUMENT",
+                    "LOCATION"
+            );
 
     private final TemplateRepository repo;
     private final WhatsappClient client;
     private final ObjectMapper mapper;
 
     // ==========================================
+    // UPLOAD TEMPLATE SAMPLE MEDIA
+    // ==========================================
+
+    public String uploadMediaSample(
+            String type,
+            MultipartFile file
+    ) throws IOException {
+
+        if (type == null || type.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Media type is required"
+            );
+        }
+
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Please select a media file"
+            );
+        }
+
+        String headerType = type.trim().toUpperCase();
+
+        if (!Set.of("IMAGE", "VIDEO", "DOCUMENT").contains(headerType)) {
+            throw new IllegalArgumentException(
+                    "Supported upload types are IMAGE, VIDEO and DOCUMENT"
+            );
+        }
+
+        String mimeType = file.getContentType();
+
+        if (mimeType == null) {
+            throw new IllegalArgumentException(
+                    "Unable to identify file type"
+            );
+        }
+
+        boolean valid = switch (headerType) {
+
+            case "IMAGE" ->
+                    Set.of(
+                            "image/jpeg",
+                            "image/png"
+                    ).contains(mimeType);
+
+            case "VIDEO" ->
+                    "video/mp4".equals(mimeType);
+
+            case "DOCUMENT" ->
+                    "application/pdf".equals(mimeType);
+
+            default -> false;
+        };
+
+        if (!valid) {
+            throw new IllegalArgumentException(
+                    "Invalid file format for " + headerType
+            );
+        }
+
+        long maxSize = switch (headerType) {
+
+            case "IMAGE" ->
+                    5L * 1024 * 1024;
+
+            case "VIDEO" ->
+                    16L * 1024 * 1024;
+
+            case "DOCUMENT" ->
+                    100L * 1024 * 1024;
+
+            default -> 0;
+        };
+
+        if (file.getSize() > maxSize) {
+            throw new IllegalArgumentException(
+                    "File exceeds the maximum allowed size for "
+                            + headerType
+            );
+        }
+
+        String filename = file.getOriginalFilename();
+
+        if (filename == null || filename.isBlank()) {
+            filename = switch (headerType) {
+                case "IMAGE" -> "template-sample.jpg";
+                case "VIDEO" -> "template-sample.mp4";
+                case "DOCUMENT" -> "template-sample.pdf";
+                default -> "template-sample";
+            };
+        } else {
+            filename = filename.replaceAll("[^a-zA-Z0-9._-]", "_");
+        }
+
+        log.info(
+                "Uploading template sample. Type: {}, Filename: {}, Size: {}",
+                headerType,
+                filename,
+                file.getSize()
+        );
+
+        String handle = client.uploadTemplateSample(
+                file.getBytes(),
+                mimeType,
+                filename
+        );
+
+        log.info("Template sample uploaded successfully");
+
+        return handle;
+    }
+
+    // ==========================================
     // CREATE TEMPLATE
-    // No @Transactional on purpose: the call to Meta must not hold a database
-    // connection open. saveAndFlush runs in its own short transaction.
     // ==========================================
 
     public TemplateResponse create(TemplateCreateRequestDto r) {
@@ -57,131 +189,271 @@ public class TemplateService {
         log.info("Starting WhatsApp template creation");
 
         if (r == null) {
-            throw new IllegalArgumentException("Template request cannot be empty");
+            throw new IllegalArgumentException(
+                    "Template request cannot be empty"
+            );
         }
+
         if (r.name() == null || r.name().isBlank()) {
-            throw new IllegalArgumentException("Template name is required");
+            throw new IllegalArgumentException(
+                    "Template name is required"
+            );
         }
+
         if (r.language() == null || r.language().isBlank()) {
-            throw new IllegalArgumentException("Template language is required");
+            throw new IllegalArgumentException(
+                    "Template language is required"
+            );
         }
+
         if (r.body() == null || r.body().isBlank()) {
-            throw new IllegalArgumentException("Template body is required");
+            throw new IllegalArgumentException(
+                    "Template body is required"
+            );
         }
 
         String name = r.name().trim().toLowerCase();
         String language = r.language().trim();
         String body = r.body().trim();
+
         String headerText = clean(r.headerText());
         String footerText = clean(r.footerText());
 
-        String category = (r.category() == null || r.category().isBlank())
+        String category = (
+                r.category() == null || r.category().isBlank()
+        )
                 ? "MARKETING"
                 : r.category().trim().toUpperCase();
 
+        String headerType = r.headerType() == null
+                || r.headerType().isBlank()
+                ? (headerText == null ? "NONE" : "TEXT")
+                : r.headerType().trim().toUpperCase();
+
         if (!NAME_OK.matcher(name).matches()) {
             throw new IllegalArgumentException(
-                    "Template name must contain lowercase letters, numbers and underscores only");
-        }
-        if (name.length() > 512) {
-            throw new IllegalArgumentException("Template name is too long (max 512 characters)");
-        }
-        if (!category.equals("MARKETING") && !category.equals("UTILITY")) {
-            throw new IllegalArgumentException("Category must be MARKETING or UTILITY");
-        }
-        if (body.length() > 1024) {
-            throw new IllegalArgumentException("Message body is too long (max 1024 characters)");
-        }
-        if (headerText != null && headerText.length() > 60) {
-            throw new IllegalArgumentException("Header is too long (max 60 characters)");
-        }
-        if (footerText != null && footerText.length() > 60) {
-            throw new IllegalArgumentException("Footer is too long (max 60 characters)");
-        }
-        if (headerText != null && headerText.contains("{{")) {
-            throw new IllegalArgumentException("Variables are not supported in the header");
-        }
-        if (footerText != null && footerText.contains("{{")) {
-            throw new IllegalArgumentException("Variables are not supported in the footer");
+                    "Template name must contain lowercase letters, numbers and underscores only"
+            );
         }
 
-        log.info("Template name: {}, language: {}", name, language);
+        if (name.length() > 150) {
+            throw new IllegalArgumentException(
+                    "Template name is too long"
+            );
+        }
+
+        if (!category.equals("MARKETING")
+                && !category.equals("UTILITY")) {
+            throw new IllegalArgumentException(
+                    "Category must be MARKETING or UTILITY"
+            );
+        }
+
+        if (!HEADER_TYPES.contains(headerType)) {
+            throw new IllegalArgumentException(
+                    "Unsupported header type: " + headerType
+            );
+        }
+
+        if (body.length() > 1024) {
+            throw new IllegalArgumentException(
+                    "Message body is too long (max 1024 characters)"
+            );
+        }
+
+        if (headerText != null && headerText.length() > 60) {
+            throw new IllegalArgumentException(
+                    "Header is too long (max 60 characters)"
+            );
+        }
+
+        if (footerText != null && footerText.length() > 60) {
+            throw new IllegalArgumentException(
+                    "Footer is too long (max 60 characters)"
+            );
+        }
+
+        // Validate header fields
+
+        if (headerType.equals("TEXT")) {
+
+            if (headerText == null) {
+                throw new IllegalArgumentException(
+                        "Header text is required"
+                );
+            }
+
+            if (r.headerMediaHandle() != null
+                    && !r.headerMediaHandle().isBlank()) {
+                throw new IllegalArgumentException(
+                        "Media handle is not required for TEXT header"
+                );
+            }
+
+        } else if (Set.of("IMAGE", "VIDEO", "DOCUMENT")
+                .contains(headerType)) {
+
+            if (r.headerMediaHandle() == null
+                    || r.headerMediaHandle().isBlank()) {
+                throw new IllegalArgumentException(
+                        "Upload a sample " + headerType.toLowerCase()
+                                + " before creating the template"
+                );
+            }
+
+            headerText = null;
+
+        } else {
+
+            headerText = null;
+        }
+
+        if (headerText != null && headerText.contains("{{")) {
+            throw new IllegalArgumentException(
+                    "Variables are not supported in the header"
+            );
+        }
+
+        if (footerText != null && footerText.contains("{{")) {
+            throw new IllegalArgumentException(
+                    "Variables are not supported in the footer"
+            );
+        }
 
         if (repo.existsByNameAndLanguage(name, language)) {
             throw new IllegalArgumentException(
-                    "A template with this name and language already exists");
+                    "A template with this name and language already exists"
+            );
         }
 
-        // ---------- variables ----------
+        // ==========================================
+        // VARIABLES
+        // ==========================================
 
         validateBodyVariables(body);
+
         int vars = countVariables(body);
 
         List<String> examples = new ArrayList<>();
+
         if (r.bodyExamples() != null) {
-            for (String e : r.bodyExamples()) {
-                if (e != null && !e.isBlank()) {
-                    examples.add(e.trim());
+
+            for (String example : r.bodyExamples()) {
+
+                if (example != null && !example.isBlank()) {
+                    examples.add(example.trim());
                 }
             }
         }
+
         if (vars > 0 && examples.size() < vars) {
-            throw new IllegalArgumentException("Provide an example value for each variable");
+            throw new IllegalArgumentException(
+                    "Provide an example value for each variable"
+            );
         }
 
-        // ---------- buttons ----------
+        // ==========================================
+        // BUTTONS
+        // ==========================================
 
-        List<TemplateButtonDto> buttons = r.buttons() == null ? List.of() : r.buttons();
+        List<TemplateButtonDto> buttons =
+                r.buttons() == null ? List.of() : r.buttons();
 
         if (buttons.size() > 3) {
-            throw new IllegalArgumentException("A template can have at most 3 buttons");
+            throw new IllegalArgumentException(
+                    "A template can have at most 3 buttons"
+            );
         }
 
         ArrayNode buttonArray = mapper.createArrayNode();
 
         for (TemplateButtonDto button : buttons) {
 
-            String type = button.type() == null ? "" : button.type().trim().toUpperCase();
-            String text = button.text() == null ? "" : button.text().trim();
+            if (button == null) {
+                throw new IllegalArgumentException(
+                        "Invalid template button"
+                );
+            }
+
+            String type = button.type() == null
+                    ? ""
+                    : button.type().trim().toUpperCase();
+
+            String text = button.text() == null
+                    ? ""
+                    : button.text().trim();
 
             if (!BUTTON_TYPES.contains(type)) {
-                throw new IllegalArgumentException("Unsupported button type: " + button.type());
+                throw new IllegalArgumentException(
+                        "Unsupported button type: " + type
+                );
             }
+
             if (text.isEmpty()) {
-                throw new IllegalArgumentException("Every button must have button text");
+                throw new IllegalArgumentException(
+                        "Every button must have button text"
+                );
             }
+
             if (text.length() > 25) {
-                throw new IllegalArgumentException("Button text is too long (max 25 characters): " + text);
+                throw new IllegalArgumentException(
+                        "Button text is too long (max 25 characters)"
+                );
             }
 
             ObjectNode btn = buttonArray.addObject();
+
             btn.put("type", type);
             btn.put("text", text);
 
             if (type.equals("URL")) {
-                String url = button.url() == null ? "" : button.url().trim();
+
+                String url = button.url() == null
+                        ? ""
+                        : button.url().trim();
+
                 if (url.isEmpty()) {
-                    throw new IllegalArgumentException("URL button requires a URL");
+                    throw new IllegalArgumentException(
+                            "URL button requires a URL"
+                    );
                 }
+
                 try {
+
                     String scheme = new URI(url).getScheme();
-                    if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
-                        throw new IllegalArgumentException("Button URL must start with http:// or https://");
+
+                    if (scheme == null
+                            || !(scheme.equalsIgnoreCase("http")
+                            || scheme.equalsIgnoreCase("https"))) {
+
+                        throw new IllegalArgumentException(
+                                "Button URL must start with http:// or https://"
+                        );
                     }
+
                 } catch (java.net.URISyntaxException ex) {
-                    throw new IllegalArgumentException("Please enter a valid button URL");
+
+                    throw new IllegalArgumentException(
+                            "Please enter a valid button URL"
+                    );
                 }
+
                 btn.put("url", url);
             }
 
             if (type.equals("PHONE_NUMBER")) {
+
                 String phone = button.phoneNumber() == null
                         ? ""
-                        : button.phoneNumber().replaceAll("[\\s-]", "");
+                        : button.phoneNumber()
+                        .replaceAll("[\\s-]", "");
+
                 if (!PHONE_OK.matcher(phone).matches()) {
                     throw new IllegalArgumentException(
-                            "Phone button needs a valid number with country code, e.g. +919876543210");
+                            "Phone button needs a valid number with country code"
+                    );
                 }
+
                 btn.put("phone_number", phone);
             }
         }
@@ -198,20 +470,51 @@ public class TemplateService {
 
         ArrayNode components = payload.putArray("components");
 
+        // ==========================================
         // HEADER
-        if (headerText != null) {
+        // ==========================================
+
+        if (headerType.equals("TEXT")) {
+
             ObjectNode header = components.addObject();
+
             header.put("type", "HEADER");
             header.put("format", "TEXT");
             header.put("text", headerText);
+
+        } else if (Set.of("IMAGE", "VIDEO", "DOCUMENT")
+                .contains(headerType)) {
+
+            ObjectNode header = components.addObject();
+
+            header.put("type", "HEADER");
+            header.put("format", headerType);
+
+            ObjectNode example = header.putObject("example");
+
+            ArrayNode handles = example.putArray("header_handle");
+
+            handles.add(r.headerMediaHandle().trim());
+
+        } else if (headerType.equals("LOCATION")) {
+
+            ObjectNode header = components.addObject();
+
+            header.put("type", "HEADER");
+            header.put("format", "LOCATION");
         }
 
+        // ==========================================
         // BODY
+        // ==========================================
+
         ObjectNode bodyNode = components.addObject();
+
         bodyNode.put("type", "BODY");
         bodyNode.put("text", body);
 
         if (vars > 0) {
+
             ArrayNode row = bodyNode
                     .putObject("example")
                     .putArray("body_text")
@@ -222,44 +525,70 @@ public class TemplateService {
             }
         }
 
+        // ==========================================
         // FOOTER
+        // ==========================================
+
         if (footerText != null) {
+
             ObjectNode footer = components.addObject();
+
             footer.put("type", "FOOTER");
             footer.put("text", footerText);
         }
 
+        // ==========================================
         // BUTTONS
+        // ==========================================
+
         if (!buttonArray.isEmpty()) {
+
             ObjectNode buttonComponent = components.addObject();
+
             buttonComponent.put("type", "BUTTONS");
             buttonComponent.set("buttons", buttonArray);
         }
 
-        log.info("Meta template payload prepared for: {}", name);
+        log.info(
+                "Creating Meta template. Name: {}, Header: {}",
+                name,
+                headerType
+        );
 
         // ==========================================
-        // SEND TEMPLATE TO META
+        // SEND TO META
         // ==========================================
 
         JsonNode metaResponse;
 
         try {
+
             metaResponse = client.createTemplate(payload);
-            log.info("Meta template response received: {}", metaResponse);
+
+            log.info(
+                    "Meta template response: {}",
+                    metaResponse
+            );
+
         } catch (Exception ex) {
+
             log.error("Meta template creation failed", ex);
+
             throw new RuntimeException(
-                    "Meta template creation failed: " + ex.getMessage(), ex);
+                    "Meta template creation failed: " + ex.getMessage(),
+                    ex
+            );
         }
 
         if (metaResponse == null || !metaResponse.hasNonNull("id")) {
-            log.error("Meta returned an unexpected template response: {}", metaResponse);
-            throw new RuntimeException("Meta did not return a valid template ID");
+
+            throw new RuntimeException(
+                    "Meta did not return a valid template ID"
+            );
         }
 
         // ==========================================
-        // SAVE TEMPLATE TO DATABASE
+        // SAVE DATABASE
         // ==========================================
 
         TemplateEntity entity = new TemplateEntity();
@@ -267,33 +596,64 @@ public class TemplateService {
         entity.setName(name);
         entity.setLanguage(language);
         entity.setCategory(category);
+
+        entity.setHeaderType(headerType);
         entity.setHeaderText(headerText);
+
+        entity.setHeaderMediaHandle(
+                Set.of("IMAGE", "VIDEO", "DOCUMENT")
+                        .contains(headerType)
+                        ? r.headerMediaHandle().trim()
+                        : null
+        );
+
+        entity.setHeaderMediaUrl(null);
+
         entity.setBody(body);
         entity.setFooterText(footerText);
-        entity.setButtonsJson(buttonArray.isEmpty() ? null : buttonArray.toString());
-        entity.setVariableCount(vars);
-        entity.setMetaTemplateId(metaResponse.path("id").asText());
-        entity.setStatus(metaResponse.path("status").asText("PENDING").toUpperCase());
 
-        if (entity.getCreatedAt() == null) {
-            entity.setCreatedAt(LocalDateTime.now());
-        }
+        entity.setButtonsJson(
+                buttonArray.isEmpty()
+                        ? null
+                        : buttonArray.toString()
+        );
+
+        entity.setVariableCount(vars);
+
+        entity.setMetaTemplateId(
+                metaResponse.path("id").asText()
+        );
+
+        entity.setStatus(
+                metaResponse.path("status")
+                        .asText("PENDING")
+                        .toUpperCase()
+        );
 
         try {
+
             TemplateEntity saved = repo.saveAndFlush(entity);
 
-            log.info("Template saved successfully. Local ID: {}, Meta ID: {}",
-                    saved.getId(), saved.getMetaTemplateId());
+            log.info(
+                    "Template saved. Local ID: {}, Meta ID: {}",
+                    saved.getId(),
+                    saved.getMetaTemplateId()
+            );
 
             return map(saved);
 
         } catch (Exception ex) {
-            log.error("Meta accepted template, but database save failed. Meta ID: {}",
-                    entity.getMetaTemplateId(), ex);
+
+            log.error(
+                    "Meta accepted template but database saving failed",
+                    ex
+            );
 
             throw new RuntimeException(
                     "Template was submitted to Meta, but database saving failed: "
-                            + ex.getMessage(), ex);
+                            + ex.getMessage(),
+                    ex
+            );
         }
     }
 
@@ -309,7 +669,9 @@ public class TemplateService {
         ArrayNode templates = client.listTemplates();
 
         if (templates == null) {
-            throw new RuntimeException("Meta returned an empty template response");
+            throw new RuntimeException(
+                    "Meta returned an empty template response"
+            );
         }
 
         int synced = 0;
@@ -321,25 +683,50 @@ public class TemplateService {
             String language = template.path("language").asText("");
 
             if (name.isBlank() || language.isBlank()) {
-                log.warn("Skipping template with missing name or language: {}", template);
+
+                log.warn(
+                        "Skipping template with missing name or language: {}",
+                        template
+                );
+
                 skipped++;
                 continue;
             }
 
             try {
+
                 TemplateEntity entity = repo
                         .findByNameAndLanguage(name, language)
                         .orElseGet(TemplateEntity::new);
 
                 entity.setName(name);
                 entity.setLanguage(language);
-                entity.setCategory(template.path("category").asText("MARKETING"));
-                entity.setStatus(template.path("status").asText("PENDING").toUpperCase());
-                entity.setMetaTemplateId(template.path("id").asText(null));
-                entity.setRejectionReason(template.path("rejected_reason").asText(null));
 
-                // reset parts that may have been removed in Meta
+                entity.setCategory(
+                        template.path("category").asText("MARKETING")
+                );
+
+                entity.setStatus(
+                        template.path("status")
+                                .asText("PENDING")
+                                .toUpperCase()
+                );
+
+                entity.setMetaTemplateId(
+                        template.path("id").asText(null)
+                );
+
+                entity.setRejectionReason(
+                        template.path("rejected_reason").asText(null)
+                );
+
+                // Reset existing component fields
+
+                entity.setHeaderType("NONE");
                 entity.setHeaderText(null);
+                entity.setHeaderMediaHandle(null);
+                entity.setHeaderMediaUrl(null);
+
                 entity.setFooterText(null);
                 entity.setButtonsJson(null);
                 entity.setBody("");
@@ -348,45 +735,77 @@ public class TemplateService {
 
                     switch (component.path("type").asText()) {
 
-                        case "BODY" ->
-                                entity.setBody(component.path("text").asText(""));
+                        case "BODY" -> entity.setBody(
+                                component.path("text").asText("")
+                        );
 
                         case "HEADER" -> {
-                            // only TEXT headers; media headers (image/document/video) are not stored
-                            if ("TEXT".equals(component.path("format").asText())) {
-                                entity.setHeaderText(component.path("text").asText(null));
+
+                            String format = component.path("format")
+                                    .asText("NONE")
+                                    .toUpperCase();
+
+                            entity.setHeaderType(format);
+
+                            if (format.equals("TEXT")) {
+
+                                entity.setHeaderText(
+                                        component.path("text")
+                                                .asText(null)
+                                );
+
+                            } else {
+
+                                entity.setHeaderText(null);
                             }
+
+                            // Meta's template listing does not necessarily
+                            // return the original upload handle.
+                            entity.setHeaderMediaHandle(null);
+                            entity.setHeaderMediaUrl(null);
                         }
 
-                        case "FOOTER" ->
-                                entity.setFooterText(component.path("text").asText(null));
+                        case "FOOTER" -> entity.setFooterText(
+                                component.path("text").asText(null)
+                        );
 
-                        case "BUTTONS" ->
-                                entity.setButtonsJson(component.path("buttons").toString());
+                        case "BUTTONS" -> entity.setButtonsJson(
+                                component.path("buttons").toString()
+                        );
 
-                        default ->
-                                log.debug("Ignoring component type: {}",
-                                        component.path("type").asText());
+                        default -> log.debug(
+                                "Ignoring component type: {}",
+                                component.path("type").asText()
+                        );
                     }
                 }
 
-                entity.setVariableCount(countVariables(entity.getBody()));
-
-                if (entity.getCreatedAt() == null) {
-                    entity.setCreatedAt(LocalDateTime.now());
-                }
+                entity.setVariableCount(
+                        countVariables(entity.getBody())
+                );
 
                 repo.save(entity);
+
                 synced++;
 
             } catch (Exception ex) {
-                // one bad template must not stop the others
-                log.error("Failed to sync template: {} ({})", name, language, ex);
+
+                log.error(
+                        "Failed to sync template: {} ({})",
+                        name,
+                        language,
+                        ex
+                );
+
                 skipped++;
             }
         }
 
-        log.info("Template synchronization completed. Synced: {}, skipped: {}", synced, skipped);
+        log.info(
+                "Template synchronization completed. Synced: {}, skipped: {}",
+                synced,
+                skipped
+        );
 
         return list(null);
     }
@@ -398,14 +817,16 @@ public class TemplateService {
     @Transactional(readOnly = true)
     public List<TemplateResponse> list(String status) {
 
-        log.info("Fetching templates. Status filter: {}", status);
-
         List<TemplateEntity> items =
                 (status == null || status.isBlank())
                         ? repo.findAllByOrderByCreatedAtDesc()
-                        : repo.findByStatusOrderByCreatedAtDesc(status.toUpperCase());
+                        : repo.findByStatusOrderByCreatedAtDesc(
+                        status.toUpperCase()
+                );
 
-        return items.stream().map(this::map).toList();
+        return items.stream()
+                .map(this::map)
+                .toList();
     }
 
     // ==========================================
@@ -413,10 +834,19 @@ public class TemplateService {
     // ==========================================
 
     @Transactional
-    public void applyWebhookStatus(String metaId, String name, String event, String reason) {
+    public void applyWebhookStatus(
+            String metaId,
+            String name,
+            String event,
+            String reason
+    ) {
 
-        log.info("Updating template status. Meta ID: {}, Name: {}, Event: {}",
-                metaId, name, event);
+        log.info(
+                "Updating template status. Meta ID: {}, Name: {}, Event: {}",
+                metaId,
+                name,
+                event
+        );
 
         TemplateEntity entity = metaId == null
                 ? null
@@ -425,7 +855,9 @@ public class TemplateService {
         List<TemplateEntity> targets =
                 entity != null
                         ? List.of(entity)
-                        : (name == null ? List.of() : repo.findByName(name));
+                        : (name == null
+                        ? List.of()
+                        : repo.findByName(name));
 
         for (TemplateEntity template : targets) {
 
@@ -434,13 +866,18 @@ public class TemplateService {
             }
 
             template.setRejectionReason(
-                    "NONE".equalsIgnoreCase(reason) ? null : reason
+                    "NONE".equalsIgnoreCase(reason)
+                            ? null
+                            : reason
             );
 
             repo.save(template);
 
-            log.info("Template status updated. Name: {}, Status: {}",
-                    template.getName(), template.getStatus());
+            log.info(
+                    "Template status updated: {} - {}",
+                    template.getName(),
+                    template.getStatus()
+            );
         }
     }
 
@@ -448,7 +885,6 @@ public class TemplateService {
     // VARIABLE HELPERS
     // ==========================================
 
-    /** Highest variable number in the body: "Hi {{1}}" -> 1. */
     public static int countVariables(String body) {
 
         if (body == null || body.isBlank()) {
@@ -456,75 +892,129 @@ public class TemplateService {
         }
 
         Matcher matcher = VAR.matcher(body);
+
         int max = 0;
 
         while (matcher.find()) {
-            max = Math.max(max, Integer.parseInt(matcher.group(1)));
+
+            max = Math.max(
+                    max,
+                    Integer.parseInt(matcher.group(1))
+            );
         }
 
         return max;
     }
 
-    /** Meta rules: numbered, sequential, not at the very start or end of the body. */
     private void validateBodyVariables(String body) {
 
         Matcher any = ANY_VAR.matcher(body);
+
         Set<Integer> numbers = new TreeSet<>();
 
         while (any.find()) {
+
             String token = any.group(1).trim();
+
             if (!token.matches("\\d{1,3}")) {
+
                 throw new IllegalArgumentException(
-                        "Only numbered variables like {{1}} are supported");
+                        "Only numbered variables like {{1}} are supported"
+                );
             }
+
             numbers.add(Integer.parseInt(token));
         }
 
-        // stray "{{" or "}}" that are not a complete placeholder
         String stripped = ANY_VAR.matcher(body).replaceAll("");
+
         if (stripped.contains("{{") || stripped.contains("}}")) {
-            throw new IllegalArgumentException("The message body has an incomplete variable");
+
+            throw new IllegalArgumentException(
+                    "The message body has an incomplete variable"
+            );
         }
 
         int expected = 1;
-        for (int n : numbers) {
-            if (n != expected) {
+
+        for (int number : numbers) {
+
+            if (number != expected) {
+
                 throw new IllegalArgumentException(
-                        "Variables must be sequential: {{1}}, {{2}}, {{3}}...");
+                        "Variables must be sequential: {{1}}, {{2}}, {{3}}..."
+                );
             }
+
             expected++;
         }
 
         if (!numbers.isEmpty()) {
+
             if (START_VAR.matcher(body).find()) {
-                throw new IllegalArgumentException("Message body cannot start with a variable");
+
+                throw new IllegalArgumentException(
+                        "Message body cannot start with a variable"
+                );
             }
+
             if (END_VAR.matcher(body).find()) {
-                throw new IllegalArgumentException("Message body cannot end with a variable");
+
+                throw new IllegalArgumentException(
+                        "Message body cannot end with a variable"
+                );
             }
         }
     }
 
-    private static String clean(String s) {
-        return (s == null || s.isBlank()) ? null : s.trim();
+    // ==========================================
+    // CLEAN
+    // ==========================================
+
+    private static String clean(String value) {
+
+        return value == null || value.isBlank()
+                ? null
+                : value.trim();
     }
 
+    // ==========================================
+    // ENTITY TO RESPONSE
+    // ==========================================
 
     private TemplateResponse map(TemplateEntity entity) {
 
         return new TemplateResponse(
+
                 entity.getId(),
+
                 entity.getName(),
+
                 entity.getLanguage(),
+
                 entity.getCategory(),
+
                 entity.getHeaderText(),
+
                 entity.getBody(),
+
                 entity.getFooterText(),
+
                 entity.getButtonsJson(),
+
                 entity.getVariableCount(),
+
                 entity.getStatus(),
+
                 entity.getRejectionReason(),
-                entity.getCreatedAt()
+
+                entity.getCreatedAt(),
+
+                entity.getHeaderType(),
+
+                entity.getHeaderMediaHandle(),
+
+                entity.getHeaderMediaUrl()
         );
     }
 }

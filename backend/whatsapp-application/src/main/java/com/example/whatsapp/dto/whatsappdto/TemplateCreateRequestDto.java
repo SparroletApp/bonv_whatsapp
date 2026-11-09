@@ -12,4 +12,7 @@ public record TemplateCreateRequestDto(
         @NotBlank @Size(max = 1024) String body,
         @Size(max = 60) String footerText,
         List<String> bodyExamples,
+        String headerType,
+        String headerMediaHandle,
+        String headerMediaUrl,
         List<TemplateButtonDto> buttons) {}

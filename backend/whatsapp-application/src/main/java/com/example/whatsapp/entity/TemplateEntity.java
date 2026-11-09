@@ -28,6 +28,15 @@ public class TemplateEntity {
     @Column(length = 255)
     private String headerText;
 
+    @Column(nullable = false, length = 20)
+    private String headerType = "NONE";
+
+    @Column(length = 512)
+    private String headerMediaHandle;
+
+    @Column(columnDefinition = "TEXT")
+    private String headerMediaUrl;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String body = "";
 

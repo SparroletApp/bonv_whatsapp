@@ -7,6 +7,7 @@ import "./template-form.css";
 import templateService, {
     TemplateButton,
     TemplateResponse,
+    TemplateHeaderType,
 } from "@/app/apiservice/templateservice";
 import { apiError } from "@/app/utils/apiError";
 import TemplatePreview from "@/app/component/TemplatePreview";
@@ -22,6 +23,29 @@ const LANGUAGES = [
 const NAME_VARIABLE = "{{1}}";
 const NAME_EXAMPLE = "Rahul";
 
+type UploadableHeaderType = "IMAGE" | "VIDEO" | "DOCUMENT";
+
+const MEDIA_RULES: Record<
+    UploadableHeaderType,
+    { accept: string; maxSize: number; label: string }
+> = {
+    IMAGE: {
+        accept: "image/jpeg,image/png",
+        maxSize: 5 * 1024 * 1024,
+        label: "JPEG or PNG, maximum 5 MB",
+    },
+    VIDEO: {
+        accept: "video/mp4",
+        maxSize: 16 * 1024 * 1024,
+        label: "MP4, maximum 16 MB",
+    },
+    DOCUMENT: {
+        accept: "application/pdf",
+        maxSize: 100 * 1024 * 1024,
+        label: "PDF, maximum 100 MB",
+    },
+};
+
 export default function TemplateForm({
     onCreated,
 }: {
@@ -33,16 +57,20 @@ export default function TemplateForm({
         "MARKETING"
     );
 
+    const [headerType, setHeaderType] =
+        useState<TemplateHeaderType>("NONE");
     const [headerText, setHeaderText] = useState("");
+    const [headerFile, setHeaderFile] = useState<File | null>(null);
+    const [headerMediaHandle, setHeaderMediaHandle] = useState("");
+    const [uploadingMedia, setUploadingMedia] = useState(false);
+
     const [body, setBody] = useState("");
     const [footerText, setFooterText] = useState("");
-
     const [nameExample, setNameExample] = useState(NAME_EXAMPLE);
 
     const [buttons, setButtons] = useState<TemplateButton[]>([]);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
-
 
     const hasNameVariable = body.includes(NAME_VARIABLE);
 
@@ -63,6 +91,64 @@ export default function TemplateForm({
 
         setNameExample(NAME_EXAMPLE);
         setError("");
+    };
+
+    const changeHeaderType = (type: TemplateHeaderType) => {
+        setHeaderType(type);
+        setHeaderText("");
+        setHeaderFile(null);
+        setHeaderMediaHandle("");
+        setError("");
+    };
+
+    const uploadHeaderMedia = async (file: File) => {
+        if (
+            headerType !== "IMAGE" &&
+            headerType !== "VIDEO" &&
+            headerType !== "DOCUMENT"
+        ) {
+            return;
+        }
+
+        const rule = MEDIA_RULES[headerType];
+
+        if (file.size > rule.maxSize) {
+            setError(
+                `${headerType} file is too large. ${rule.label}.`
+            );
+            return;
+        }
+
+        const validMimeTypes = rule.accept.split(",");
+
+        if (!validMimeTypes.includes(file.type)) {
+            setError(`Invalid ${headerType} file. ${rule.label}.`);
+            return;
+        }
+
+        setError("");
+        setHeaderFile(file);
+        setHeaderMediaHandle("");
+        setUploadingMedia(true);
+
+        try {
+            const response = await templateService.uploadMediaSample(
+                headerType,
+                file
+            );
+
+            if (!response?.handle) {
+                throw new Error("Meta did not return a media handle.");
+            }
+
+            setHeaderMediaHandle(response.handle);
+        } catch (e) {
+            setHeaderFile(null);
+            setHeaderMediaHandle("");
+            setError(apiError(e));
+        } finally {
+            setUploadingMedia(false);
+        }
     };
 
     const addButton = () => {
@@ -109,6 +195,19 @@ export default function TemplateForm({
             return;
         }
 
+        if (headerType === "TEXT" && !headerText.trim()) {
+            setError("Please enter your header text.");
+            return;
+        }
+
+        if (
+            ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType) &&
+            (!headerFile || !headerMediaHandle)
+        ) {
+            setError("Please upload your header media and wait for upload to finish.");
+            return;
+        }
+
         const variableMatches = [
             ...cleanBody.matchAll(/\{\{(\d+)\}\}/g),
         ];
@@ -124,7 +223,6 @@ export default function TemplateForm({
             return;
         }
 
-
         if (/^\s*\{\{1\}\}/.test(cleanBody)) {
             setError("Message body cannot start with a variable.");
             return;
@@ -139,7 +237,6 @@ export default function TemplateForm({
             setError("Please provide an example name.");
             return;
         }
-
 
         for (const button of buttons) {
             if (!button.text.trim()) {
@@ -157,9 +254,7 @@ export default function TemplateForm({
                     const url = new URL(button.url);
 
                     if (!["http:", "https:"].includes(url.protocol)) {
-                        setError(
-                            "URL must start with http:// or https://."
-                        );
+                        setError("URL must start with http:// or https://.");
                         return;
                     }
                 } catch {
@@ -184,7 +279,17 @@ export default function TemplateForm({
                 name: cleanName,
                 language,
                 category,
-                headerText: headerText.trim() || undefined,
+
+                headerType,
+                headerText:
+                    headerType === "TEXT"
+                        ? headerText.trim()
+                        : undefined,
+                headerMediaHandle:
+                    ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType)
+                        ? headerMediaHandle
+                        : undefined,
+
                 body: cleanBody,
                 footerText: footerText.trim() || undefined,
 
@@ -211,16 +316,12 @@ export default function TemplateForm({
 
     return (
         <div className="tf-wrapper">
-
-            {/* HEADING */}
             <div className="tf-heading">
                 <div>
                     <span className="tf-eyebrow">
                         WHATSAPP BUSINESS
                     </span>
-
                     <h2>Create Message Template</h2>
-
                     <p>
                         Design and submit personalized WhatsApp
                         message templates for approval.
@@ -233,21 +334,15 @@ export default function TemplateForm({
             </div>
 
             <div className="tf-layout">
-
-                {/* FORM */}
                 <div className="tf-form-card">
-
-                    {/* STEP 01 */}
                     <div className="tf-card-heading">
                         <div>
                             <span className="tf-step">STEP 01</span>
                             <h3>Template details</h3>
                             <p>
-                                Set up the basic information for
-                                your template.
+                                Set up the basic information for your template.
                             </p>
                         </div>
-
                         <i className="bi bi-sliders2 tf-section-icon" />
                     </div>
 
@@ -255,7 +350,6 @@ export default function TemplateForm({
                         <div className="tf-error">
                             <i className="bi bi-exclamation-circle-fill" />
                             <span>{error}</span>
-
                             <button
                                 type="button"
                                 onClick={() => setError("")}
@@ -270,7 +364,6 @@ export default function TemplateForm({
                         <label>
                             Template name <span>*</span>
                         </label>
-
                         <input
                             value={name}
                             onChange={(e) =>
@@ -283,7 +376,6 @@ export default function TemplateForm({
                             placeholder="diwali_offer_2026"
                             maxLength={512}
                         />
-
                         <small>
                             Use lowercase letters, numbers and underscores.
                         </small>
@@ -292,18 +384,12 @@ export default function TemplateForm({
                     <div className="tf-field-row">
                         <div className="tf-field">
                             <label>Language</label>
-
                             <select
                                 value={language}
-                                onChange={(e) =>
-                                    setLanguage(e.target.value)
-                                }
+                                onChange={(e) => setLanguage(e.target.value)}
                             >
                                 {LANGUAGES.map((l) => (
-                                    <option
-                                        key={l.code}
-                                        value={l.code}
-                                    >
+                                    <option key={l.code} value={l.code}>
                                         {l.label}
                                     </option>
                                 ))}
@@ -312,66 +398,148 @@ export default function TemplateForm({
 
                         <div className="tf-field">
                             <label>Category</label>
-
                             <select
                                 value={category}
                                 onChange={(e) =>
                                     setCategory(
-                                        e.target.value as
-                                            | "MARKETING"
-                                            | "UTILITY"
+                                        e.target.value as "MARKETING" | "UTILITY"
                                     )
                                 }
                             >
-                                <option value="MARKETING">
-                                    Marketing
-                                </option>
-
-                                <option value="UTILITY">
-                                    Utility
-                                </option>
+                                <option value="MARKETING">Marketing</option>
+                                <option value="UTILITY">Utility</option>
                             </select>
                         </div>
                     </div>
 
                     <div className="tf-divider" />
 
-                    {/* STEP 02 */}
                     <div className="tf-card-heading">
                         <div>
                             <span className="tf-step">STEP 02</span>
                             <h3>Message content</h3>
                             <p>
-                                Customize your message header, body
-                                and footer.
+                                Configure your header, body and footer.
                             </p>
                         </div>
-
                         <i className="bi bi-pencil-square tf-section-icon" />
                     </div>
 
-                    {/* HEADER */}
+                    {/* HEADER TYPE */}
                     <div className="tf-field">
                         <label>
-                            Header
-                            <span className="tf-optional">
-                                OPTIONAL
-                            </span>
+                            Header type
+                            <span className="tf-optional">OPTIONAL</span>
                         </label>
 
-                        <input
-                            value={headerText}
-                            maxLength={60}
+                        <select
+                            value={headerType}
                             onChange={(e) =>
-                                setHeaderText(e.target.value)
+                                changeHeaderType(
+                                    e.target.value as TemplateHeaderType
+                                )
                             }
-                            placeholder="e.g. Special festive offer"
-                        />
-
-                        <div className="tf-character-count">
-                            {headerText.length}/60
-                        </div>
+                        >
+                            <option value="NONE">No header</option>
+                            <option value="TEXT">Text</option>
+                            <option value="IMAGE">Image</option>
+                            <option value="VIDEO">Video</option>
+                            <option value="DOCUMENT">Document</option>
+                            <option value="LOCATION">Location</option>
+                        </select>
                     </div>
+
+                    {headerType === "TEXT" && (
+                        <div className="tf-field">
+                            <label>
+                                Header text <span>*</span>
+                            </label>
+                            <input
+                                value={headerText}
+                                maxLength={60}
+                                onChange={(e) =>
+                                    setHeaderText(e.target.value)
+                                }
+                                placeholder="e.g. Special festive offer"
+                            />
+                            <div className="tf-character-count">
+                                {headerText.length}/60
+                            </div>
+                        </div>
+                    )}
+
+                    {(
+                        ["IMAGE", "VIDEO", "DOCUMENT"] as UploadableHeaderType[]
+                    ).includes(headerType as UploadableHeaderType) && (
+                        <div className="tf-media-upload">
+                            <div className="tf-media-upload-heading">
+                                <i className="bi bi-cloud-arrow-up" />
+                                <div>
+                                    <strong>
+                                        Upload {headerType.toLowerCase()} sample
+                                    </strong>
+                                    <small>
+                                        {MEDIA_RULES[
+                                            headerType as UploadableHeaderType
+                                        ].label}
+                                    </small>
+                                </div>
+                            </div>
+
+                            <input
+                                type="file"
+                                accept={
+                                    MEDIA_RULES[
+                                        headerType as UploadableHeaderType
+                                    ].accept
+                                }
+                                disabled={uploadingMedia || saving}
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) void uploadHeaderMedia(file);
+                                    e.currentTarget.value = "";
+                                }}
+                            />
+
+                            {headerFile && (
+                                <div className="tf-media-file">
+                                    <i
+                                        className={`bi ${
+                                            headerType === "IMAGE"
+                                                ? "bi-image"
+                                                : headerType === "VIDEO"
+                                                ? "bi-camera-video"
+                                                : "bi-file-earmark-pdf"
+                                        }`}
+                                    />
+                                    <span>{headerFile.name}</span>
+                                    {uploadingMedia ? (
+                                        <span>Uploading...</span>
+                                    ) : headerMediaHandle ? (
+                                        <span className="tf-media-success">
+                                            <i className="bi bi-check-circle-fill" />
+                                            Uploaded
+                                        </span>
+                                    ) : null}
+                                </div>
+                            )}
+
+                            {uploadingMedia && (
+                                <div className="tf-media-progress">
+                                    Uploading media sample to Meta...
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {headerType === "LOCATION" && (
+                        <div className="tf-button-info">
+                            <i className="bi bi-info-circle-fill" />
+                            Location headers do not use a media file upload.
+                            Confirm that your WhatsApp account and API version
+                            support this header format before submitting.
+                        </div>
+                    )}
 
                     {/* BODY */}
                     <div className="tf-field">
@@ -379,7 +547,6 @@ export default function TemplateForm({
                             <label>
                                 Message body <span>*</span>
                             </label>
-
                             <button
                                 type="button"
                                 className="tf-variable-btn"
@@ -387,10 +554,7 @@ export default function TemplateForm({
                                 disabled={hasNameVariable}
                             >
                                 <i className="bi bi-person-plus-fill" />
-
-                                {hasNameVariable
-                                    ? "Name added"
-                                    : "Add Name"}
+                                {hasNameVariable ? "Name added" : "Add Name"}
                             </button>
                         </div>
 
@@ -398,9 +562,7 @@ export default function TemplateForm({
                             rows={5}
                             value={body}
                             maxLength={1024}
-                            onChange={(e) =>
-                                setBody(e.target.value)
-                            }
+                            onChange={(e) => setBody(e.target.value)}
                             placeholder="Hello, welcome to our service! Click Add Name to personalize your message."
                         />
 
@@ -409,45 +571,36 @@ export default function TemplateForm({
                                 <i className="bi bi-info-circle" />
                                 Insert the contact's name using Add Name.
                             </span>
-
                             <span>{body.length}/1024</span>
                         </div>
                     </div>
 
-                    {/* NAME VARIABLE */}
                     {hasNameVariable && (
                         <div className="tf-variables">
-
                             <div className="tf-variable-heading">
                                 <div>
                                     <h4>
                                         <i className="bi bi-person-circle" />
                                         Personalization variable
                                     </h4>
-
                                     <p>
-                                        This variable automatically
-                                        uses each contact's name.
+                                        This variable automatically uses each
+                                        contact's name.
                                     </p>
                                 </div>
-
-                                <span className="tf-count">
-                                    1 variable
-                                </span>
+                                <span className="tf-count">1 variable</span>
                             </div>
 
                             <div className="tf-name-variable-card">
                                 <div className="tf-name-variable-icon">
                                     <i className="bi bi-person-fill" />
                                 </div>
-
                                 <div className="tf-name-variable-info">
                                     <strong>Name</strong>
                                     <span>
                                         WhatsApp placeholder: {"{{1}}"}
                                     </span>
                                 </div>
-
                                 <span className="tf-variable-status">
                                     <i className="bi bi-check-circle-fill" />
                                     Added
@@ -456,10 +609,8 @@ export default function TemplateForm({
 
                             <div className="tf-field tf-example-field">
                                 <label>
-                                    Example contact name
-                                    <span>*</span>
+                                    Example contact name <span>*</span>
                                 </label>
-
                                 <input
                                     value={nameExample}
                                     onChange={(e) =>
@@ -467,7 +618,6 @@ export default function TemplateForm({
                                     }
                                     placeholder="Rahul"
                                 />
-
                                 <small>
                                     Meta uses this sample value to review
                                     your personalized message.
@@ -476,24 +626,17 @@ export default function TemplateForm({
                         </div>
                     )}
 
-                    {/* FOOTER */}
                     <div className="tf-field">
                         <label>
                             Footer
-                            <span className="tf-optional">
-                                OPTIONAL
-                            </span>
+                            <span className="tf-optional">OPTIONAL</span>
                         </label>
-
                         <input
                             value={footerText}
                             maxLength={60}
-                            onChange={(e) =>
-                                setFooterText(e.target.value)
-                            }
+                            onChange={(e) => setFooterText(e.target.value)}
                             placeholder="e.g. Thank you for choosing us!"
                         />
-
                         <div className="tf-character-count">
                             {footerText.length}/60
                         </div>
@@ -501,7 +644,6 @@ export default function TemplateForm({
 
                     <div className="tf-divider" />
 
-                    {/* STEP 03 */}
                     <div className="tf-card-heading">
                         <div>
                             <span className="tf-step">STEP 03</span>
@@ -510,7 +652,6 @@ export default function TemplateForm({
                                 Add actions that customers can interact with.
                             </p>
                         </div>
-
                         <i className="bi bi-hand-index-thumb tf-section-icon" />
                     </div>
 
@@ -521,10 +662,8 @@ export default function TemplateForm({
 
                     {buttons.map((b, i) => (
                         <div className="tf-button-card" key={i}>
-
                             <div className="tf-button-card-header">
                                 <span>BUTTON {i + 1}</span>
-
                                 <button
                                     type="button"
                                     onClick={() => removeButton(i)}
@@ -537,7 +676,6 @@ export default function TemplateForm({
                             <div className="tf-field-row">
                                 <div className="tf-field">
                                     <label>Button type</label>
-
                                     <select
                                         value={b.type}
                                         onChange={(e) =>
@@ -551,11 +689,7 @@ export default function TemplateForm({
                                         <option value="QUICK_REPLY">
                                             Quick reply
                                         </option>
-
-                                        <option value="URL">
-                                            Website URL
-                                        </option>
-
+                                        <option value="URL">Website URL</option>
                                         <option value="PHONE_NUMBER">
                                             Phone number
                                         </option>
@@ -564,7 +698,6 @@ export default function TemplateForm({
 
                                 <div className="tf-field">
                                     <label>Button text</label>
-
                                     <input
                                         placeholder="e.g. Shop now"
                                         value={b.text}
@@ -581,7 +714,6 @@ export default function TemplateForm({
                             {b.type === "URL" && (
                                 <div className="tf-field">
                                     <label>Website URL</label>
-
                                     <input
                                         placeholder="https://example.com"
                                         value={b.url || ""}
@@ -597,7 +729,6 @@ export default function TemplateForm({
                             {b.type === "PHONE_NUMBER" && (
                                 <div className="tf-field">
                                     <label>Phone number</label>
-
                                     <input
                                         placeholder="+919876543210"
                                         value={b.phoneNumber || ""}
@@ -623,13 +754,11 @@ export default function TemplateForm({
                         </button>
                     )}
 
-                    {/* SUBMIT */}
                     <div className="tf-submit-area">
                         <div>
                             <span className="tf-submit-title">
                                 Ready to submit?
                             </span>
-
                             <span className="tf-submit-description">
                                 Your template will be sent to Meta for review.
                             </span>
@@ -638,7 +767,7 @@ export default function TemplateForm({
                         <button
                             type="button"
                             className="tf-submit-btn"
-                            disabled={saving}
+                            disabled={saving || uploadingMedia}
                             onClick={submit}
                         >
                             {saving ? (
@@ -659,26 +788,27 @@ export default function TemplateForm({
                 {/* PREVIEW */}
                 <div className="tf-preview-column">
                     <div className="tf-preview-sticky">
-
                         <div className="tf-preview-heading">
                             <div>
-                                <span className="tf-step">
-                                    LIVE PREVIEW
-                                </span>
-
+                                <span className="tf-step">LIVE PREVIEW</span>
                                 <h3>Message preview</h3>
-
                                 <p>
                                     See how your WhatsApp message looks.
                                 </p>
                             </div>
-
                             <i className="bi bi-eye" />
                         </div>
 
                         <div className="tf-preview-card">
                             <TemplatePreview
+                                headerType={headerType}
                                 headerText={headerText}
+                                headerMediaUrl={
+                                    headerFile &&
+                                    headerType === "IMAGE"
+                                        ? URL.createObjectURL(headerFile)
+                                        : null
+                                }
                                 body={body || "Your message…"}
                                 footerText={footerText}
                                 values={previewValues}
@@ -692,32 +822,26 @@ export default function TemplateForm({
                             <div className="tf-review-icon">
                                 <i className="bi bi-shield-check" />
                             </div>
-
                             <div>
                                 <h4>Meta approval process</h4>
-
                                 <p>
                                     Every template is reviewed by Meta.
-                                    Approval usually takes a few minutes,
-                                    but may take up to 24 hours.
+                                    Approval time varies by template and account.
                                 </p>
                             </div>
                         </div>
 
                         <div className="tf-preview-tip">
                             <i className="bi bi-lightbulb" />
-
                             <div>
                                 <strong>Quick tip</strong>
-
                                 <p>
                                     Use the Name variable to automatically
-                                    personalize your WhatsApp message
-                                    for every recipient.
+                                    personalize your WhatsApp message for
+                                    every recipient.
                                 </p>
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>

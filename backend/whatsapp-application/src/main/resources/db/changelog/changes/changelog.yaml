@@ -87,5 +87,13 @@ databaseChangeLog:
             path: sql/alter_whatsapp_add_media.sql
             relativeToChangelogFile: true
 
+  - changeSet:
+      id: alter_whatsapp_template_add_media
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_whatsapp_template_add_media.sql
+            relativeToChangelogFile: true
+
 
 
