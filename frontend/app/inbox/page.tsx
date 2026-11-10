@@ -30,7 +30,7 @@ import EditContact from "../contacts/edit/page";
 import categoryService, {
     CategoryResponseDto,
 } from "../apiservice/categoryservice";
-import CreateCategory from "../broadcasts/create/page";
+import CreateCategory from "../tags/create/page";
 
 
 /* ==========================================
@@ -1738,7 +1738,7 @@ export default function InboxPage() {
                         className="wa-template-overlay"
                         onClick={() => {
                             if (!sendingTemplate) {
-                                setShowTemplateModal(false);
+                                // setShowTemplateModal(false);
                             }
                         }}
                     >
