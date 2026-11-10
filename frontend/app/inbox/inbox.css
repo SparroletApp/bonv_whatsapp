@@ -372,7 +372,7 @@
 }
 
 .wa-new-chat-bottom i{
-    color: white;
+    color: white !important;
 }
 
 .wa-new-chat-bottom {
