@@ -435,8 +435,9 @@ export default function InboxPage() {
         if (!active) return;
 
         try {
-            const response = await contactService.getAllContacts();
+            setError("");
 
+            const response = await contactService.getAllContacts();
             const contacts = unwrapResponse<any[]>(response);
 
             const activePhone = normalizePhone(active.phone);
@@ -453,8 +454,9 @@ export default function InboxPage() {
                 return;
             }
 
-            setEditingContactId(contact.id);
+            setEditingContactId(Number(contact.id));
             setShowEditContact(true);
+
         } catch (error) {
             setError(apiError(error));
         }
@@ -1409,13 +1411,13 @@ export default function InboxPage() {
                                                             c.lastMessageStatus && (
                                                                 <i
                                                                     className={`bi ${c.lastMessageStatus.toUpperCase() === "READ" ||
-                                                                            c.lastMessageStatus.toUpperCase() === "DELIVERED"
-                                                                            ? "bi-check2-all"
-                                                                            : c.lastMessageStatus.toUpperCase() === "SENT"
-                                                                                ? "bi-check2"
-                                                                                : c.lastMessageStatus.toUpperCase() === "FAILED"
-                                                                                    ? "bi-exclamation-circle"
-                                                                                    : ""
+                                                                        c.lastMessageStatus.toUpperCase() === "DELIVERED"
+                                                                        ? "bi-check2-all"
+                                                                        : c.lastMessageStatus.toUpperCase() === "SENT"
+                                                                            ? "bi-check2"
+                                                                            : c.lastMessageStatus.toUpperCase() === "FAILED"
+                                                                                ? "bi-exclamation-circle"
+                                                                                : ""
                                                                         } ${c.lastMessageStatus.toUpperCase() === "READ"
                                                                             ? "wa-tick-read"
                                                                             : c.lastMessageStatus.toUpperCase() === "FAILED"
@@ -1493,7 +1495,7 @@ export default function InboxPage() {
                                     onClick={openNewChat}
                                     title="Start a new chat"
                                 >
-                                  <i className="bi bi-chat-square-dots-fill"></i>
+                                    <i className="bi bi-chat-square-dots-fill"></i>
 
                                 </button>
 

@@ -1,6 +1,6 @@
 spring:
   application:
-    name: fsm
+    name: bonv
 
   profiles:
     active: prod
