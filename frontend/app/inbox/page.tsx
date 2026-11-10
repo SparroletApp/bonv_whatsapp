@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -21,18 +22,56 @@ import templateService, {
 } from "../apiservice/templateservice";
 
 import "./inbox.css";
+
 import contactService from "../apiservice/contactservice";
+
 import EditContact from "../contacts/edit/page";
-import categoryService, { CategoryResponseDto } from "../apiservice/categoryservice";
+
+import categoryService, {
+    CategoryResponseDto,
+} from "../apiservice/categoryservice";
+import CreateCategory from "../broadcasts/create/page";
+
 
 /* ==========================================
    HELPERS
 ========================================== */
 
 function unwrapResponse<T>(response: any): T {
-    return response?.data !== undefined
-        ? response.data
-        : response;
+    let result = response;
+
+    while (
+        result &&
+        !Array.isArray(result) &&
+        typeof result === "object" &&
+        result.data !== undefined
+    ) {
+        result = result.data;
+    }
+
+    return result as T;
+}
+
+function normalizePhone(
+    phone: string | number | null | undefined
+): string {
+    return String(phone ?? "").replace(/\D/g, "");
+}
+
+function getPhoneKeys(
+    phone: string | number | null | undefined
+): string[] {
+    const normalized = normalizePhone(phone);
+
+    if (!normalized) return [];
+
+    const keys = [normalized];
+
+    if (normalized.length >= 10) {
+        keys.push(normalized.slice(-10));
+    }
+
+    return [...new Set(keys)];
 }
 
 function getInitials(name: string) {
@@ -262,7 +301,9 @@ export default function InboxPage() {
     const [convs, setConvs] = useState<Conversation[]>([]);
     const [active, setActive] = useState<Conversation | null>(null);
     const [msgs, setMsgs] = useState<InboxMessage[]>([]);
+
     const [categories, setCategories] = useState<CategoryResponseDto[]>([]);
+
     const [contactCategoryMap, setContactCategoryMap] =
         useState<Record<string, number[]>>({});
 
@@ -274,6 +315,7 @@ export default function InboxPage() {
         useState<number | null>(null);
 
     const [loadingFilters, setLoadingFilters] = useState(false);
+
     const [text, setText] = useState("");
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
@@ -287,8 +329,36 @@ export default function InboxPage() {
 
     const [showEditContact, setShowEditContact] = useState(false);
     const [editingContactId, setEditingContactId] = useState<number | null>(null);
+
     const [showCreateCategory, setShowCreateCategory] = useState(false);
+
     const [showTemplateModal, setShowTemplateModal] = useState(false);
+
+    const [approvedTemplates, setApprovedTemplates] =
+        useState<TemplateResponse[]>([]);
+
+    const [selectedTemplateId, setSelectedTemplateId] =
+        useState<number | "">("");
+
+    const [templateParameters, setTemplateParameters] =
+        useState<string[]>([]);
+
+    const [loadingTemplates, setLoadingTemplates] = useState(false);
+    const [sendingTemplate, setSendingTemplate] = useState(false);
+    const [templateError, setTemplateError] = useState("");
+
+    const fileInput = useRef<HTMLInputElement>(null);
+    const recRef = useRef<MediaRecorder | null>(null);
+    const chunksRef = useRef<Blob[]>([]);
+    const cancelRef = useRef(false);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const bottom = useRef<HTMLDivElement>(null);
+    const activePhoneRef = useRef<string | null>(null);
+
+    /* ==========================================
+       LOAD CATEGORIES AND CONTACTS
+    ========================================== */
+
     const loadCategoriesAndContacts = async () => {
         try {
             setLoadingFilters(true);
@@ -312,45 +382,57 @@ export default function InboxPage() {
 
             if (Array.isArray(contactData)) {
                 contactData.forEach((contact) => {
-                    if (contact.phone) {
-                        categoryMap[String(contact.phone)] =
-                            Array.isArray(contact.categoryIds)
-                                ? contact.categoryIds
-                                : [];
+                    if (
+                        !contact.phone ||
+                        contact.categoryId === null ||
+                        contact.categoryId === undefined
+                    ) {
+                        return;
                     }
+
+                    const categoryId = Number(contact.categoryId);
+
+                    getPhoneKeys(contact.phone).forEach((phoneKey) => {
+                        categoryMap[phoneKey] = [categoryId];
+                    });
                 });
             }
 
             setContactCategoryMap(categoryMap);
+
+            console.log("Inbox contacts:", contactData);
+            console.log("Inbox category map:", categoryMap);
+
         } catch (error) {
-            console.error("Unable to load Inbox categories:", error);
+            console.error(
+                "Unable to load Inbox categories and contacts:",
+                error
+            );
         } finally {
             setLoadingFilters(false);
         }
     };
-    const [approvedTemplates, setApprovedTemplates] =
-        useState<TemplateResponse[]>([]);
 
-    const [selectedTemplateId, setSelectedTemplateId] =
-        useState<number | "">("");
-
-    const [templateParameters, setTemplateParameters] =
-        useState<string[]>([]);
-
-    const [loadingTemplates, setLoadingTemplates] = useState(false);
-    const [sendingTemplate, setSendingTemplate] = useState(false);
-    const [templateError, setTemplateError] = useState("");
+    /* ==========================================
+       OPEN EDIT CONTACT
+    ========================================== */
 
     const openEditContact = async () => {
         if (!active) return;
 
         try {
             const response = await contactService.getAllContacts();
+
             const contacts = unwrapResponse<any[]>(response);
 
-            const contact = contacts.find(
-                (item) => item.phone === active.phone
-            );
+            const activePhone = normalizePhone(active.phone);
+
+            const contact = Array.isArray(contacts)
+                ? contacts.find(
+                    (item) =>
+                        normalizePhone(item.phone) === activePhone
+                )
+                : null;
 
             if (!contact) {
                 setError("Contact details not found.");
@@ -364,14 +446,6 @@ export default function InboxPage() {
         }
     };
 
-    const fileInput = useRef<HTMLInputElement>(null);
-    const recRef = useRef<MediaRecorder | null>(null);
-    const chunksRef = useRef<Blob[]>([]);
-    const cancelRef = useRef(false);
-    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const bottom = useRef<HTMLDivElement>(null);
-    const activePhoneRef = useRef<string | null>(null);
-
     /* ==========================================
        LOAD CONVERSATIONS
     ========================================== */
@@ -379,6 +453,7 @@ export default function InboxPage() {
     const loadConvs = async () => {
         try {
             const response = await inboxService.conversations();
+
             const data = unwrapResponse<Conversation[]>(response);
 
             if (Array.isArray(data)) {
@@ -396,6 +471,7 @@ export default function InboxPage() {
     const loadMsgs = async (phone: string) => {
         try {
             const response = await inboxService.messages(phone);
+
             const data = unwrapResponse<InboxMessage[]>(response);
 
             if (
@@ -423,6 +499,7 @@ export default function InboxPage() {
 
         return () => clearInterval(interval);
     }, []);
+
     useEffect(() => {
         if (!active?.phone) return;
 
@@ -551,8 +628,7 @@ export default function InboxPage() {
         ];
 
         return Array.from(
-            new Set(matches.map((match) => Number(match[1]))
-            )
+            new Set(matches.map((match) => Number(match[1])))
         ).sort((a, b) => a - b);
     }, [selectedTemplate]);
 
@@ -599,6 +675,7 @@ export default function InboxPage() {
             setLoadingTemplates(true);
 
             const response = await templateService.list("APPROVED");
+
             const data = unwrapResponse<TemplateResponse[]>(response);
 
             const templates = Array.isArray(data) ? data : [];
@@ -647,13 +724,10 @@ export default function InboxPage() {
         ];
 
         const numbers = Array.from(
-            new Set(matches.map((match) => Number(match[1]))
-            )
+            new Set(matches.map((match) => Number(match[1])))
         ).sort((a, b) => a - b);
 
-        setTemplateParameters(
-            numbers.map(() => "")
-        );
+        setTemplateParameters(numbers.map(() => ""));
     };
 
     /* ==========================================
@@ -986,15 +1060,23 @@ export default function InboxPage() {
         return statusMap[m.status] || "…";
     };
 
+    /* ==========================================
+       FILTER CONVERSATIONS
+    ========================================== */
+
     const filteredConvs = convs.filter((conversation) => {
+        const searchValue = search.trim().toLowerCase();
+
         const matchesSearch =
-            conversation.name?.toLowerCase().includes(search.toLowerCase()) ||
-            conversation.phone?.toLowerCase().includes(search.toLowerCase());
+            (conversation.name || "").toLowerCase().includes(searchValue) ||
+            (conversation.phone || "").toLowerCase().includes(searchValue);
 
         if (!matchesSearch) return false;
 
-        // Main filters
-        if (activeFilter === "UNREAD" && conversation.unreadCount <= 0) {
+        if (
+            activeFilter === "UNREAD" &&
+            conversation.unreadCount <= 0
+        ) {
             return false;
         }
 
@@ -1012,17 +1094,51 @@ export default function InboxPage() {
             return false;
         }
 
+        // Match the conversation phone number to the contact phone number.
         if (selectedCategoryId !== null) {
-            const contactCategories =
-                contactCategoryMap[String(conversation.phone)] || [];
+            const phoneKeys = getPhoneKeys(conversation.phone);
 
-            if (!contactCategories.includes(selectedCategoryId)) {
+            const contactCategories = phoneKeys.flatMap(
+                (key) => contactCategoryMap[key] || []
+            );
+
+            if (
+                !contactCategories.includes(Number(selectedCategoryId))
+            ) {
                 return false;
             }
         }
 
         return true;
     });
+
+    /* ==========================================
+       SELECT CATEGORY
+    ========================================== */
+
+    const selectCategory = (categoryId: number) => {
+        setActiveFilter("ALL");
+
+        setSelectedCategoryId((previous) =>
+            previous === Number(categoryId)
+                ? null
+                : Number(categoryId)
+        );
+    };
+
+    /* ==========================================
+       CATEGORY CREATED
+    ========================================== */
+
+    const handleCategoryCreated = async () => {
+        setShowCreateCategory(false);
+
+        await loadCategoriesAndContacts();
+    };
+
+    /* ==========================================
+       RENDER
+    ========================================== */
 
     return (
         <>
@@ -1073,87 +1189,115 @@ export default function InboxPage() {
                         </div>
                     </div>
 
+                    {/* CATEGORY AND STATUS FILTERS */}
+
                     <div className="wa-filter-area">
 
-                        <button
-                            type="button"
-                            className={
-                                activeFilter === "ALL" && selectedCategoryId === null
-                                    ? "wa-filter-active"
-                                    : ""
-                            }
-                            onClick={() => {
-                                setActiveFilter("ALL");
-                                setSelectedCategoryId(null);
-                            }}
-                        >
-                            All
-                        </button>
+                        <div className="wa-status-filters">
 
-                        <button
-                            type="button"
-                            className={
-                                activeFilter === "UNREAD" && selectedCategoryId === null
-                                    ? "wa-filter-active"
-                                    : ""
-                            }
-                            onClick={() => {
-                                setActiveFilter("UNREAD");
-                                setSelectedCategoryId(null);
-                            }}
-                        >
-                            Unread
-                        </button>
-
-                        <button
-                            type="button"
-                            className={
-                                activeFilter === "CLOSED" && selectedCategoryId === null
-                                    ? "wa-filter-active"
-                                    : ""
-                            }
-                            onClick={() => {
-                                setActiveFilter("CLOSED");
-                                setSelectedCategoryId(null);
-                            }}
-                        >
-                            Closed
-                        </button>
-
-                        <button
-                            type="button"
-                            className={
-                                activeFilter === "PENDING" && selectedCategoryId === null
-                                    ? "wa-filter-active"
-                                    : ""
-                            }
-                            onClick={() => {
-                                setActiveFilter("PENDING");
-                                setSelectedCategoryId(null);
-                            }}
-                        >
-                            Pending
-                        </button>
-
-                        {categories.map((category) => (
                             <button
                                 type="button"
-                                key={category.id}
                                 className={
-                                    selectedCategoryId === category.id
+                                    activeFilter === "ALL" &&
+                                    selectedCategoryId === null
                                         ? "wa-filter-active"
                                         : ""
                                 }
                                 onClick={() => {
                                     setActiveFilter("ALL");
-                                    setSelectedCategoryId(category.id);
+                                    setSelectedCategoryId(null);
                                 }}
                             >
-                                {category.categoryName}
+                                All
                             </button>
-                        ))}
+
+                            <button
+                                type="button"
+                                className={
+                                    activeFilter === "UNREAD" &&
+                                    selectedCategoryId === null
+                                        ? "wa-filter-active"
+                                        : ""
+                                }
+                                onClick={() => {
+                                    setActiveFilter("UNREAD");
+                                    setSelectedCategoryId(null);
+                                }}
+                            >
+                                Unread
+                            </button>
+
+                            <button
+                                type="button"
+                                className={
+                                    activeFilter === "CLOSED" &&
+                                    selectedCategoryId === null
+                                        ? "wa-filter-active"
+                                        : ""
+                                }
+                                onClick={() => {
+                                    setActiveFilter("CLOSED");
+                                    setSelectedCategoryId(null);
+                                }}
+                            >
+                                Closed
+                            </button>
+
+                            <button
+                                type="button"
+                                className={
+                                    activeFilter === "PENDING" &&
+                                    selectedCategoryId === null
+                                        ? "wa-filter-active"
+                                        : ""
+                                }
+                                onClick={() => {
+                                    setActiveFilter("PENDING");
+                                    setSelectedCategoryId(null);
+                                }}
+                            >
+                                Pending
+                            </button>
+
+                        </div>
+
+                        <div className="wa-category-filters">
+
+                            {categories.map((category) => (
+                                <button
+                                    type="button"
+                                    key={category.id}
+                                    className={
+                                        selectedCategoryId === Number(category.id)
+                                            ? "wa-filter-active"
+                                            : ""
+                                    }
+                                    onClick={() =>
+                                        selectCategory(Number(category.id))
+                                    }
+                                >
+                                    {category.categoryName}
+                                </button>
+                            ))}
+
+                            <button
+                                type="button"
+                                className="wa-add-category-btn"
+                                title="Create category"
+                                onClick={() => setShowCreateCategory(true)}
+                            >
+                                <i className="bi bi-plus-lg"></i>
+                            </button>
+
+                        </div>
 
                     </div>
+
+                    {loadingFilters && (
+                        <div className="wa-filter-loading">
+                            Loading categories...
+                        </div>
+                    )}
 
                     <div className="wa-conversation-list">
 
@@ -1163,10 +1307,11 @@ export default function InboxPage() {
                             return (
                                 <div
                                     key={c.phone}
-                                    className={`wa-conversation ${active?.phone === c.phone
-                                        ? "wa-conversation-active"
-                                        : ""
-                                        }`}
+                                    className={`wa-conversation ${
+                                        active?.phone === c.phone
+                                            ? "wa-conversation-active"
+                                            : ""
+                                    }`}
                                     onClick={() => open(c)}
                                 >
                                     <div className="wa-contact-avatar">
@@ -1201,10 +1346,11 @@ export default function InboxPage() {
                                             +{c.phone}
 
                                             <span
-                                                className={`wa-window-tag ${rem > 0
-                                                    ? "wa-window-tag-open"
-                                                    : "wa-window-tag-closed"
-                                                    }`}
+                                                className={`wa-window-tag ${
+                                                    rem > 0
+                                                        ? "wa-window-tag-open"
+                                                        : "wa-window-tag-closed"
+                                                }`}
                                             >
                                                 <i className="bi bi-clock"></i>
 
@@ -1230,7 +1376,9 @@ export default function InboxPage() {
                                 <span>
                                     {search
                                         ? "Try searching with another name or number."
-                                        : "Your conversations will appear here."}
+                                        : selectedCategoryId !== null
+                                            ? "No conversations found in this category."
+                                            : "Your conversations will appear here."}
                                 </span>
                             </div>
                         )}
@@ -1274,12 +1422,6 @@ export default function InboxPage() {
                                 </div>
 
                                 <div className="wa-chat-header-actions">
-                                    {/* <button
-                                    type="button"
-                                    title="Search messages"
-                                >
-                                    <i className="bi bi-search"></i>
-                                </button> */}
 
                                     <button
                                         type="button"
@@ -1288,6 +1430,7 @@ export default function InboxPage() {
                                     >
                                         <i className="bi bi-pencil"></i>
                                     </button>
+
                                 </div>
 
                             </header>
@@ -1313,20 +1456,20 @@ export default function InboxPage() {
                                     return (
                                         <div
                                             key={m.id}
-                                            className={`wa-message-row ${m.direction === "OUTBOUND"
-                                                ? "wa-message-outgoing"
-                                                : "wa-message-incoming"
-                                                }`}
+                                            className={`wa-message-row ${
+                                                m.direction === "OUTBOUND"
+                                                    ? "wa-message-outgoing"
+                                                    : "wa-message-incoming"
+                                            }`}
                                         >
 
                                             <div
-                                                className={`wa-message-bubble ${isTemplate
-                                                    ? "wa-template-message-bubble"
-                                                    : ""
-                                                    }`}
+                                                className={`wa-message-bubble ${
+                                                    isTemplate
+                                                        ? "wa-template-message-bubble"
+                                                        : ""
+                                                }`}
                                             >
-
-                                                {/* TEMPLATE IMAGE HEADER */}
 
                                                 {hasTemplateImage && (
                                                     <TemplateHeaderMedia
@@ -1334,13 +1477,9 @@ export default function InboxPage() {
                                                     />
                                                 )}
 
-                                                {/* NORMAL IMAGE / AUDIO / VIDEO */}
-
                                                 {m.mediaId && (
                                                     <MediaBubble m={m} />
                                                 )}
-
-                                                {/* ACTUAL MESSAGE BODY */}
 
                                                 {m.text && (
                                                     <div className="wa-message-text">
@@ -1362,12 +1501,13 @@ export default function InboxPage() {
 
                                                     {m.direction === "OUTBOUND" && (
                                                         <span
-                                                            className={`wa-message-tick ${m.status === "READ"
-                                                                ? "wa-tick-read"
-                                                                : m.status === "FAILED"
-                                                                    ? "wa-tick-failed"
-                                                                    : ""
-                                                                }`}
+                                                            className={`wa-message-tick ${
+                                                                m.status === "READ"
+                                                                    ? "wa-tick-read"
+                                                                    : m.status === "FAILED"
+                                                                        ? "wa-tick-failed"
+                                                                        : ""
+                                                            }`}
                                                         >
                                                             {tick(m)}
                                                         </span>
@@ -1466,14 +1606,14 @@ export default function InboxPage() {
                                     <>
                                         <div className="wa-composer-actions">
 
-
-
                                             {windowOpen && (
                                                 <button
                                                     type="button"
                                                     title="Attach image"
                                                     className="wa-composer-icon"
-                                                    onClick={() => fileInput.current?.click()}
+                                                    onClick={() =>
+                                                        fileInput.current?.click()
+                                                    }
                                                 >
                                                     <i className="bi bi-plus-lg"></i>
                                                 </button>
@@ -1496,9 +1636,14 @@ export default function InboxPage() {
                                             <input
                                                 value={text}
                                                 disabled={!windowOpen}
-                                                onChange={(e) => setText(e.target.value)}
+                                                onChange={(e) =>
+                                                    setText(e.target.value)
+                                                }
                                                 onKeyDown={(e) => {
-                                                    if (e.key === "Enter" && !e.shiftKey) {
+                                                    if (
+                                                        e.key === "Enter" &&
+                                                        !e.shiftKey
+                                                    ) {
                                                         e.preventDefault();
                                                         send();
                                                     }
@@ -1630,8 +1775,13 @@ export default function InboxPage() {
 
                                     <select
                                         value={selectedTemplateId}
-                                        onChange={(e) => selectTemplate(e.target.value)}
-                                        disabled={loadingTemplates || sendingTemplate}
+                                        onChange={(e) =>
+                                            selectTemplate(e.target.value)
+                                        }
+                                        disabled={
+                                            loadingTemplates ||
+                                            sendingTemplate
+                                        }
                                     >
                                         <option value="">
                                             {loadingTemplates
@@ -1677,8 +1827,6 @@ export default function InboxPage() {
                                             </div>
                                         </div>
 
-                                        {/* TEXT HEADER */}
-
                                         {selectedTemplate.headerType?.toUpperCase() === "TEXT" &&
                                             selectedTemplate.headerText && (
                                                 <div className="wa-template-preview">
@@ -1688,8 +1836,6 @@ export default function InboxPage() {
                                                     </strong>
                                                 </div>
                                             )}
-
-                                        {/* IMAGE HEADER */}
 
                                         {selectedTemplate.headerType?.toUpperCase() === "IMAGE" &&
                                             selectedTemplate.headerMediaUrl && (
@@ -1704,8 +1850,6 @@ export default function InboxPage() {
                                                 </div>
                                             )}
 
-                                        {/* VIDEO HEADER */}
-
                                         {selectedTemplate.headerType?.toUpperCase() === "VIDEO" &&
                                             selectedTemplate.headerMediaUrl && (
                                                 <div className="wa-template-preview">
@@ -1718,8 +1862,6 @@ export default function InboxPage() {
                                                     />
                                                 </div>
                                             )}
-
-                                        {/* DOCUMENT HEADER */}
 
                                         {selectedTemplate.headerType?.toUpperCase() === "DOCUMENT" && (
                                             <div className="wa-template-preview">
@@ -1734,19 +1876,17 @@ export default function InboxPage() {
                                             </div>
                                         )}
 
-                                        {/* BODY PREVIEW */}
-
                                         <div className="wa-template-preview">
                                             <span>MESSAGE PREVIEW</span>
 
                                             <p>{templatePreview}</p>
 
                                             {selectedTemplate.footerText && (
-                                                <small>{selectedTemplate.footerText}</small>
+                                                <small>
+                                                    {selectedTemplate.footerText}
+                                                </small>
                                             )}
                                         </div>
-
-                                        {/* BODY VARIABLES */}
 
                                         {bodyVariableNumbers.length > 0 && (
                                             <div className="wa-template-variables">
@@ -1771,7 +1911,9 @@ export default function InboxPage() {
 
                                                         <input
                                                             type="text"
-                                                            value={templateParameters[index] || ""}
+                                                            value={
+                                                                templateParameters[index] || ""
+                                                            }
                                                             onChange={(e) =>
                                                                 updateTemplateParameter(
                                                                     index,
@@ -1847,6 +1989,9 @@ export default function InboxPage() {
                 )}
 
             </div>
+
+            {/* EDIT CONTACT DRAWER */}
+
             {showEditContact && editingContactId !== null && (
                 <EditContact
                     contactId={editingContactId}
@@ -1862,6 +2007,16 @@ export default function InboxPage() {
                     }}
                 />
             )}
+
+
+            {showCreateCategory && (
+                <CreateCategory
+                    isOpen={showCreateCategory}
+                    onClose={() => setShowCreateCategory(false)}
+                    onCategoryCreated={handleCategoryCreated}
+                />
+            )}
+
         </>
     );
 }
