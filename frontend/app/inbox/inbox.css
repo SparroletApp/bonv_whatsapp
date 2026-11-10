@@ -180,29 +180,156 @@
     color: #667781;
     cursor: pointer;
 }
+/* ==========================================
+   HORIZONTAL STATUS + CATEGORY FILTERS
+========================================== */
 
 .wa-filter-area {
+    width: 100%;
     display: flex;
+    flex-direction: row;
     align-items: center;
-    gap: 9px;
-    padding: 4px 13px 12px;
-    border-bottom: 1px solid #e9edef;
+    gap: 8px;
+
+    padding: 12px 14px;
+
     overflow-x: auto;
-}
+    overflow-y: hidden;
 
-.wa-filter-area span {
-    padding: 7px 13px;
-    background: #f0f2f5;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-    color: #54656f;
     white-space: nowrap;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+
+    border-bottom: 1px solid #e9edef;
+
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5d1 transparent;
 }
 
-.wa-filter-area .wa-filter-active {
-    background: #d9fdd3;
-    color: #008069;
+.wa-filter-area::-webkit-scrollbar {
+    height: 4px;
+}
+
+.wa-filter-area::-webkit-scrollbar-thumb {
+    background: #cbd5d1;
+    border-radius: 10px;
+}
+
+.wa-filter-area::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* STATUS FILTERS */
+
+.wa-status-filters {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+}
+
+/* CATEGORY FILTERS */
+
+.wa-category-filters {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+}
+
+/* ALL FILTER BUTTONS */
+
+.wa-filter-area button {
+    flex-shrink: 0;
+    height: 32px;
+    padding: 0 13px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid #e1e9e6;
+    border-radius: 20px;
+
+    background: #ffffff;
+    color: #53635e;
+
+    font-size: 11px;
+    font-weight: 600;
+
+    white-space: nowrap;
+    cursor: pointer;
+
+    transition: all 0.2s ease;
+}
+
+.wa-filter-area button:hover {
+    background: #e8f3f0;
+    border-color: #064e45;
+    color: #064e45;
+}
+
+/* ACTIVE FILTER */
+
+.wa-filter-area button.wa-filter-active {
+    background: #064e45;
+    color: #ffffff;
+    border-color: #064e45;
+}
+
+/* ADD CATEGORY BUTTON */
+
+.wa-filter-area .wa-add-category-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+
+    padding: 0;
+
+    border: 1px dashed #064e45;
+    border-radius: 50%;
+
+    background: #e8f3f0;
+    color: #064e45;
+
+    font-size: 14px;
+}
+
+.wa-filter-area .wa-add-category-btn:hover {
+    background: #064e45;
+    color: #ffffff;
+}
+
+/* LOADING */
+
+.wa-filter-loading {
+    padding: 5px 14px;
+    font-size: 11px;
+    color: #82918d;
+}
+
+/* MOBILE */
+
+@media (max-width: 650px) {
+    .wa-filter-area {
+        padding: 10px;
+        gap: 7px;
+    }
+
+    .wa-filter-area button {
+        height: 30px;
+        padding: 0 11px;
+        font-size: 10px;
+    }
+
+    .wa-filter-area .wa-add-category-btn {
+        width: 30px;
+        min-width: 30px;
+        height: 30px;
+        padding: 0;
+    }
 }
 
 .wa-conversation-list {
@@ -1172,59 +1299,6 @@
 .wa-template-bottom-button .wa-template-bottom-arrow {
     font-size: 9px;
     margin-left: 2px;
-}
-
-/* Horizontal scrolling filter bar */
-
-.wa-filter-area {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 14px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    white-space: nowrap;
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5d1 transparent;
-    flex-shrink: 0;
-}
-
-.wa-filter-area::-webkit-scrollbar {
-    height: 4px;
-}
-
-.wa-filter-area::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.wa-filter-area::-webkit-scrollbar-thumb {
-    background: #cbd5d1;
-    border-radius: 10px;
-}
-
-.wa-filter-area button {
-    flex-shrink: 0;
-    border: 1px solid #e1e9e6;
-    background: #ffffff;
-    color: #53635e;
-    padding: 7px 15px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.wa-filter-area button:hover {
-    background: #e8f3f0;
-    border-color: #064e45;
-    color: #064e45;
-}
-
-.wa-filter-area button.wa-filter-active {
-    background: #064e45;
-    color: #ffffff;
-    border-color: #064e45;
 }
 
 .wa-template-bottom-button:hover {
