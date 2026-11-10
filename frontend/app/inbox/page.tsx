@@ -1103,49 +1103,33 @@ export default function InboxPage() {
 
                         <div className="wa-status-filters">
 
-                            <button
-                                type="button"
-                                className={activeFilter === "ALL" && selectedCategoryId === null ? "wa-filter-active" : ""}
-                                onClick={() => {
-                                    setActiveFilter("ALL");
-                                    setSelectedCategoryId(null);
-                                }}
-                            >
-                                All
-                            </button>
-
-                            <button
-                                type="button"
-                                className={activeFilter === "UNREAD" && selectedCategoryId === null ? "wa-filter-active" : ""}
-                                onClick={() => {
-                                    setActiveFilter("UNREAD");
-                                    setSelectedCategoryId(null);
-                                }}
-                            >
-                                Unread
-                            </button>
-
-                            <button
-                                type="button"
-                                className={activeFilter === "CLOSED" && selectedCategoryId === null ? "wa-filter-active" : ""}
-                                onClick={() => {
-                                    setActiveFilter("CLOSED");
-                                    setSelectedCategoryId(null);
-                                }}
-                            >
-                                Closed
-                            </button>
-
-                            <button
-                                type="button"
-                                className={activeFilter === "PENDING" && selectedCategoryId === null ? "wa-filter-active" : ""}
-                                onClick={() => {
-                                    setActiveFilter("PENDING");
-                                    setSelectedCategoryId(null);
-                                }}
-                            >
-                                Pending
-                            </button>
+                            {[
+                                { label: "All", value: "ALL", color: "#064e45" },
+                                { label: "Unread", value: "UNREAD", color: "#e5a000" },
+                                { label: "Closed", value: "CLOSED", color: "#89949a" },
+                                // { label: "Pending", value: "PENDING", color: "#e67e22" },
+                            ].map((filter) => (
+                                <button
+                                    key={filter.value}
+                                    type="button"
+                                    className={
+                                        activeFilter === filter.value &&
+                                            selectedCategoryId === null
+                                            ? "wa-filter-active"
+                                            : ""
+                                    }
+                                    onClick={() => {
+                                        setActiveFilter(filter.value as typeof activeFilter);
+                                        setSelectedCategoryId(null);
+                                    }}
+                                >
+                                    <span
+                                        className="wa-filter-dot"
+                                        style={{ backgroundColor: filter.color }}
+                                    />
+                                    {filter.label}
+                                </button>
+                            ))}
 
                         </div>
 
@@ -1167,6 +1151,7 @@ export default function InboxPage() {
                                     onClick={() => selectCategory(Number(category.id))}
                                     title={category.categoryName}
                                 >
+                                    <span className="wa-filter-dot" />
                                     {category.categoryName}
                                 </button>
                             ))}

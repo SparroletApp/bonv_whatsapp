@@ -465,7 +465,7 @@ function AddContact() {
                             ref={categoryDropdownRef}
                         >
                             <label>
-                                Categories <span>*</span>
+                               Tags <span>*</span>
                             </label>
 
                             <div
@@ -479,7 +479,7 @@ function AddContact() {
                                 <div className="category-selected-tags">
                                     {formData.categoryIds.length === 0 ? (
                                         <span className="category-placeholder">
-                                            Select categories
+                                            Select tags
                                         </span>
                                     ) : (
                                         formData.categoryIds.map((id) => {
@@ -522,7 +522,7 @@ function AddContact() {
 
                                     {categories.length === 0 ? (
                                         <div className="category-empty">
-                                            No categories available
+                                            No Tags available
                                         </div>
                                     ) : (
                                         categories.map((category) => {
