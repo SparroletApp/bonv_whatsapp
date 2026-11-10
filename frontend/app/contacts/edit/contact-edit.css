@@ -1,7 +1,4 @@
 
-/* =========================================
-   EDIT CONTACT - RIGHT SIDE DRAWER
-========================================= */
 
 .edit-contact-overlay {
     position: fixed;
@@ -14,7 +11,6 @@
     font-family: inherit;
 }
 
-/* BACKDROP */
 
 .edit-contact-backdrop {
     position: absolute;
@@ -24,7 +20,6 @@
     animation: editBackdropFade 0.25s ease;
 }
 
-/* DRAWER */
 
 .edit-contact-drawer {
     position: relative;
@@ -41,10 +36,6 @@
     overflow: hidden;
     color: #263c38;
 }
-
-/* =========================================
-   HEADER
-========================================= */
 
 .edit-drawer-header {
     min-height: 88px;
@@ -116,9 +107,6 @@
     cursor: not-allowed;
 }
 
-/* =========================================
-   FORM AND BODY
-========================================= */
 
 .edit-drawer-form {
     flex: 1;
@@ -161,9 +149,6 @@
     font-size: 12px;
 }
 
-/* =========================================
-   FORM GRID
-========================================= */
 
 .edit-drawer-form-grid {
     display: flex;
@@ -189,7 +174,6 @@
     color: #e05252;
 }
 
-/* INPUT WRAPPER */
 
 .edit-drawer-input-wrapper {
     height: 47px;
@@ -231,9 +215,6 @@
     color: #a5b1ab;
 }
 
-/* =========================================
-   CATEGORY MULTI SELECT
-========================================= */
 
 .edit-drawer-category-field {
     position: relative;
@@ -379,9 +360,6 @@
     font-size: 11px;
 }
 
-/* =========================================
-   INFORMATION NOTE
-========================================= */
 
 .edit-drawer-info {
     display: flex;
@@ -402,10 +380,6 @@
     font-size: 15px;
     margin-top: 1px;
 }
-
-/* =========================================
-   FIXED FOOTER
-========================================= */
 
 .edit-drawer-footer {
     min-height: 76px;
@@ -474,7 +448,6 @@
     transform: none;
 }
 
-/* SUBMIT SPINNER */
 
 .edit-drawer-spinner {
     width: 14px;
@@ -484,10 +457,6 @@
     border-radius: 50%;
     animation: editDrawerSpin 0.7s linear infinite;
 }
-
-/* =========================================
-   LOADING
-========================================= */
 
 .edit-drawer-loading {
     height: 100%;
@@ -508,10 +477,6 @@
     font-size: 13px;
     color: #71847b;
 }
-
-/* =========================================
-   ANIMATIONS
-========================================= */
 
 @keyframes editDrawerSlide {
     from {
@@ -539,9 +504,6 @@
     }
 }
 
-/* =========================================
-   RESPONSIVE
-========================================= */
 
 @media (min-width: 1200px) {
     .edit-contact-drawer {

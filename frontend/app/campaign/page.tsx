@@ -120,7 +120,6 @@ export default function CampaignsPage() {
                 </select>
             </div>
 
-            {/* ---------- all campaigns ---------- */}
             <div className="cmp-table-wrap">
                 <table className="cmp-table">
                     <thead>
@@ -160,7 +159,6 @@ export default function CampaignsPage() {
                 </table>
             </div>
 
-            {/* ---------- view panel ---------- */}
             {selected && (
                 <>
                     <div className="cmp-overlay" onClick={close} />

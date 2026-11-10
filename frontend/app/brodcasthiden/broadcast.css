@@ -1,8 +1,4 @@
 
-/* =====================================
-   BROADCAST PAGE
-===================================== */
-
 .broadcast-page {
     width: 100%;
     min-height: 100vh;
@@ -11,7 +7,6 @@
     color: #243a34;
 }
 
-/* Header */
 
 .broadcast-header {
     display: flex;
@@ -79,9 +74,6 @@
     box-shadow: 0 5px 14px rgba(6, 78, 69, 0.16);
 }
 
-/* =====================================
-   STATISTICS
-===================================== */
 
 .broadcast-stats {
     display: grid;
@@ -139,9 +131,6 @@
     font-weight: 750;
 }
 
-/* =====================================
-   LIST CONTAINER
-===================================== */
 
 .broadcast-list-container {
     background: #ffffff;
@@ -179,7 +168,6 @@
     gap: 10px;
 }
 
-/* Search */
 
 .broadcast-search {
     width: 255px;
@@ -231,7 +219,6 @@
     cursor: pointer;
 }
 
-/* Refresh */
 
 .broadcast-refresh-btn {
     width: 39px;
@@ -268,9 +255,6 @@
     }
 }
 
-/* =====================================
-   TABLE
-===================================== */
 
 .broadcast-table-wrapper {
     width: 100%;
@@ -394,7 +378,6 @@
     transition: all 0.2s ease;
 }
 
-/* View */
 
 .broadcast-view-btn {
     color: #064e45;
@@ -406,7 +389,6 @@
     border-color: #064e45;
 }
 
-/* Edit */
 
 .broadcast-edit-btn {
     color: #3975b5;
@@ -418,8 +400,6 @@
     border-color: #3975b5;
 }
 
-/* Delete */
-
 .broadcast-delete-btn {
     color: #d64d4d;
 }
@@ -430,7 +410,6 @@
     border-color: #d64d4d;
 }
 
-/* Table Footer */
 
 .broadcast-list-footer {
     padding: 15px 22px;
@@ -444,9 +423,6 @@
     font-weight: 700;
 }
 
-/* =====================================
-   LOADING STATE
-===================================== */
 
 .broadcast-state {
     min-height: 250px;
@@ -471,10 +447,6 @@
     border-radius: 50%;
     animation: broadcastRotate 0.8s linear infinite;
 }
-
-/* =====================================
-   EMPTY STATE
-===================================== */
 
 .broadcast-empty {
     min-height: 290px;
@@ -532,10 +504,6 @@
     background: #043b34;
 }
 
-/* =====================================
-   ERROR MESSAGE
-===================================== */
-
 .broadcast-error-message {
     display: flex;
     align-items: center;
@@ -556,10 +524,6 @@
     color: #c33e3e;
     cursor: pointer;
 }
-
-/* =====================================
-   MODAL OVERLAY
-===================================== */
 
 .broadcast-modal-overlay {
     position: fixed;
@@ -605,8 +569,6 @@
         transform: translateY(0) scale(1);
     }
 }
-
-/* Modal Header */
 
 .broadcast-modal-header {
     display: flex;
@@ -672,7 +634,6 @@
     cursor: not-allowed;
 }
 
-/* Modal Body */
 
 .broadcast-modal-body {
     padding: 24px;
@@ -730,7 +691,6 @@
     font-size: 12px;
 }
 
-/* Modal Footer */
 
 .broadcast-modal-footer {
     display: flex;
@@ -793,9 +753,6 @@
     animation: broadcastRotate 0.7s linear infinite;
 }
 
-/* =====================================
-   VIEW MODAL
-===================================== */
 
 .broadcast-view-modal {
     max-width: 450px;
@@ -830,9 +787,6 @@
     font-weight: 650;
 }
 
-/* =====================================
-   RESPONSIVE
-===================================== */
 
 @media (max-width: 768px) {
     .broadcast-page {

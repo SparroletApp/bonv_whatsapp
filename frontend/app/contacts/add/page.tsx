@@ -105,7 +105,6 @@ function AddContact() {
         }));
     };
 
-    // Add or remove individual category
     const toggleCategory = (categoryId: number) => {
         setFormData((previous) => ({
             ...previous,
@@ -115,7 +114,6 @@ function AddContact() {
         }));
     };
 
-    // Remove category using close icon
     const removeCategory = (categoryId: number) => {
         setFormData((previous) => ({
             ...previous,
@@ -240,7 +238,6 @@ function AddContact() {
                 const phone = String(row.phone || "").trim();
                 const email = String(row.email || "").trim();
 
-                // Excel categoryIds example: 1,2,3
                 const categoryIds = String(row.categoryIds || "")
                     .split(",")
                     .map((id) => Number(id.trim()))
@@ -405,7 +402,6 @@ function AddContact() {
                 </button>
             </div>
 
-            {/* MANUAL CONTACT */}
 
             <div className="add-contact-card">
 
@@ -462,7 +458,7 @@ function AddContact() {
                             />
                         </div>
 
-                        {/* MULTIPLE CATEGORY SELECT */}
+
 
                         <div
                             className="add-contact-form-group category-multi-group"
@@ -596,7 +592,6 @@ function AddContact() {
                 </form>
             </div>
 
-            {/* EXCEL BULK UPLOAD */}
 
             <div className="add-contact-card">
 

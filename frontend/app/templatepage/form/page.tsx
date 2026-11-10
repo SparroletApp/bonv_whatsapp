@@ -83,7 +83,6 @@ export default function TemplateForm({
         [hasNameVariable]
     );
 
-    // Generate and clean up the local media preview URL.
     useEffect(() => {
         if (!headerFile) {
             setPreviewMediaUrl(null);

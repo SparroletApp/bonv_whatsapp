@@ -232,9 +232,6 @@
     background: var(--tf-border);
 }
 
-/* =========================================
-   ERROR MESSAGE
-========================================= */
 
 .tf-error {
     display: flex;
@@ -254,10 +251,6 @@
     margin-top: 1px;
     font-size: 15px;
 }
-
-/* =========================================
-   VARIABLE BUTTON
-========================================= */
 
 .tf-label-row {
     display: flex;
@@ -301,9 +294,6 @@
     font-size: 10px;
 }
 
-/* =========================================
-   VARIABLE EXAMPLES
-========================================= */
 
 .tf-variables {
     margin-bottom: 20px;
@@ -348,9 +338,6 @@
     margin-bottom: 0;
 }
 
-/* =========================================
-   BUTTON INFORMATION
-========================================= */
 
 .tf-button-info {
     display: flex;
@@ -368,10 +355,6 @@
 .tf-button-info i {
     font-size: 15px;
 }
-
-/* =========================================
-   INTERACTIVE BUTTON CARDS
-========================================= */
 
 .tf-button-card {
     margin-bottom: 14px;
@@ -425,10 +408,6 @@
     margin-bottom: 0;
 }
 
-/* =========================================
-   ADD BUTTON
-========================================= */
-
 .tf-add-button {
     display: flex;
     align-items: center;
@@ -454,10 +433,6 @@
 .tf-add-button i {
     font-size: 16px;
 }
-
-/* =========================================
-   SUBMIT SECTION
-========================================= */
 
 .tf-submit-area {
     display: flex;
@@ -532,10 +507,6 @@
         transform: rotate(360deg);
     }
 }
-
-/* =========================================
-   PREVIEW COLUMN
-========================================= */
 
 .tf-preview-column {
     min-width: 0;
@@ -641,10 +612,6 @@
     box-shadow: 0 5px 20px rgba(6, 78, 69, 0.04);
 }
 
-/* =========================================
-   META REVIEW INFO
-========================================= */
-
 .tf-review-info {
     display: flex;
     align-items: flex-start;
@@ -681,10 +648,6 @@
     font-size: 11px;
     line-height: 1.7;
 }
-
-/* =========================================
-   QUICK TIP
-========================================= */
 
 .tf-preview-tip {
     display: flex;

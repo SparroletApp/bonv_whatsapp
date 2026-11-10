@@ -33,10 +33,6 @@ import categoryService, {
 import CreateCategory from "../tags/create/page";
 
 
-/* ==========================================
-   HELPERS
-========================================== */
-
 function unwrapResponse<T>(response: any): T {
     let result = response;
 
@@ -165,9 +161,7 @@ function replaceTemplateVariables(
     return result;
 }
 
-/* ==========================================
-   NORMAL MEDIA BUBBLE
-========================================== */
+
 
 function MediaBubble({ m }: { m: InboxMessage }) {
     const [url, setUrl] = useState("");
@@ -263,9 +257,6 @@ function MediaBubble({ m }: { m: InboxMessage }) {
     );
 }
 
-/* ==========================================
-   TEMPLATE HEADER MEDIA
-========================================== */
 
 function TemplateHeaderMedia({
     imageUrl,
@@ -293,9 +284,6 @@ function TemplateHeaderMedia({
     );
 }
 
-/* ==========================================
-   MAIN INBOX PAGE
-========================================== */
 
 export default function InboxPage() {
     const [convs, setConvs] = useState<Conversation[]>([]);
@@ -386,7 +374,6 @@ export default function InboxPage() {
                 contactData.forEach((contact) => {
                     if (!contact.phone) return;
 
-                    // Get category IDs from different possible API response formats.
                     const rawCategoryIds = [
                         contact.categoryId,
                         contact.category?.id,
@@ -485,13 +472,8 @@ export default function InboxPage() {
                 setConvs(data);
             }
         } catch {
-            // Retain existing conversations if polling fails.
         }
     };
-
-    /* ==========================================
-       LOAD MESSAGES
-    ========================================== */
 
     const loadMsgs = async (phone: string) => {
         try {
@@ -506,13 +488,8 @@ export default function InboxPage() {
                 setMsgs(data);
             }
         } catch {
-            // Retain existing messages if polling fails.
         }
     };
-
-    /* ==========================================
-       INITIAL LOAD AND POLLING
-    ========================================== */
 
     useEffect(() => {
         loadConvs();
@@ -622,7 +599,6 @@ export default function InboxPage() {
                 await inboxService.markRead(c.phone);
                 await loadConvs();
             } catch {
-                // Ignore mark-read refresh errors.
             }
         }
     };
@@ -1713,14 +1689,12 @@ export default function InboxPage() {
 
                 </section>
 
-                {/* SEND TEMPLATE MODAL */}
 
                 {showTemplateModal && active && (
                     <div
                         className="wa-template-overlay"
                         onClick={() => {
                             if (!sendingTemplate) {
-                                // setShowTemplateModal(false);
                             }
                         }}
                     >

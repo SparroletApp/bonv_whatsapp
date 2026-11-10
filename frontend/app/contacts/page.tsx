@@ -161,9 +161,6 @@ function Contact() {
         });
     };
 
-    // ==========================================
-    // DOWNLOAD EXCEL TEMPLATE
-    // ==========================================
 
     const downloadExcelTemplate = () => {
         const sampleData = [
@@ -193,9 +190,6 @@ function Contact() {
         XLSX.writeFile(workbook, "contacts_bulk_upload_template.xlsx");
     };
 
-    // ==========================================
-    // BULK UPLOAD EXCEL
-    // ==========================================
 
     const handleBulkUpload = async (
         event: React.ChangeEvent<HTMLInputElement>
@@ -400,7 +394,6 @@ function Contact() {
         <>
         <section className="category-page">
 
-            {/* HEADER */}
 
             <div className="category-header">
                 <div>
@@ -427,7 +420,6 @@ function Contact() {
                 </div>
             </div>
 
-            {/* TABLE CARD */}
 
             <div className="category-table-card">
 
@@ -487,8 +479,6 @@ function Contact() {
 
                     </div>
                 </div>
-
-                {/* TABLE */}
 
                 <div className="category-table-wrapper">
                     <table className="category-table">
@@ -612,7 +602,6 @@ function Contact() {
                     </table>
                 </div>
 
-                {/* PAGINATION */}
 
                 {!loading && !error && (
                     <div className="category-pagination">

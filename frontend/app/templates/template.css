@@ -12,7 +12,6 @@
     color: var(--ink);
 }
 
-/* ---------- header ---------- */
 .tpl-head {
     display: flex;
     align-items: flex-start;
@@ -40,7 +39,6 @@
 .tpl-btn-ghost { background: #fff; color: var(--ink); border-color: var(--line); }
 .tpl-btn-ghost:hover:not(:disabled) { background: var(--soft); }
 
-/* ---------- alerts ---------- */
 .tpl-alert {
     padding: 10px 14px;
     border-radius: 8px;
@@ -51,7 +49,6 @@
 .tpl-alert-error { background: #fdecea; color: #b3261e; border: 1px solid #f6c8c4; }
 .tpl-alert-info { background: #e8f5e9; color: #1b5e20; border: 1px solid #c8e6c9; }
 
-/* ---------- toolbar ---------- */
 .tpl-toolbar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 .tpl-search, .tpl-select {
     border: 1px solid var(--line);
@@ -95,7 +92,6 @@
 .tpl-tab.on { color: var(--green-dark); border-bottom-color: var(--green); }
 .tpl-tab.on span { background: #d9f2ee; }
 
-/* ---------- grid + card ---------- */
 .tpl-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -156,7 +152,6 @@
     margin-top: auto;
 }
 
-/* ---------- status badges ---------- */
 .tpl-badge {
     display: inline-block;
     border-radius: 999px;
@@ -173,7 +168,6 @@
 .tpl-s-rejected { background: #fdecea; color: #b3261e; }
 .tpl-s-paused, .tpl-s-disabled { background: #eceff1; color: #546e7a; }
 
-/* ---------- empty + skeleton ---------- */
 .tpl-empty { text-align: center; padding: 64px 20px; color: var(--muted); }
 .tpl-empty-icon { font-size: 40px; margin-bottom: 8px; }
 .tpl-empty h3 { margin: 0 0 6px; color: var(--ink); }
@@ -189,7 +183,6 @@
 .tpl-skeleton:hover { transform: none; box-shadow: none; border-color: var(--line); }
 @keyframes tpl-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
 
-/* ---------- drawer ---------- */
 .tpl-overlay {
     position: fixed;
     inset: 0;

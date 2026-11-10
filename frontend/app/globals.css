@@ -693,7 +693,6 @@ a {
   align-items: center;
 }
 
-/* inbox */
 .wa-inbox {
   display: grid;
   grid-template-columns: 320px 1fr;

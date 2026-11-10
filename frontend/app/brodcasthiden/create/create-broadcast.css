@@ -32,7 +32,6 @@
     }
 }
 
-/* Header */
 
 .create-broadcast-header {
     padding: 21px 23px;
@@ -89,7 +88,6 @@
     color: #064e45;
 }
 
-/* Body */
 
 .create-broadcast-body {
     padding: 25px 23px;
@@ -130,7 +128,6 @@
     box-shadow: 0 0 0 3px rgba(6, 78, 69, 0.09);
 }
 
-/* Footer */
 
 .create-broadcast-footer {
     padding: 16px 23px;
@@ -181,7 +178,6 @@
     cursor: not-allowed;
 }
 
-/* Mobile */
 
 @media (max-width: 480px) {
     .create-broadcast-header,

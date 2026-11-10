@@ -1,8 +1,4 @@
 
-/* =====================================
-   BROADCAST VIEW PAGE
-===================================== */
-
 .broadcast-view-page {
     min-height: 100vh;
     width: 100%;
@@ -17,10 +13,6 @@
 .broadcast-view-page *::after {
     box-sizing: border-box;
 }
-
-/* =====================================
-   HEADER
-===================================== */
 
 .broadcast-view-header {
     display: flex;
@@ -74,10 +66,6 @@
     border-radius: 13px;
     font-size: 23px;
 }
-
-/* =====================================
-   BROADCAST INFORMATION
-===================================== */
 
 .broadcast-info-card {
     display: flex;
@@ -151,10 +139,6 @@
     font-weight: 750;
 }
 
-/* =====================================
-   STATISTICS
-===================================== */
-
 .broadcast-contact-stats {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -215,10 +199,6 @@
     font-weight: 750;
 }
 
-/* =====================================
-   CONTACT CONTAINER
-===================================== */
-
 .broadcast-contact-container {
     width: 100%;
     overflow: hidden;
@@ -228,13 +208,9 @@
     box-shadow: 0 3px 15px rgba(30, 60, 49, 0.025);
 }
 
-/* Assigned Contacts */
-
 .assigned-contact-container {
     margin-bottom: 25px;
 }
-
-/* Add Contacts Section */
 
 .add-contact-section {
     width: 100%;
@@ -255,10 +231,6 @@
         transform: translateY(0);
     }
 }
-
-/* =====================================
-   CONTACT SECTION HEADER
-===================================== */
 
 .broadcast-contact-header {
     display: flex;
@@ -289,10 +261,6 @@
     color: #89958f;
     font-size: 12px;
 }
-
-/* =====================================
-   HEADER ACTIONS
-===================================== */
 
 .assigned-contact-actions {
     display: flex;
@@ -326,7 +294,6 @@
     cursor: not-allowed;
 }
 
-/* Add Contacts Button */
 
 .broadcast-add-contact-btn {
     min-height: 40px;
@@ -362,8 +329,6 @@
     font-size: 14px;
 }
 
-/* Close Button */
-
 .broadcast-close-add-btn {
     min-height: 38px;
     display: inline-flex;
@@ -393,10 +358,6 @@
     cursor: not-allowed;
 }
 
-/* =====================================
-   ASSIGNED CONTACT COUNT
-===================================== */
-
 .assigned-contact-count {
     display: flex;
     align-items: center;
@@ -415,10 +376,6 @@
     font-size: 14px;
     color: #16835c;
 }
-
-/* =====================================
-   SEARCH AND CATEGORY FILTER
-===================================== */
 
 .broadcast-contact-filters {
     display: flex;
@@ -514,10 +471,6 @@
     cursor: pointer;
 }
 
-/* =====================================
-   SELECT ALL TOOLBAR
-===================================== */
-
 .broadcast-selection-toolbar {
     display: flex;
     align-items: center;
@@ -585,10 +538,6 @@
     cursor: not-allowed;
 }
 
-/* =====================================
-   CONTACT TABLE
-===================================== */
-
 .broadcast-contact-table-wrapper {
     width: 100%;
     overflow-x: auto;
@@ -651,10 +600,6 @@
     padding-left: 24px;
 }
 
-/* =====================================
-   CONTACT NAME
-===================================== */
-
 .broadcast-contact-name {
     display: flex;
     align-items: center;
@@ -690,10 +635,6 @@
     font-size: 10px;
 }
 
-/* =====================================
-   CONTACT DETAILS
-===================================== */
-
 .broadcast-contact-detail {
     display: flex;
     align-items: center;
@@ -707,10 +648,6 @@
     font-size: 12px;
 }
 
-/* =====================================
-   CATEGORY BADGE
-===================================== */
-
 .broadcast-contact-category {
     display: inline-flex;
     align-items: center;
@@ -722,10 +659,6 @@
     font-weight: 650;
     white-space: nowrap;
 }
-
-/* =====================================
-   EMPTY STATE
-===================================== */
 
 .broadcast-contact-empty {
     min-height: 250px;
@@ -765,10 +698,6 @@
     line-height: 1.6;
 }
 
-/* =====================================
-   LOADING
-===================================== */
-
 .broadcast-contact-state {
     min-height: 230px;
     display: flex;
@@ -803,10 +732,6 @@
     }
 }
 
-/* =====================================
-   ERROR
-===================================== */
-
 .broadcast-contact-error {
     display: flex;
     align-items: center;
@@ -829,10 +754,6 @@
     color: #c44545;
     cursor: pointer;
 }
-
-/* =====================================
-   FOOTER / ASSIGN BUTTON
-===================================== */
 
 .broadcast-contact-footer {
     display: flex;
@@ -919,10 +840,6 @@
     animation: broadcastViewRotate 0.7s linear infinite;
 }
 
-/* =====================================
-   ACCESSIBILITY / FOCUS
-===================================== */
-
 .broadcast-view-page button:focus-visible,
 .broadcast-view-page input:focus-visible,
 .broadcast-view-page select:focus-visible {
@@ -933,10 +850,6 @@
 .broadcast-view-page button:disabled {
     pointer-events: none;
 }
-
-/* =====================================
-   RESPONSIVE - TABLET
-===================================== */
 
 @media (max-width: 900px) {
     .broadcast-view-page {
@@ -960,9 +873,6 @@
     }
 }
 
-/* =====================================
-   RESPONSIVE - MOBILE
-===================================== */
 
 @media (max-width: 600px) {
     .broadcast-view-page {
@@ -1058,10 +968,6 @@
     }
 }
 
-/* =====================================
-   RESPONSIVE - SMALL MOBILE
-===================================== */
-
 @media (max-width: 400px) {
     .broadcast-view-header h1 {
         font-size: 19px;
@@ -1097,9 +1003,6 @@
     }
 }
 
-/* =====================================
-   REDUCED MOTION
-===================================== */
 
 @media (prefers-reduced-motion: reduce) {
     .broadcast-view-page *,

@@ -80,7 +80,6 @@ export default function Template() {
 
     return (
         <div className="tpl-page">
-            {/* ---------- header ---------- */}
             <div className="tpl-head">
                 <div>
                     <h1>Message templates</h1>
@@ -99,7 +98,6 @@ export default function Template() {
             {error && <div className="tpl-alert tpl-alert-error">{error}</div>}
             {info && <div className="tpl-alert tpl-alert-info">{info}</div>}
 
-            {/* ---------- toolbar ---------- */}
             <div className="tpl-toolbar">
                 <input className="tpl-search" placeholder="Search by name or message…"
                        value={q} onChange={(e) => setQ(e.target.value)} />
@@ -120,7 +118,6 @@ export default function Template() {
                 ))}
             </div>
 
-            {/* ---------- list ---------- */}
             {loading ? (
                 <div className="tpl-grid">
                     {Array.from({ length: 6 }).map((_, i) => <div key={i} className="tpl-card tpl-skeleton" />)}
@@ -158,7 +155,6 @@ export default function Template() {
                 </div>
             )}
 
-            {/* ---------- view drawer ---------- */}
             {selected && (
                 <>
                     <div className="tpl-overlay" onClick={() => setSelected(null)} />

@@ -48,17 +48,10 @@ function EditContact({
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    // ==========================================
-    // LOAD CONTACT AND CATEGORIES
-    // ==========================================
 
     useEffect(() => {
         loadData(contactId);
     }, [contactId]);
-
-    // ==========================================
-    // CLOSE CATEGORY DROPDOWN ON OUTSIDE CLICK
-    // ==========================================
 
     useEffect(() => {
         const handleOutsideClick = (event: MouseEvent) => {
@@ -77,9 +70,6 @@ function EditContact({
         };
     }, []);
 
-    // ==========================================
-    // TOAST
-    // ==========================================
 
     const showToast = (
         icon: "success" | "error" | "warning",
@@ -96,9 +86,6 @@ function EditContact({
         });
     };
 
-    // ==========================================
-    // LOAD CONTACT DATA
-    // ==========================================
 
     const loadData = async (id: number) => {
         try {
@@ -141,9 +128,6 @@ function EditContact({
         }
     };
 
-    // ==========================================
-    // INPUT CHANGE
-    // ==========================================
 
     const handleChange = (
         event: React.ChangeEvent<HTMLInputElement>
@@ -156,10 +140,6 @@ function EditContact({
         }));
     };
 
-    // ==========================================
-    // TOGGLE CATEGORY
-    // ==========================================
-
     const toggleCategory = (categoryId: number) => {
         setFormData((previous) => ({
             ...previous,
@@ -169,9 +149,6 @@ function EditContact({
         }));
     };
 
-    // ==========================================
-    // REMOVE CATEGORY
-    // ==========================================
 
     const removeCategory = (categoryId: number) => {
         setFormData((previous) => ({
@@ -182,9 +159,6 @@ function EditContact({
         }));
     };
 
-    // ==========================================
-    // RESET FORM
-    // ==========================================
 
     const handleReset = () => {
         if (originalData) {
@@ -240,16 +214,12 @@ function EditContact({
             categoryIds: formData.categoryIds,
         });
 
-        // Stop button loading immediately
         setSaving(false);
 
-        // Close drawer immediately
         onClose();
 
-        // Display success toast
         showToast("success", "Contact updated successfully!");
 
-        // Refresh contacts in the background without waiting
         onUpdated().catch((error) => {
             console.error("Contact refresh error:", error);
         });
@@ -287,23 +257,16 @@ function EditContact({
         );
     }
 
-    // ==========================================
-    // DRAWER UI
-    // ==========================================
-
     return (
         <div className="edit-contact-overlay">
 
-            {/* BACKGROUND OVERLAY */}
             <div
                 className="edit-contact-backdrop"
                 onClick={handleClose}
             />
 
-            {/* RIGHT SIDE DRAWER */}
             <aside className="edit-contact-drawer">
 
-                {/* DRAWER HEADER */}
                 <div className="edit-drawer-header">
 
                     <div className="edit-drawer-heading">
@@ -331,7 +294,6 @@ function EditContact({
 
                 </div>
 
-                {/* DRAWER FORM */}
                 <form
                     className="edit-drawer-form"
                     onSubmit={handleSubmit}
@@ -348,7 +310,6 @@ function EditContact({
 
                         <div className="edit-drawer-form-grid">
 
-                            {/* NAME */}
                             <div className="edit-drawer-field">
 
                                 <label>
@@ -370,7 +331,6 @@ function EditContact({
 
                             </div>
 
-                            {/* PHONE */}
                             <div className="edit-drawer-field">
 
                                 <label>
@@ -392,7 +352,6 @@ function EditContact({
 
                             </div>
 
-                            {/* EMAIL */}
                             <div className="edit-drawer-field">
 
                                 <label>Email Address</label>
@@ -411,7 +370,6 @@ function EditContact({
 
                             </div>
 
-                            {/* MULTIPLE CATEGORY SELECT */}
                             <div
                                 className="edit-drawer-field edit-drawer-category-field"
                                 ref={categoryDropdownRef}
@@ -531,7 +489,6 @@ function EditContact({
 
                         </div>
 
-                        {/* INFORMATION NOTE */}
                         <div className="edit-drawer-info">
                             <i className="bi bi-info-circle"></i>
 
@@ -543,7 +500,6 @@ function EditContact({
 
                     </div>
 
-                    {/* FIXED DRAWER FOOTER */}
                     <div className="edit-drawer-footer">
 
                         <button

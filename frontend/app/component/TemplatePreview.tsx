@@ -37,14 +37,12 @@ export default function TemplatePreview({
         <div className="wa-bubble-wrap">
             <div className="wa-bubble">
 
-                {/* Text Header */}
                 {headerType === "TEXT" && headerText && (
                     <div className="wa-bubble-header">
                         {headerText}
                     </div>
                 )}
 
-                {/* Image Header */}
                 {headerType === "IMAGE" && (
                     <div className="wa-bubble-media">
                         {headerMediaUrl ? (
@@ -62,7 +60,6 @@ export default function TemplatePreview({
                     </div>
                 )}
 
-                {/* Video Header */}
                 {headerType === "VIDEO" && (
                     <div className="wa-bubble-media wa-bubble-media-placeholder">
                         <i className="bi bi-play-circle" />
@@ -70,7 +67,6 @@ export default function TemplatePreview({
                     </div>
                 )}
 
-                {/* Document Header */}
                 {headerType === "DOCUMENT" && (
                     <div className="wa-bubble-media wa-bubble-media-placeholder">
                         <i className="bi bi-file-earmark-pdf" />
@@ -78,19 +74,16 @@ export default function TemplatePreview({
                     </div>
                 )}
 
-                {/* Backward compatibility for old templates */}
                 {!headerType && headerText && (
                     <div className="wa-bubble-header">
                         {headerText}
                     </div>
                 )}
 
-                {/* Message Body */}
                 <div style={{ whiteSpace: "pre-wrap" }}>
                     {renderBody(body, values)}
                 </div>
 
-                {/* Footer */}
                 {footerText && (
                     <div className="wa-bubble-footer">
                         {footerText}
@@ -98,7 +91,6 @@ export default function TemplatePreview({
                 )}
             </div>
 
-            {/* Buttons */}
             {buttons.map((b, i) => (
                 <div key={i} className="wa-bubble-btn">
                     {b.text}

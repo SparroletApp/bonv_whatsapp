@@ -55,7 +55,6 @@ export default function CampaignCreatePage() {
     const [error, setError] = useState("");
     const [info, setInfo] = useState("");
 
-    // Only approved templates can be selected.
     const approvedTemplates = useMemo(
         () =>
             templates.filter(
@@ -72,7 +71,6 @@ export default function CampaignCreatePage() {
 
     const needsMedia = MEDIA_HEADERS.includes(headerType);
 
-    // Get the media URL already saved against the selected template.
     const savedMediaUrl = template?.headerMediaUrl?.trim() ?? "";
 
     const mediaReady =
@@ -84,13 +82,11 @@ export default function CampaignCreatePage() {
             (m) => m.kind === "TEXT" && !m.text.trim()
         );
 
-    // Load templates from backend.
     const loadTemplates = async () => {
         const data = await templateService.list();
         setTemplates(data);
     };
 
-    // Synchronize templates with Meta.
     const refreshFromMeta = async (silent = false) => {
         setSyncing(true);
 
@@ -115,7 +111,6 @@ export default function CampaignCreatePage() {
         }
     };
 
-    // Initial data loading.
     useEffect(() => {
         categoryInsightService
             .list()
@@ -124,11 +119,9 @@ export default function CampaignCreatePage() {
 
         refreshFromMeta(true);
 
-        // Initial loading only.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+       
     }, []);
 
-    // Clear selected template if it is no longer approved.
     useEffect(() => {
         if (
             templateId !== "" &&
@@ -141,7 +134,6 @@ export default function CampaignCreatePage() {
         }
     }, [approvedTemplates, templateId]);
 
-    // Calculate selected contact count.
     const totalContacts = useMemo(() => {
         return categories
             .filter((c) => selected.includes(c.id))
@@ -151,7 +143,6 @@ export default function CampaignCreatePage() {
             );
     }, [categories, selected]);
 
-    // Select or deselect a category.
     const toggleCategory = (id: number) => {
         setSelected((current) =>
             current.includes(id)
@@ -160,7 +151,6 @@ export default function CampaignCreatePage() {
         );
     };
 
-    // Select all categories.
     const selectAllCategories = () => {
         setSelected((current) =>
             current.length === categories.length
@@ -169,7 +159,6 @@ export default function CampaignCreatePage() {
         );
     };
 
-    // Select a template and initialize its variable mapping.
     const pickTemplate = (id: number | "") => {
         setTemplateId(id);
 
@@ -190,7 +179,6 @@ export default function CampaignCreatePage() {
         );
     };
 
-    // Update variable mapping.
     const updateMap = (
         index: number,
         patch: Partial<VarMap>
@@ -204,14 +192,12 @@ export default function CampaignCreatePage() {
         );
     };
 
-    // Preview variable values.
     const previewValues = mapping.map((item) =>
         item.kind === "TEXT"
             ? item.text
             : SAMPLE[item.kind]
     );
 
-    // Launch campaign.
     const launch = async () => {
         setError("");
         setInfo("");
@@ -246,7 +232,6 @@ export default function CampaignCreatePage() {
             return;
         }
 
-        // Validate previously saved template media.
         if (needsMedia && !savedMediaUrl) {
             setError(
                 `The selected ${headerType.toLowerCase()} template has no saved media. Please recreate the template with its media.`
@@ -257,8 +242,7 @@ export default function CampaignCreatePage() {
         setLaunching(true);
 
         try {
-            // Media URL is NOT sent from frontend.
-            // Backend must retrieve it from TemplateEntity.
+         
             await campaignService.create({
                 name: name.trim(),
                 templateId: template.id,
@@ -284,7 +268,6 @@ export default function CampaignCreatePage() {
     return (
         <div className="cc-page">
 
-            {/* HERO */}
             <div className="cc-hero">
                 <div className="cc-hero-content">
 
@@ -358,7 +341,6 @@ export default function CampaignCreatePage() {
                 </div>
             </div>
 
-            {/* NOTIFICATIONS */}
             {error && (
                 <div className="cc-alert cc-alert-error">
                     <i className="bi bi-exclamation-circle-fill" />
@@ -385,10 +367,8 @@ export default function CampaignCreatePage() {
 
             <div className="cc-layout">
 
-                {/* MAIN FORM */}
                 <div className="cc-main">
 
-                    {/* CAMPAIGN NAME */}
                     <section className="cc-card">
 
                         <div className="cc-card-header">
@@ -436,7 +416,6 @@ export default function CampaignCreatePage() {
                         </div>
                     </section>
 
-                    {/* CATEGORY SELECTION */}
                     <section className="cc-card">
 
                         <div className="cc-card-header">
@@ -551,7 +530,6 @@ export default function CampaignCreatePage() {
 
                     </section>
 
-                    {/* TEMPLATE SELECTION */}
                     <section className="cc-card">
 
                         <div className="cc-card-header">
@@ -654,7 +632,6 @@ export default function CampaignCreatePage() {
                         {template && (
                             <div className="cc-template-config">
 
-                                {/* SELECTED TEMPLATE */}
                                 <div className="cc-template-selected">
 
                                     <div className="cc-template-selected-icon">
@@ -677,7 +654,6 @@ export default function CampaignCreatePage() {
 
                                 </div>
 
-                                {/* SAVED TEMPLATE MEDIA */}
                                 {needsMedia && (
                                     <div className="cc-saved-media-section">
 
@@ -769,7 +745,6 @@ export default function CampaignCreatePage() {
                                     </div>
                                 )}
 
-                                {/* VARIABLE MAPPING */}
                                 {template.variableCount > 0 && (
                                     <div className="cc-variable-section">
 
@@ -889,7 +864,6 @@ export default function CampaignCreatePage() {
                                     </div>
                                 )}
 
-                                {/* MESSAGE PREVIEW */}
                                 <div className="cc-preview-section">
 
                                     <div className="cc-preview-heading">
@@ -950,7 +924,6 @@ export default function CampaignCreatePage() {
 
                 </div>
 
-                {/* SIDEBAR */}
                 <aside className="cc-sidebar">
 
                     <div className="cc-summary-card">
@@ -1032,7 +1005,6 @@ export default function CampaignCreatePage() {
 
                         <div className="cc-summary-divider" />
 
-                        {/* LAUNCH CHECKLIST */}
                         <div className="cc-checklist">
 
                             <h4>Launch checklist</h4>
@@ -1096,7 +1068,6 @@ export default function CampaignCreatePage() {
 
                         </div>
 
-                        {/* LAUNCH BUTTON */}
                         <button
                             type="button"
                             className="cc-launch-btn"
@@ -1127,7 +1098,6 @@ export default function CampaignCreatePage() {
 
                     </div>
 
-                    {/* HELP CARD */}
                     <div className="cc-help-card">
 
                         <div className="cc-help-icon">
@@ -1149,7 +1119,6 @@ export default function CampaignCreatePage() {
 
             </div>
 
-            {/* CREATE TEMPLATE MODAL */}
             {showTemplateForm && (
                 <Modal
                     title="Create WhatsApp template"

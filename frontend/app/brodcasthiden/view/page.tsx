@@ -183,12 +183,6 @@ export default function BroadcastView() {
                 contact.name?.toLowerCase().includes(searchText) ||
                 contact.phone?.toLowerCase().includes(searchText) ||
                 contact.email?.toLowerCase().includes(searchText);
-
-            // const matchesCategory =
-            //     selectedCategory === "all" ||
-            //     contact.categoryId.toString() === selectedCategory;
-
-            // return matchesSearch && matchesCategory;
         });
     }, [availableContacts, search, selectedCategory]);
 

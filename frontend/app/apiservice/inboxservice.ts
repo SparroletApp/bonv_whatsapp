@@ -21,12 +21,8 @@ export interface InboxMessage {
     messageType: string;
     errorMessage: string | null;
     createdAt: string;
-
-    // Normal image/audio media
     mediaId: string | null;
     mimeType: string | null;
-
-    // WhatsApp template header media
     headerType: string | null;
     headerMediaUrl: string | null;
 }

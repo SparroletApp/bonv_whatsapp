@@ -29,7 +29,6 @@ function CategoryView() {
             setLoading(true);
             setError("");
 
-            // Fetch contacts and categories together
             const [contactResponse, categoryResponse] = await Promise.all([
                 contactService.getContactsByCategoryId({
                     id: categoryId,
@@ -71,7 +70,6 @@ function CategoryView() {
 
     }, [fetchContacts]);
 
-    // Convert category IDs into category names
     const getCategoryNames = (categoryIds: number[]) => {
         if (!categoryIds || categoryIds.length === 0) {
             return [];
