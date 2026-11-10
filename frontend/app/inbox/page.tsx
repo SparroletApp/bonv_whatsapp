@@ -1208,19 +1208,13 @@ export default function InboxPage() {
                         </div>
                     </div>
 
-                    {/* CATEGORY AND STATUS FILTERS */}
-
                     <div className="wa-filter-area">
 
                         <div className="wa-status-filters">
 
                             <button
                                 type="button"
-                                className={
-                                    activeFilter === "ALL" && selectedCategoryId === null
-                                        ? "wa-filter-active"
-                                        : ""
-                                }
+                                className={activeFilter === "ALL" && selectedCategoryId === null ? "wa-filter-active" : ""}
                                 onClick={() => {
                                     setActiveFilter("ALL");
                                     setSelectedCategoryId(null);
@@ -1231,11 +1225,7 @@ export default function InboxPage() {
 
                             <button
                                 type="button"
-                                className={
-                                    activeFilter === "UNREAD" && selectedCategoryId === null
-                                        ? "wa-filter-active"
-                                        : ""
-                                }
+                                className={activeFilter === "UNREAD" && selectedCategoryId === null ? "wa-filter-active" : ""}
                                 onClick={() => {
                                     setActiveFilter("UNREAD");
                                     setSelectedCategoryId(null);
@@ -1246,11 +1236,7 @@ export default function InboxPage() {
 
                             <button
                                 type="button"
-                                className={
-                                    activeFilter === "CLOSED" && selectedCategoryId === null
-                                        ? "wa-filter-active"
-                                        : ""
-                                }
+                                className={activeFilter === "CLOSED" && selectedCategoryId === null ? "wa-filter-active" : ""}
                                 onClick={() => {
                                     setActiveFilter("CLOSED");
                                     setSelectedCategoryId(null);
@@ -1261,11 +1247,7 @@ export default function InboxPage() {
 
                             <button
                                 type="button"
-                                className={
-                                    activeFilter === "PENDING" && selectedCategoryId === null
-                                        ? "wa-filter-active"
-                                        : ""
-                                }
+                                className={activeFilter === "PENDING" && selectedCategoryId === null ? "wa-filter-active" : ""}
                                 onClick={() => {
                                     setActiveFilter("PENDING");
                                     setSelectedCategoryId(null);
@@ -1298,16 +1280,16 @@ export default function InboxPage() {
                                 </button>
                             ))}
 
-                            <button
-                                type="button"
-                                className="wa-add-category-btn"
-                                title="Create category"
-                                onClick={() => setShowCreateCategory(true)}
-                            >
-                                <i className="bi bi-plus-lg"></i>
-                            </button>
-
                         </div>
+
+                        <button
+                            type="button"
+                            className="wa-add-category-btn"
+                            title="Create category"
+                            onClick={() => setShowCreateCategory(true)}
+                        >
+                            <i className="bi bi-plus-lg"></i>
+                        </button>
 
                     </div>
 

@@ -238,22 +238,6 @@
     background: transparent;
 }
 
-/* ==========================================
-   STATUS + CATEGORY FILTERS (single-line scroll)
-========================================== */
-
-.wa-filter-area {
-    width: 100%;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 12px 14px;
-    flex-shrink: 0;
-    overflow: hidden;
-    border-bottom: 1px solid #e9edef;
-}
-
 /* One line, horizontal scroll, never wraps */
 .wa-status-filters,
 .wa-category-filters {
@@ -299,41 +283,6 @@
     background: transparent;
 }
 
-/* Chips: never shrink, never wrap */
-.wa-filter-area button {
-    flex: 0 0 auto;
-    height: 32px;
-    padding: 0 13px;
-
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    border: 1px solid #e1e9e6;
-    border-radius: 20px;
-    background: #fff;
-    color: #53635e;
-
-    font-size: 11px;
-    font-weight: 600;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.wa-filter-area button:hover {
-    background: #e8f3f0;
-    border-color: #064e45;
-    color: #064e45;
-}
-
-.wa-filter-area button.wa-filter-active {
-    background: #064e45;
-    border-color: #064e45;
-    color: #fff;
-}
-
-/* "+" button stays visible at the right edge while chips scroll */
 .wa-category-filters .wa-add-category-btn {
     position: sticky;
     right: 0;
@@ -353,6 +302,178 @@
 .wa-category-filters .wa-add-category-btn:hover {
     background: #064e45;
     color: #fff;
+}
+
+
+/* =========================================
+   STATUS + CATEGORY FILTERS - SINGLE ROW
+========================================= */
+
+.wa-filter-area {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 14px;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+
+    overflow: hidden;
+    flex-shrink: 0;
+
+    border-bottom: 1px solid #e9edef;
+}
+
+/* STATUS FILTERS */
+
+.wa-status-filters {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 7px;
+
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: 48%;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+
+    scrollbar-width: none;
+}
+
+.wa-status-filters::-webkit-scrollbar {
+    display: none;
+}
+
+/* CATEGORY FILTERS */
+
+.wa-category-filters {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 7px;
+
+    flex: 1 1 0;
+    min-width: 0;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+
+    padding-bottom: 4px;
+
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.wa-category-filters::-webkit-scrollbar {
+    display: none;
+}
+
+/* ALL FILTER CHIPS */
+
+.wa-filter-area button {
+    flex: 0 0 auto;
+
+    height: 32px;
+    padding: 0 12px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid #e1e9e6;
+    border-radius: 20px;
+
+    background: #fff;
+    color: #53635e;
+
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.wa-filter-area button:hover {
+    background: #e8f3f0;
+    border-color: #064e45;
+    color: #064e45;
+}
+
+.wa-filter-area button.wa-filter-active {
+    background: #064e45;
+    border-color: #064e45;
+    color: #fff;
+}
+
+/* PLUS BUTTON - ALWAYS VISIBLE */
+
+.wa-filter-area .wa-add-category-btn {
+    position: relative;
+
+    flex: 0 0 32px;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+
+    padding: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px dashed #064e45;
+    border-radius: 50%;
+
+    background: #e8f3f0;
+    color: #064e45;
+
+    font-size: 14px;
+    z-index: 2;
+}
+
+.wa-filter-area .wa-add-category-btn:hover {
+    background: #064e45;
+    color: #fff;
+}
+
+/* SMALL SCREENS */
+
+@media (max-width: 600px) {
+    .wa-filter-area {
+        gap: 6px;
+        padding: 10px 8px;
+    }
+
+    .wa-status-filters {
+        max-width: 48%;
+        gap: 5px;
+    }
+
+    .wa-category-filters {
+        gap: 5px;
+    }
+
+    .wa-filter-area button {
+        height: 29px;
+        padding: 0 9px;
+        font-size: 10px;
+    }
+
+    .wa-filter-area .wa-add-category-btn {
+        flex-basis: 29px;
+        width: 29px;
+        min-width: 29px;
+        height: 29px;
+        padding: 0;
+    }
 }
 
 .wa-filter-loading {
