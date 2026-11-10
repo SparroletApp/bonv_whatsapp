@@ -1493,7 +1493,7 @@ export default function InboxPage() {
                                     onClick={openNewChat}
                                     title="Start a new chat"
                                 >
-                                    <i className="bi bi-chat-square-plus-fill"></i>
+                                   <i className="bi bi-envelope-plus"></i>
 
                                 </button>
 
