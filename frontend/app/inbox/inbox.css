@@ -184,40 +184,19 @@
 /* ==========================================
    HORIZONTAL STATUS + CATEGORY FILTERS
 ========================================== */
-
 .wa-filter-area {
     width: 100%;
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
 
     padding: 12px 14px;
 
-    overflow-x: auto;
-    overflow-y: hidden;
-
-    white-space: nowrap;
-    flex-wrap: nowrap;
+    overflow: hidden;
     flex-shrink: 0;
 
     border-bottom: 1px solid #e9edef;
-
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5d1 transparent;
-}
-
-.wa-filter-area::-webkit-scrollbar {
-    height: 4px;
-}
-
-.wa-filter-area::-webkit-scrollbar-thumb {
-    background: #cbd5d1;
-    border-radius: 10px;
-}
-
-.wa-filter-area::-webkit-scrollbar-track {
-    background: transparent;
 }
 
 /* STATUS FILTERS */
@@ -226,8 +205,21 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
+
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    flex-wrap: nowrap;
+    white-space: nowrap;
     flex-shrink: 0;
+
+    scrollbar-width: none;
+}
+
+.wa-status-filters::-webkit-scrollbar {
+    display: none;
 }
 
 /* CATEGORY FILTERS */
@@ -236,14 +228,40 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
+
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    flex-wrap: nowrap;
+    white-space: nowrap;
     flex-shrink: 0;
+
+    padding-bottom: 5px;
+
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5d1 transparent;
 }
 
-/* ALL FILTER BUTTONS */
+.wa-category-filters::-webkit-scrollbar {
+    height: 4px;
+}
+
+.wa-category-filters::-webkit-scrollbar-thumb {
+    background: #cbd5d1;
+    border-radius: 10px;
+}
+
+.wa-category-filters::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* FILTER BUTTONS */
 
 .wa-filter-area button {
-    flex-shrink: 0;
+    flex: 0 0 auto;
+
     height: 32px;
     padding: 0 13px;
 
@@ -272,7 +290,7 @@
     color: #064e45;
 }
 
-/* ACTIVE FILTER */
+/* ACTIVE */
 
 .wa-filter-area button.wa-filter-active {
     background: #064e45;
@@ -280,8 +298,9 @@
     border-color: #064e45;
 }
 
+/* ADD CATEGORY */
 
-.wa-filter-area .wa-add-category-btn {
+.wa-category-filters .wa-add-category-btn {
     width: 32px;
     min-width: 32px;
     height: 32px;
@@ -297,16 +316,36 @@
     font-size: 14px;
 }
 
-.wa-filter-area .wa-add-category-btn:hover {
+.wa-category-filters .wa-add-category-btn:hover {
     background: #064e45;
     color: #ffffff;
 }
 
+/* LOADING */
 
 .wa-filter-loading {
-    padding: 5px 14px;
+    padding: 4px 14px;
     font-size: 11px;
     color: #82918d;
+}
+/* STATUS FILTERS */
+
+.wa-status-filters {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+}
+
+/* CATEGORY FILTERS */
+
+.wa-category-filters {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
 }
 
 
@@ -1188,18 +1227,6 @@
     }
 }
 
-/* FILTER AREA */
-
-.wa-filter-area {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    padding: 12px 14px;
-    overflow-x: auto;
-    flex-shrink: 0;
-}
-
 .wa-status-filters,
 .wa-category-filters {
     display: flex;
@@ -1215,10 +1242,6 @@
     display: none;
 }
 
-.wa-filter-area button {
-    flex-shrink: 0;
-    white-space: nowrap;
-}
 
 .wa-add-category-btn {
     width: 32px;
@@ -1242,11 +1265,6 @@
     color: #ffffff !important;
 }
 
-.wa-filter-loading {
-    padding: 4px 14px;
-    font-size: 12px;
-    color: #82918d;
-}
 
 .wa-template-bottom-button {
     display: inline-flex;
