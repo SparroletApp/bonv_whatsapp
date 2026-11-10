@@ -320,7 +320,6 @@ export default function InboxPage() {
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
     const [now, setNow] = useState(0);
-
     const [pendingImage, setPendingImage] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState("");
 
@@ -355,10 +354,6 @@ export default function InboxPage() {
     const bottom = useRef<HTMLDivElement>(null);
     const activePhoneRef = useRef<string | null>(null);
 
-    /* ==========================================
-       LOAD CATEGORIES AND CONTACTS
-    ========================================== */
-
     const loadCategoriesAndContacts = async () => {
         try {
             setLoadingFilters(true);
@@ -382,24 +377,51 @@ export default function InboxPage() {
 
             if (Array.isArray(contactData)) {
                 contactData.forEach((contact) => {
-                    if (
-                        !contact.phone ||
-                        contact.categoryId === null ||
-                        contact.categoryId === undefined
-                    ) {
-                        return;
-                    }
+                    if (!contact.phone) return;
 
-                    const categoryId = Number(contact.categoryId);
+                    // Get category IDs from different possible API response formats.
+                    const rawCategoryIds = [
+                        contact.categoryId,
+                        contact.category?.id,
+                        ...(Array.isArray(contact.categories)
+                            ? contact.categories.map((item: any) =>
+                                typeof item === "object" ? item.id : item
+                            )
+                            : []),
+                        ...(Array.isArray(contact.categoryIds)
+                            ? contact.categoryIds
+                            : []),
+                    ];
+
+                    const categoryIds = [
+                        ...new Set(
+                            rawCategoryIds
+                                .map(Number)
+                                .filter(
+                                    (id) => Number.isFinite(id) && id > 0
+                                )
+                        ),
+                    ];
+
+                    if (categoryIds.length === 0) return;
 
                     getPhoneKeys(contact.phone).forEach((phoneKey) => {
-                        categoryMap[phoneKey] = [categoryId];
+                        if (!categoryMap[phoneKey]) {
+                            categoryMap[phoneKey] = [];
+                        }
+
+                        categoryIds.forEach((categoryId) => {
+                            if (!categoryMap[phoneKey].includes(categoryId)) {
+                                categoryMap[phoneKey].push(categoryId);
+                            }
+                        });
                     });
                 });
             }
 
             setContactCategoryMap(categoryMap);
 
+            console.log("Inbox categories:", categoryData);
             console.log("Inbox contacts:", contactData);
             console.log("Inbox category map:", categoryMap);
 
@@ -412,10 +434,6 @@ export default function InboxPage() {
             setLoadingFilters(false);
         }
     };
-
-    /* ==========================================
-       OPEN EDIT CONTACT
-    ========================================== */
 
     const openEditContact = async () => {
         if (!active) return;
@@ -1094,7 +1112,6 @@ export default function InboxPage() {
             return false;
         }
 
-        // Match the conversation phone number to the contact phone number.
         if (selectedCategoryId !== null) {
             const phoneKeys = getPhoneKeys(conversation.phone);
 
@@ -1102,9 +1119,7 @@ export default function InboxPage() {
                 (key) => contactCategoryMap[key] || []
             );
 
-            if (
-                !contactCategories.includes(Number(selectedCategoryId))
-            ) {
+            if (!contactCategories.includes(selectedCategoryId)) {
                 return false;
             }
         }
@@ -1112,9 +1127,6 @@ export default function InboxPage() {
         return true;
     });
 
-    /* ==========================================
-       SELECT CATEGORY
-    ========================================== */
 
     const selectCategory = (categoryId: number) => {
         setActiveFilter("ALL");
@@ -1189,104 +1201,104 @@ export default function InboxPage() {
                         </div>
                     </div>
 
-                   {/* CATEGORY AND STATUS FILTERS */}
+                    {/* CATEGORY AND STATUS FILTERS */}
 
-<div className="wa-filter-area">
+                    <div className="wa-filter-area">
 
-    <div className="wa-status-filters">
+                        <div className="wa-status-filters">
 
-        <button
-            type="button"
-            className={
-                activeFilter === "ALL" && selectedCategoryId === null
-                    ? "wa-filter-active"
-                    : ""
-            }
-            onClick={() => {
-                setActiveFilter("ALL");
-                setSelectedCategoryId(null);
-            }}
-        >
-            All
-        </button>
+                            <button
+                                type="button"
+                                className={
+                                    activeFilter === "ALL" && selectedCategoryId === null
+                                        ? "wa-filter-active"
+                                        : ""
+                                }
+                                onClick={() => {
+                                    setActiveFilter("ALL");
+                                    setSelectedCategoryId(null);
+                                }}
+                            >
+                                All
+                            </button>
 
-        <button
-            type="button"
-            className={
-                activeFilter === "UNREAD" && selectedCategoryId === null
-                    ? "wa-filter-active"
-                    : ""
-            }
-            onClick={() => {
-                setActiveFilter("UNREAD");
-                setSelectedCategoryId(null);
-            }}
-        >
-            Unread
-        </button>
+                            <button
+                                type="button"
+                                className={
+                                    activeFilter === "UNREAD" && selectedCategoryId === null
+                                        ? "wa-filter-active"
+                                        : ""
+                                }
+                                onClick={() => {
+                                    setActiveFilter("UNREAD");
+                                    setSelectedCategoryId(null);
+                                }}
+                            >
+                                Unread
+                            </button>
 
-        <button
-            type="button"
-            className={
-                activeFilter === "CLOSED" && selectedCategoryId === null
-                    ? "wa-filter-active"
-                    : ""
-            }
-            onClick={() => {
-                setActiveFilter("CLOSED");
-                setSelectedCategoryId(null);
-            }}
-        >
-            Closed
-        </button>
+                            <button
+                                type="button"
+                                className={
+                                    activeFilter === "CLOSED" && selectedCategoryId === null
+                                        ? "wa-filter-active"
+                                        : ""
+                                }
+                                onClick={() => {
+                                    setActiveFilter("CLOSED");
+                                    setSelectedCategoryId(null);
+                                }}
+                            >
+                                Closed
+                            </button>
 
-        <button
-            type="button"
-            className={
-                activeFilter === "PENDING" && selectedCategoryId === null
-                    ? "wa-filter-active"
-                    : ""
-            }
-            onClick={() => {
-                setActiveFilter("PENDING");
-                setSelectedCategoryId(null);
-            }}
-        >
-            Pending
-        </button>
+                            <button
+                                type="button"
+                                className={
+                                    activeFilter === "PENDING" && selectedCategoryId === null
+                                        ? "wa-filter-active"
+                                        : ""
+                                }
+                                onClick={() => {
+                                    setActiveFilter("PENDING");
+                                    setSelectedCategoryId(null);
+                                }}
+                            >
+                                Pending
+                            </button>
 
-    </div>
+                        </div>
 
-    <div className="wa-category-filters">
+                        <div className="wa-category-filters">
 
-        {categories.map((category) => (
-            <button
-                type="button"
-                key={category.id}
-                className={
-                    selectedCategoryId === Number(category.id)
-                        ? "wa-filter-active"
-                        : ""
-                }
-                onClick={() => selectCategory(Number(category.id))}
-                title={category.categoryName}
-            >
-                {category.categoryName}
-            </button>
-        ))}
+                            {categories.map((category) => (
+                                <button
+                                    type="button"
+                                    key={category.id}
+                                    className={
+                                        selectedCategoryId === Number(category.id)
+                                            ? "wa-filter-active"
+                                            : ""
+                                    }
+                                    onClick={() => selectCategory(Number(category.id))}
+                                    title={category.categoryName}
+                                >
+                                    {category.categoryName}
+                                </button>
+                            ))}
 
-        <button
-            type="button"
-            className="wa-add-category-btn"
-            title="Create category"
-            onClick={() => setShowCreateCategory(true)}
-        >
-            <i className="bi bi-plus-lg"></i>
-        </button>
+                            <button
+                                type="button"
+                                className="wa-add-category-btn"
+                                title="Create category"
+                                onClick={() => setShowCreateCategory(true)}
+                            >
+                                <i className="bi bi-plus-lg"></i>
+                            </button>
 
-    </div>
+                        </div>
 
-</div>
+                    </div>
 
                     {loadingFilters && (
                         <div className="wa-filter-loading">
@@ -1302,11 +1314,10 @@ export default function InboxPage() {
                             return (
                                 <div
                                     key={c.phone}
-                                    className={`wa-conversation ${
-                                        active?.phone === c.phone
-                                            ? "wa-conversation-active"
-                                            : ""
-                                    }`}
+                                    className={`wa-conversation ${active?.phone === c.phone
+                                        ? "wa-conversation-active"
+                                        : ""
+                                        }`}
                                     onClick={() => open(c)}
                                 >
                                     <div className="wa-contact-avatar">
@@ -1341,11 +1352,10 @@ export default function InboxPage() {
                                             +{c.phone}
 
                                             <span
-                                                className={`wa-window-tag ${
-                                                    rem > 0
-                                                        ? "wa-window-tag-open"
-                                                        : "wa-window-tag-closed"
-                                                }`}
+                                                className={`wa-window-tag ${rem > 0
+                                                    ? "wa-window-tag-open"
+                                                    : "wa-window-tag-closed"
+                                                    }`}
                                             >
                                                 <i className="bi bi-clock"></i>
 
@@ -1451,19 +1461,17 @@ export default function InboxPage() {
                                     return (
                                         <div
                                             key={m.id}
-                                            className={`wa-message-row ${
-                                                m.direction === "OUTBOUND"
-                                                    ? "wa-message-outgoing"
-                                                    : "wa-message-incoming"
-                                            }`}
+                                            className={`wa-message-row ${m.direction === "OUTBOUND"
+                                                ? "wa-message-outgoing"
+                                                : "wa-message-incoming"
+                                                }`}
                                         >
 
                                             <div
-                                                className={`wa-message-bubble ${
-                                                    isTemplate
-                                                        ? "wa-template-message-bubble"
-                                                        : ""
-                                                }`}
+                                                className={`wa-message-bubble ${isTemplate
+                                                    ? "wa-template-message-bubble"
+                                                    : ""
+                                                    }`}
                                             >
 
                                                 {hasTemplateImage && (
@@ -1496,13 +1504,12 @@ export default function InboxPage() {
 
                                                     {m.direction === "OUTBOUND" && (
                                                         <span
-                                                            className={`wa-message-tick ${
-                                                                m.status === "READ"
-                                                                    ? "wa-tick-read"
-                                                                    : m.status === "FAILED"
-                                                                        ? "wa-tick-failed"
-                                                                        : ""
-                                                            }`}
+                                                            className={`wa-message-tick ${m.status === "READ"
+                                                                ? "wa-tick-read"
+                                                                : m.status === "FAILED"
+                                                                    ? "wa-tick-failed"
+                                                                    : ""
+                                                                }`}
                                                         >
                                                             {tick(m)}
                                                         </span>
