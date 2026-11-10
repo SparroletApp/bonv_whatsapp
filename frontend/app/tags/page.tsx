@@ -17,7 +17,7 @@ function Category() {
     const [categories, setCategories] = useState<CategoryResponseDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-const router = useRouter();
+    const router = useRouter();
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(20);
 
@@ -213,7 +213,8 @@ const router = useRouter();
                                             {startIndex + index + 1}
                                         </td> */}
                                         <td className="category-id-real">
-                                            [{category.id}]
+                                            {category.id}
+
                                         </td>
                                         <td>
                                             <div className="category-name-cell">
