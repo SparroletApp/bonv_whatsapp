@@ -182,206 +182,91 @@
 }
 
 
-.wa-status-filters {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
 
-    width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
-
-    flex-wrap: nowrap;
-    white-space: nowrap;
-    flex-shrink: 0;
-
-    scrollbar-width: none;
+.wa-filter-loading {
+    padding: 4px 14px;
+    font-size: 11px;
+    color: #82918d;
 }
 
-.wa-status-filters::-webkit-scrollbar {
-    display: none;
+.wa-conversation-list {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
-
-/* CATEGORY FILTERS */
-
-.wa-category-filters {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-
-    width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
-
-    flex-wrap: nowrap;
-    white-space: nowrap;
-    flex-shrink: 0;
-
-    padding-bottom: 5px;
-
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5d1 transparent;
-}
-
-.wa-category-filters::-webkit-scrollbar {
-    height: 4px;
-}
-
-.wa-category-filters::-webkit-scrollbar-thumb {
-    background: #cbd5d1;
-    border-radius: 10px;
-}
-
-.wa-category-filters::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-/* One line, horizontal scroll, never wraps */
-.wa-status-filters,
-.wa-category-filters {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 8px;
-
-    width: 100%;
-    min-width: 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-    white-space: nowrap;
-
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5d1 transparent;
-}
-
-.wa-status-filters {
-    scrollbar-width: none;
-}
-
-.wa-status-filters::-webkit-scrollbar {
-    display: none;
-}
-
-.wa-category-filters {
-    padding-bottom: 6px;
-}
-
-.wa-category-filters::-webkit-scrollbar {
-    height: 4px;
-}
-
-.wa-category-filters::-webkit-scrollbar-thumb {
-    background: #cbd5d1;
-    border-radius: 10px;
-}
-
-.wa-category-filters::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.wa-category-filters .wa-add-category-btn {
-    position: sticky;
-    right: 0;
-    flex: 0 0 32px;
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    padding: 0;
-    border: 1px dashed #064e45;
-    border-radius: 50%;
-    background: #e8f3f0;
-    color: #064e45;
-    font-size: 14px;
-    z-index: 1;
-}
-
-.wa-category-filters .wa-add-category-btn:hover {
-    background: #064e45;
-    color: #fff;
-}
-
 
 /* =========================================
-   STATUS + CATEGORY FILTERS - SINGLE ROW
+   WHATSAPP FILTERS - ONE ROW WITH OVERFLOW
 ========================================= */
 
 .wa-filter-area {
     width: 100%;
     min-width: 0;
-    padding: 12px 14px;
-
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 8px;
 
-    overflow: hidden;
+    padding: 12px 14px;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    white-space: nowrap;
     flex-shrink: 0;
 
-    border-bottom: 1px solid #e9edef;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5d1 transparent;
+}
+
+.wa-filter-area::-webkit-scrollbar {
+    height: 4px;
+}
+
+.wa-filter-area::-webkit-scrollbar-thumb {
+    background: #cbd5d1;
+    border-radius: 10px;
 }
 
 /* STATUS FILTERS */
 
 .wa-status-filters {
     display: flex;
-    align-items: center;
     flex-direction: row;
+    align-items: center;
     flex-wrap: nowrap;
     gap: 7px;
 
     flex: 0 0 auto;
-    min-width: 0;
-    max-width: 48%;
+    width: max-content;
 
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: visible;
     white-space: nowrap;
-
-    scrollbar-width: none;
-}
-
-.wa-status-filters::-webkit-scrollbar {
-    display: none;
 }
 
 /* CATEGORY FILTERS */
 
 .wa-category-filters {
     display: flex;
-    align-items: center;
     flex-direction: row;
+    align-items: center;
     flex-wrap: nowrap;
     gap: 7px;
 
-    flex: 1 1 0;
-    min-width: 0;
+    flex: 0 0 auto;
+    width: max-content;
 
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: visible;
     white-space: nowrap;
-
-    padding-bottom: 4px;
-
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
 }
 
-.wa-category-filters::-webkit-scrollbar {
-    display: none;
-}
-
-/* ALL FILTER CHIPS */
+/* FILTER BUTTONS */
 
 .wa-filter-area button {
     flex: 0 0 auto;
 
     height: 32px;
-    padding: 0 12px;
+    padding: 0 13px;
 
     display: inline-flex;
     align-items: center;
@@ -413,19 +298,18 @@
     color: #fff;
 }
 
-/* PLUS BUTTON - ALWAYS VISIBLE */
+/* PLUS BUTTON */
 
 .wa-filter-area .wa-add-category-btn {
-    position: relative;
-
     flex: 0 0 32px;
+
     width: 32px;
     min-width: 32px;
     height: 32px;
 
     padding: 0;
 
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
 
@@ -436,7 +320,6 @@
     color: #064e45;
 
     font-size: 14px;
-    z-index: 2;
 }
 
 .wa-filter-area .wa-add-category-btn:hover {
@@ -444,90 +327,6 @@
     color: #fff;
 }
 
-/* SMALL SCREENS */
-
-@media (max-width: 600px) {
-    .wa-filter-area {
-        gap: 6px;
-        padding: 10px 8px;
-    }
-
-    .wa-status-filters {
-        max-width: 48%;
-        gap: 5px;
-    }
-
-    .wa-category-filters {
-        gap: 5px;
-    }
-
-    .wa-filter-area button {
-        height: 29px;
-        padding: 0 9px;
-        font-size: 10px;
-    }
-
-    .wa-filter-area .wa-add-category-btn {
-        flex-basis: 29px;
-        width: 29px;
-        min-width: 29px;
-        height: 29px;
-        padding: 0;
-    }
-}
-
-.wa-filter-loading {
-    padding: 4px 14px;
-    font-size: 11px;
-    color: #82918d;
-}
-
-.wa-category-filters .wa-add-category-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-
-    padding: 0;
-
-    border: 1px dashed #064e45;
-    border-radius: 50%;
-
-    background: #e8f3f0;
-    color: #064e45;
-
-    font-size: 14px;
-}
-
-.wa-category-filters .wa-add-category-btn:hover {
-    background: #064e45;
-    color: #ffffff;
-}
-
-
-.wa-status-filters {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 7px;
-    flex-shrink: 0;
-}
-
-
-.wa-category-filters {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 7px;
-    flex-shrink: 0;
-}
-
-
-
-.wa-conversation-list {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-}
 
 .wa-conversation-list::-webkit-scrollbar,
 .wa-chat-messages::-webkit-scrollbar {
@@ -1369,75 +1168,6 @@
     opacity: 0.55;
     cursor: not-allowed;
 }
-
-/* MOBILE */
-@media (max-width: 600px) {
-    .wa-template-overlay {
-        padding: 10px;
-    }
-
-    .wa-template-modal {
-        max-height: 94vh;
-    }
-
-    .wa-template-modal-header,
-    .wa-template-modal-body,
-    .wa-template-modal-footer {
-        padding: 15px;
-    }
-
-    .wa-template-header-btn {
-        padding: 8px 9px;
-        font-size: 11px;
-    }
-
-    .wa-template-header-btn span {
-        display: inline;
-    }
-
-    .wa-template-recipient {
-        flex-wrap: wrap;
-    }
-}
-
-.wa-status-filters,
-.wa-category-filters {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-}
-
-.wa-status-filters::-webkit-scrollbar,
-.wa-category-filters::-webkit-scrollbar {
-    display: none;
-}
-
-
-.wa-add-category-btn {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    padding: 0 !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px dashed #064e45 !important;
-    border-radius: 50% !important;
-    background: #e8f3f0 !important;
-    color: #064e45 !important;
-    font-size: 16px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.wa-add-category-btn:hover {
-    background: #064e45 !important;
-    color: #ffffff !important;
-}
-
 
 .wa-template-bottom-button {
     display: inline-flex;
