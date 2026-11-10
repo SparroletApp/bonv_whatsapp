@@ -383,238 +383,279 @@ export default function CampaignCreatePage() {
 
                 <div className="cc-main">
 
-                    
-<section className="cc-card">
+                    <section className="cc-card">
 
-    <div className="cc-card-header">
-        <div className="cc-section-icon">
-            <i className="bi bi-people" />
-        </div>
+                        <div className="cc-card-header">
+                            <div className="cc-section-icon">
+                                <i className="bi bi-pencil-square" />
+                            </div>
 
-        <div>
-            <h2>Choose your audience</h2>
-            <p>Select the contact groups you want to reach.</p>
-        </div>
+                            <div>
+                                <h2>Campaign information</h2>
+                                <p>
+                                    Give your campaign a recognizable name.
+                                </p>
+                            </div>
 
-        <span className="cc-step">STEP 02</span>
-    </div>
-
-    {/* Audience summary */}
-    <div className="cc-audience-summary">
-        <div className="cc-audience-summary-icon">
-            <i className="bi bi-person-check" />
-        </div>
-
-        <div>
-            <strong>
-                {totalContacts.toLocaleString("en-IN")}
-            </strong>
-            <span>Contacts selected</span>
-        </div>
-
-        <div className="cc-audience-summary-divider" />
-
-        <div>
-            <strong>{selected.length}</strong>
-            <span>Categories selected</span>
-        </div>
-    </div>
-
-    {/* Searchable multi-select */}
-    <div className="cc-category-dropdown">
-
-        <label className="cc-dropdown-label">
-            Select contact categories
-        </label>
-
-        <div
-            className={`cc-category-input ${categoryDropdownOpen ? "open" : ""}`}
-            onClick={() => setCategoryDropdownOpen(true)}
-        >
-            <i className="bi bi-search cc-input-search-icon" />
-
-            <input
-                type="text"
-                placeholder="Search or select categories..."
-                value={categorySearch}
-                onFocus={() => setCategoryDropdownOpen(true)}
-                onChange={(e) => {
-                    setCategorySearch(e.target.value);
-                    setCategoryDropdownOpen(true);
-                }}
-                onKeyDown={(e) => {
-                    if (e.key === "Escape") {
-                        setCategoryDropdownOpen(false);
-                    }
-                }}
-            />
-
-            {categorySearch && (
-                <button
-                    type="button"
-                    className="cc-input-clear"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setCategorySearch("");
-                        setCategoryDropdownOpen(true);
-                    }}
-                >
-                    <i className="bi bi-x-circle" />
-                </button>
-            )}
-
-            <button
-                type="button"
-                className="cc-dropdown-toggle"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    setCategoryDropdownOpen(prev => !prev);
-                }}
-            >
-                <i className={`bi ${
-                    categoryDropdownOpen
-                        ? "bi-chevron-up"
-                        : "bi-chevron-down"
-                }`} />
-            </button>
-        </div>
-
-        {/* Selected category chips */}
-        {selectedCategories.length > 0 && (
-            <div className="cc-selected-chips">
-                {selectedCategories.map(category => (
-                    <span
-                        key={category.id}
-                        className="cc-category-chip"
-                    >
-                        {category.name}
-
-                        <button
-                            type="button"
-                            onClick={() => toggleCategory(category.id)}
-                            aria-label={`Remove ${category.name}`}
-                        >
-                            <i className="bi bi-x-lg" />
-                        </button>
-                    </span>
-                ))}
-
-                <button
-                    type="button"
-                    className="cc-clear-selection"
-                    onClick={() => setSelected([])}
-                >
-                    Clear all
-                </button>
-            </div>
-        )}
-
-        {/* Dropdown list */}
-        {categoryDropdownOpen && (
-            <div className="cc-category-dropdown-menu">
-
-                <div className="cc-category-dropdown-toolbar">
-                    <span>
-                        {filteredCategories.length} categories available
-                    </span>
-
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setSelected(current => [
-                                ...new Set([
-                                    ...current,
-                                    ...filteredCategories.map(c => c.id)
-                                ])
-                            ]);
-                        }}
-                    >
-                        Select all
-                    </button>
-                </div>
-
-                <div className="cc-category-dropdown-list">
-
-                    {filteredCategories.length > 0 ? (
-                        filteredCategories.map(category => {
-                            const isSelected = selected.includes(category.id);
-
-                            return (
-                                <label
-                                    key={category.id}
-                                    className={`cc-category-option ${
-                                        isSelected ? "selected" : ""
-                                    }`}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        onChange={() =>
-                                            toggleCategory(category.id)
-                                        }
-                                    />
-
-                                    <span className="cc-custom-checkbox">
-                                        <i className="bi bi-check-lg" />
-                                    </span>
-
-                                    <span className="cc-option-icon">
-                                        <i className="bi bi-people-fill" />
-                                    </span>
-
-                                    <span className="cc-option-details">
-                                        <strong>{category.name}</strong>
-                                        <small>
-                                            {category.contactCount.toLocaleString("en-IN")} contacts
-                                        </small>
-                                    </span>
-
-                                    <span className="cc-option-count">
-                                        {category.contactCount.toLocaleString("en-IN")}
-                                    </span>
-                                </label>
-                            );
-                        })
-                    ) : (
-                        <div className="cc-category-no-results">
-                            <i className="bi bi-search" />
-                            <strong>No categories found</strong>
-                            <span>Try another category name.</span>
+                            <span className="cc-step">STEP 01</span>
                         </div>
-                    )}
 
-                </div>
+                        <div className="cc-field">
+                            <label htmlFor="campaignName">
+                                Campaign name <span>*</span>
+                            </label>
 
-                <div className="cc-category-dropdown-footer">
-                    <span>
-                        {selected.length} categories selected
-                    </span>
+                            <input
+                                id="campaignName"
+                                type="text"
+                                value={name}
+                                onChange={(e) =>
+                                    setName(e.target.value)
+                                }
+                                placeholder="e.g. Diwali Special Offers - November 2026"
+                                maxLength={100}
+                            />
 
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setCategoryDropdownOpen(false);
-                            setCategorySearch("");
-                        }}
-                    >
-                        Done
-                    </button>
-                </div>
+                            <div className="cc-field-bottom">
+                                <span>
+                                    <i className="bi bi-info-circle" />
+                                    Choose a name that helps you identify
+                                    this campaign.
+                                </span>
 
-            </div>
-        )}
-    </div>
+                                <small>
+                                    {name.length}/100
+                                </small>
+                            </div>
+                        </div>
+                    </section>
 
-    <div className="cc-selected-footer">
-        <i className="bi bi-shield-check" />
-        Your campaign will target contacts from the selected categories.
-    </div>
+                    <section className="cc-card">
 
-</section>
+                        <div className="cc-card-header">
+                            <div className="cc-section-icon">
+                                <i className="bi bi-people" />
+                            </div>
 
+                            <div>
+                                <h2>Choose your audience</h2>
+                                <p>Select the contact groups you want to reach.</p>
+                            </div>
 
+                            <span className="cc-step">STEP 02</span>
+                        </div>
 
-                    
+                        <div className="cc-audience-summary">
+                            <div className="cc-audience-summary-icon">
+                                <i className="bi bi-person-check" />
+                            </div>
+
+                            <div>
+                                <strong>{totalContacts.toLocaleString("en-IN")}</strong>
+                                <span>Contacts selected</span>
+                            </div>
+
+                            <div className="cc-audience-summary-divider" />
+
+                            <div>
+                                <strong>{selected.length}</strong>
+                                <span>Categories</span>
+                            </div>
+                        </div>
+
+                        <div className="cc-category-dropdown">
+
+                            <button
+                                type="button"
+                                className={`cc-category-trigger ${categoryDropdownOpen ? "open" : ""
+                                    }`}
+                                onClick={() =>
+                                    setCategoryDropdownOpen((prev) => !prev)
+                                }
+                            >
+                                <div className="cc-trigger-left">
+                                    <i className="bi bi-folder2-open" />
+
+                                    <div>
+                                        <strong>
+                                            {selected.length > 0
+                                                ? `${selected.length} categories selected`
+                                                : "Select contact categories"}
+                                        </strong>
+
+                                        <small>
+                                            {selected.length > 0
+                                                ? `${totalContacts.toLocaleString("en-IN")} contacts in your audience`
+                                                : "Click to choose your audience"}
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <i className={`bi ${categoryDropdownOpen
+                                        ? "bi-chevron-up"
+                                        : "bi-chevron-down"
+                                    }`} />
+                            </button>
+
+                            {selectedCategories.length > 0 && (
+                                <div className="cc-selected-chips">
+                                    {selectedCategories.map((category) => (
+                                        <span key={category.id} className="cc-category-chip">
+                                            {category.name}
+
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleCategory(category.id);
+                                                }}
+                                                aria-label={`Remove ${category.name}`}
+                                            >
+                                                <i className="bi bi-x" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+
+                            {categoryDropdownOpen && (
+                                <div className="cc-category-dropdown-menu">
+
+                                    <div className="cc-category-search">
+                                        <i className="bi bi-search" />
+
+                                        <input
+                                            type="text"
+                                            placeholder="Search categories..."
+                                            value={categorySearch}
+                                            onChange={(e) =>
+                                                setCategorySearch(e.target.value)
+                                            }
+                                        />
+
+                                        {categorySearch && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setCategorySearch("")}
+                                            >
+                                                <i className="bi bi-x-circle" />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="cc-category-dropdown-toolbar">
+                                        <span>
+                                            {filteredCategories.length} categories
+                                        </span>
+
+                                        <div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelected((current) => [
+                                                        ...new Set([
+                                                            ...current,
+                                                            ...filteredCategories.map(
+                                                                (c) => c.id
+                                                            ),
+                                                        ]),
+                                                    ]);
+                                                }}
+                                            >
+                                                Select all
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelected([]);
+                                                }}
+                                            >
+                                                Clear all
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="cc-category-dropdown-list">
+
+                                        {filteredCategories.length > 0 ? (
+                                            filteredCategories.map((category) => {
+                                                const isSelected = selected.includes(
+                                                    category.id
+                                                );
+
+                                                return (
+                                                    <label
+                                                        key={category.id}
+                                                        className={`cc-category-option ${isSelected ? "selected" : ""
+                                                            }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={() =>
+                                                                toggleCategory(category.id)
+                                                            }
+                                                        />
+
+                                                        <span className="cc-custom-checkbox">
+                                                            <i className="bi bi-check-lg" />
+                                                        </span>
+
+                                                        <span className="cc-option-icon">
+                                                            <i className="bi bi-people-fill" />
+                                                        </span>
+
+                                                        <span className="cc-option-details">
+                                                            <strong>{category.name}</strong>
+                                                            <small>
+                                                                {category.contactCount.toLocaleString("en-IN")} contacts
+                                                            </small>
+                                                        </span>
+
+                                                        <span className="cc-option-count">
+                                                            {category.contactCount.toLocaleString("en-IN")}
+                                                        </span>
+                                                    </label>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="cc-category-no-results">
+                                                <i className="bi bi-search" />
+                                                <strong>No categories found</strong>
+                                                <span>Try another category name.</span>
+                                            </div>
+                                        )}
+
+                                    </div>
+
+                                    <div className="cc-category-dropdown-footer">
+                                        <span>
+                                            {selected.length} selected
+                                        </span>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setCategoryDropdownOpen(false);
+                                                setCategorySearch("");
+                                            }}
+                                        >
+                                            Done
+                                        </button>
+                                    </div>
+
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="cc-selected-footer">
+                            <i className="bi bi-shield-check" />
+                            Your campaign will target contacts from the selected categories.
+                        </div>
+
+                    </section>
+
 
                     <section className="cc-card">
 
