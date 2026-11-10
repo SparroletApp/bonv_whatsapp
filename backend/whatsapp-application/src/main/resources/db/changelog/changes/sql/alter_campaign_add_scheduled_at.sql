@@ -1,1 +1,1 @@
-ALTER TABLE campaigns ADD COLUMN scheduled_at DATETIME NULL;
+ALTER TABLE campaigns ADD COLUMN scheduled_at TIMESTAMP NULL
