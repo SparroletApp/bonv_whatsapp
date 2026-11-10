@@ -26,12 +26,6 @@ public class CampaignController {
     private final CampaignSender sender;
     private final MediaStorageService mediaStorage;
 
-    @PostMapping
-    public ResponseEntity<CampaignResponse> create(@Valid @RequestBody CampaignCreateRequest req) {
-        CampaignResponse created = service.create(req);   // committed when this returns
-        startSending(created.id());
-        return ResponseEntity.ok(created);
-    }
 
     /** Uploads the header image/video/document and returns its public HTTPS URL. */
     @PostMapping(value = "/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -55,6 +49,17 @@ public class CampaignController {
         return service.messages(id);
     }
 
+    @PostMapping
+    public ResponseEntity<CampaignResponse> create(@Valid @RequestBody CampaignCreateRequest req) {
+        CampaignResponse created = service.create(req);   // committed when this returns
+
+        // Scheduled campaigns are started later by CampaignScheduler
+        if (!"SCHEDULED".equals(created.status())) {
+            startSending(created.id());
+        }
+
+        return ResponseEntity.ok(created);
+    }
     /** Restart sending for a campaign whose messages are still PENDING/PROCESSING (e.g. after a redeploy). */
     @PostMapping("/{id}/resume")
     public ResponseEntity<CampaignResponse> resume(@PathVariable("id") Long id) {
@@ -64,6 +69,11 @@ public class CampaignController {
         }
         startSending(id);
         return ResponseEntity.ok(c);
+    }
+
+    @PostMapping("/{id}/cancel")
+    public CampaignResponse cancel(@PathVariable("id") Long id) {
+        return service.cancel(id);
     }
 
     private void startSending(Long campaignId) {

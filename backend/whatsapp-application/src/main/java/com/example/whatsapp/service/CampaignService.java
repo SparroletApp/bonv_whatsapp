@@ -191,7 +191,9 @@ public class CampaignService {
             message.setCampaignId(campaign.getId());
 
             message.setDirection("OUTBOUND");
-            message.setStatus("PENDING");
+            // Scheduled messages stay out of PENDING so nothing can send them early.
+            // CampaignScheduler releases them (SCHEDULED -> PENDING) at the scheduled time.
+            message.setStatus(scheduledAt == null ? "PENDING" : "SCHEDULED");
 
             messages.add(message);
         }
@@ -203,7 +205,7 @@ public class CampaignService {
 
     /**
      * Cancels a campaign that has not started yet.
-     * Its PENDING messages are marked CANCELLED so they can never be sent.
+     * Its SCHEDULED/PENDING messages are marked CANCELLED so they can never be sent.
      */
     @Transactional
     public CampaignResponse cancel(Long id) {
@@ -342,7 +344,8 @@ public class CampaignService {
 
         long pending =
                 counts.getOrDefault("PENDING", 0L)
-                        + counts.getOrDefault("PROCESSING", 0L);
+                        + counts.getOrDefault("PROCESSING", 0L)
+                        + counts.getOrDefault("SCHEDULED", 0L);
 
         long read = counts.getOrDefault("READ", 0L);
 
