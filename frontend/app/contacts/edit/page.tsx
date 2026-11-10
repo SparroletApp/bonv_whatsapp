@@ -205,61 +205,66 @@ function EditContact({
     };
 
     const handleSubmit = async (
-        event: React.FormEvent<HTMLFormElement>
-    ) => {
-        event.preventDefault();
+    event: React.FormEvent<HTMLFormElement>
+) => {
+    event.preventDefault();
 
-        if (!contactId) {
-            showToast("error", "Contact ID is missing.");
-            return;
-        }
+    if (!contactId) {
+        showToast("error", "Contact ID is missing.");
+        return;
+    }
 
-        if (!formData.name.trim()) {
-            showToast("warning", "Please enter contact name.");
-            return;
-        }
+    if (!formData.name.trim()) {
+        showToast("warning", "Please enter contact name.");
+        return;
+    }
 
-        if (!formData.phone.trim()) {
-            showToast("warning", "Please enter phone number.");
-            return;
-        }
+    if (!formData.phone.trim()) {
+        showToast("warning", "Please enter phone number.");
+        return;
+    }
 
-        if (formData.categoryIds.length === 0) {
-            showToast("warning", "Please select at least one category.");
-            return;
-        }
+    if (formData.categoryIds.length === 0) {
+        showToast("warning", "Please select at least one category.");
+        return;
+    }
 
-        try {
-            setSaving(true);
+    try {
+        setSaving(true);
 
-            await contactService.updateContact({
-                id: contactId,
-                name: formData.name.trim(),
-                phone: formData.phone.trim(),
-                email: formData.email.trim(),
-                categoryIds: formData.categoryIds,
-            });
+        await contactService.updateContact({
+            id: contactId,
+            name: formData.name.trim(),
+            phone: formData.phone.trim(),
+            email: formData.email.trim(),
+            categoryIds: formData.categoryIds,
+        });
 
-            // Show success toast
-            showToast("success", "Contact updated successfully!");
+        // Stop button loading immediately
+        setSaving(false);
 
-            // Close drawer immediately
-            onClose();
+        // Close drawer immediately
+        onClose();
 
-            // Refresh contacts in the background
-            await onUpdated();
+        // Display success toast
+        showToast("success", "Contact updated successfully!");
 
-        } catch (error: unknown) {
-            console.error("Contact update error:", error);
+        // Refresh contacts in the background without waiting
+        onUpdated().catch((error) => {
+            console.error("Contact refresh error:", error);
+        });
 
-            showToast(
-                "error",
-                errorService.getErrorMessage(error)
-            );
-        } finally {
-            setSaving(false);
-        }
-    };
+    } catch (error: unknown) {
+        console.error("Contact update error:", error);
+
+        setSaving(false);
+
+        showToast(
+            "error",
+            errorService.getErrorMessage(error)
+        );
+    }
+};
 
 
     if (loading) {
