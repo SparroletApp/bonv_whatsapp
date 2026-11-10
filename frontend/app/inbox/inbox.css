@@ -1115,6 +1115,59 @@
     margin-left: 2px;
 }
 
+/* Horizontal scrolling filter bar */
+
+.wa-filter-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5d1 transparent;
+    flex-shrink: 0;
+}
+
+.wa-filter-area::-webkit-scrollbar {
+    height: 4px;
+}
+
+.wa-filter-area::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.wa-filter-area::-webkit-scrollbar-thumb {
+    background: #cbd5d1;
+    border-radius: 10px;
+}
+
+.wa-filter-area button {
+    flex-shrink: 0;
+    border: 1px solid #e1e9e6;
+    background: #ffffff;
+    color: #53635e;
+    padding: 7px 15px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.wa-filter-area button:hover {
+    background: #e8f3f0;
+    border-color: #064e45;
+    color: #064e45;
+}
+
+.wa-filter-area button.wa-filter-active {
+    background: #064e45;
+    color: #ffffff;
+    border-color: #064e45;
+}
+
 .wa-template-bottom-button:hover {
     background: #e8f3f0;
     border-color: #c7ded7;

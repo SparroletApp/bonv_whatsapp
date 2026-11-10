@@ -23,6 +23,7 @@ import templateService, {
 import "./inbox.css";
 import contactService from "../apiservice/contactservice";
 import EditContact from "../contacts/edit/page";
+import categoryService, { CategoryResponseDto } from "../apiservice/categoryservice";
 
 /* ==========================================
    HELPERS
@@ -261,7 +262,18 @@ export default function InboxPage() {
     const [convs, setConvs] = useState<Conversation[]>([]);
     const [active, setActive] = useState<Conversation | null>(null);
     const [msgs, setMsgs] = useState<InboxMessage[]>([]);
+    const [categories, setCategories] = useState<CategoryResponseDto[]>([]);
+    const [contactCategoryMap, setContactCategoryMap] =
+        useState<Record<string, number[]>>({});
 
+    const [activeFilter, setActiveFilter] = useState<
+        "ALL" | "UNREAD" | "CLOSED" | "PENDING"
+    >("ALL");
+
+    const [selectedCategoryId, setSelectedCategoryId] =
+        useState<number | null>(null);
+
+    const [loadingFilters, setLoadingFilters] = useState(false);
     const [text, setText] = useState("");
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
@@ -275,9 +287,47 @@ export default function InboxPage() {
 
     const [showEditContact, setShowEditContact] = useState(false);
     const [editingContactId, setEditingContactId] = useState<number | null>(null);
-
+    const [showCreateCategory, setShowCreateCategory] = useState(false);
     const [showTemplateModal, setShowTemplateModal] = useState(false);
+    const loadCategoriesAndContacts = async () => {
+        try {
+            setLoadingFilters(true);
 
+            const [categoryResponse, contactResponse] = await Promise.all([
+                categoryService.getAllCategories(),
+                contactService.getAllContacts(),
+            ]);
+
+            const categoryData =
+                unwrapResponse<CategoryResponseDto[]>(categoryResponse);
+
+            const contactData =
+                unwrapResponse<any[]>(contactResponse);
+
+            setCategories(
+                Array.isArray(categoryData) ? categoryData : []
+            );
+
+            const categoryMap: Record<string, number[]> = {};
+
+            if (Array.isArray(contactData)) {
+                contactData.forEach((contact) => {
+                    if (contact.phone) {
+                        categoryMap[String(contact.phone)] =
+                            Array.isArray(contact.categoryIds)
+                                ? contact.categoryIds
+                                : [];
+                    }
+                });
+            }
+
+            setContactCategoryMap(categoryMap);
+        } catch (error) {
+            console.error("Unable to load Inbox categories:", error);
+        } finally {
+            setLoadingFilters(false);
+        }
+    };
     const [approvedTemplates, setApprovedTemplates] =
         useState<TemplateResponse[]>([]);
 
@@ -365,12 +415,14 @@ export default function InboxPage() {
 
     useEffect(() => {
         loadConvs();
+        loadCategoriesAndContacts();
 
-        const interval = setInterval(loadConvs, 5000);
+        const interval = setInterval(() => {
+            loadConvs();
+        }, 5000);
 
         return () => clearInterval(interval);
     }, []);
-
     useEffect(() => {
         if (!active?.phone) return;
 
@@ -934,15 +986,43 @@ export default function InboxPage() {
         return statusMap[m.status] || "…";
     };
 
-    /* ==========================================
-       FILTER CONVERSATIONS
-    ========================================== */
+    const filteredConvs = convs.filter((conversation) => {
+        const matchesSearch =
+            conversation.name?.toLowerCase().includes(search.toLowerCase()) ||
+            conversation.phone?.toLowerCase().includes(search.toLowerCase());
 
-    const filteredConvs = convs.filter(
-        (c) =>
-            c.name?.toLowerCase().includes(search.toLowerCase()) ||
-            c.phone?.toLowerCase().includes(search.toLowerCase())
-    );
+        if (!matchesSearch) return false;
+
+        // Main filters
+        if (activeFilter === "UNREAD" && conversation.unreadCount <= 0) {
+            return false;
+        }
+
+        if (
+            activeFilter === "CLOSED" &&
+            remainingFor(conversation, now) > 0
+        ) {
+            return false;
+        }
+
+        if (
+            activeFilter === "PENDING" &&
+            conversation.lastDirection !== "INBOUND"
+        ) {
+            return false;
+        }
+
+        if (selectedCategoryId !== null) {
+            const contactCategories =
+                contactCategoryMap[String(conversation.phone)] || [];
+
+            if (!contactCategories.includes(selectedCategoryId)) {
+                return false;
+            }
+        }
+
+        return true;
+    });
 
     return (
         <>
@@ -994,9 +1074,85 @@ export default function InboxPage() {
                     </div>
 
                     <div className="wa-filter-area">
-                        <span className="wa-filter-active">All</span>
-                        <span>Unread</span>
-                        <span>Favorites</span>
+
+                        <button
+                            type="button"
+                            className={
+                                activeFilter === "ALL" && selectedCategoryId === null
+                                    ? "wa-filter-active"
+                                    : ""
+                            }
+                            onClick={() => {
+                                setActiveFilter("ALL");
+                                setSelectedCategoryId(null);
+                            }}
+                        >
+                            All
+                        </button>
+
+                        <button
+                            type="button"
+                            className={
+                                activeFilter === "UNREAD" && selectedCategoryId === null
+                                    ? "wa-filter-active"
+                                    : ""
+                            }
+                            onClick={() => {
+                                setActiveFilter("UNREAD");
+                                setSelectedCategoryId(null);
+                            }}
+                        >
+                            Unread
+                        </button>
+
+                        <button
+                            type="button"
+                            className={
+                                activeFilter === "CLOSED" && selectedCategoryId === null
+                                    ? "wa-filter-active"
+                                    : ""
+                            }
+                            onClick={() => {
+                                setActiveFilter("CLOSED");
+                                setSelectedCategoryId(null);
+                            }}
+                        >
+                            Closed
+                        </button>
+
+                        <button
+                            type="button"
+                            className={
+                                activeFilter === "PENDING" && selectedCategoryId === null
+                                    ? "wa-filter-active"
+                                    : ""
+                            }
+                            onClick={() => {
+                                setActiveFilter("PENDING");
+                                setSelectedCategoryId(null);
+                            }}
+                        >
+                            Pending
+                        </button>
+
+                        {categories.map((category) => (
+                            <button
+                                type="button"
+                                key={category.id}
+                                className={
+                                    selectedCategoryId === category.id
+                                        ? "wa-filter-active"
+                                        : ""
+                                }
+                                onClick={() => {
+                                    setActiveFilter("ALL");
+                                    setSelectedCategoryId(category.id);
+                                }}
+                            >
+                                {category.categoryName}
+                            </button>
+                        ))}
+
                     </div>
 
                     <div className="wa-conversation-list">
@@ -1699,7 +1855,10 @@ export default function InboxPage() {
                         setEditingContactId(null);
                     }}
                     onUpdated={async () => {
-                        await loadConvs();
+                        await Promise.all([
+                            loadConvs(),
+                            loadCategoriesAndContacts(),
+                        ]);
                     }}
                 />
             )}
