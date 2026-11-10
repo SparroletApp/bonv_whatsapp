@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "contacts")
 @Getter
@@ -19,13 +22,15 @@ public class ContactEntity extends BaseEntity {
     @Column(length = 150)
     private String email;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "category_id",
-            nullable = false,
-            foreignKey = @ForeignKey(name = "fk_contact_category")
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "contact_categories",
+            joinColumns = @JoinColumn(name = "contact_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id"),
+            foreignKey = @ForeignKey(name = "fk_contact_category"),
+            inverseForeignKey = @ForeignKey(name = "fk_category_contact")
     )
-    private CategoryEntity category;
+    private List<CategoryEntity> categories = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(

@@ -1101,18 +1101,18 @@ export default function InboxPage() {
                             </div>
 
                             <div className="wa-chat-header-actions">
-                                <button
+                                {/* <button
                                     type="button"
                                     title="Search messages"
                                 >
                                     <i className="bi bi-search"></i>
-                                </button>
+                                </button> */}
 
                                 <button
                                     type="button"
                                     title="More options"
                                 >
-                                    <i className="bi bi-three-dots-vertical"></i>
+                                    <i className="bi bi-pencil"></i>
                                 </button>
                             </div>
 
@@ -1295,13 +1295,7 @@ export default function InboxPage() {
                                 <>
                                     <div className="wa-composer-actions">
 
-                                        <button
-                                            type="button"
-                                            title="Emoji"
-                                            className="wa-composer-icon"
-                                        >
-                                            <i className="bi bi-emoji-smile"></i>
-                                        </button>
+                                
 
                                         <button
                                             type="button"
