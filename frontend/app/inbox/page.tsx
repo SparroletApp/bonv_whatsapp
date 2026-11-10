@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -727,6 +726,40 @@ export default function InboxPage() {
         templateParameters,
     ]);
 
+    // Contacts grouped A-Z for the New Chat panel (like WhatsApp Web)
+    const contactGroups = useMemo(() => {
+        const query = contactSearch.toLowerCase().trim();
+
+        const nameOf = (c: any) =>
+            String(c.name || c.contactName || "").trim();
+
+        const sorted = allContacts
+            .filter(
+                (c) =>
+                    nameOf(c).toLowerCase().includes(query) ||
+                    String(c.phone || "").toLowerCase().includes(query)
+            )
+            .sort((a, b) =>
+                (nameOf(a) || "~").localeCompare(nameOf(b) || "~")
+            );
+
+        const groups: Record<string, any[]> = {};
+
+        sorted.forEach((c) => {
+            const first = nameOf(c)[0]?.toUpperCase() || "#";
+            const letter = /[A-Z]/.test(first) ? first : "#";
+
+            if (!groups[letter]) groups[letter] = [];
+            groups[letter].push(c);
+        });
+
+        return Object.entries(groups).sort(([a], [b]) => {
+            if (a === "#") return 1;
+            if (b === "#") return -1;
+            return a.localeCompare(b);
+        });
+    }, [allContacts, contactSearch]);
+
     const sendTemplate = async () => {
         if (!active || !selectedTemplate) {
             setTemplateError("Please select a template.");
@@ -1105,228 +1138,349 @@ export default function InboxPage() {
 
                 <aside className="wa-sidebar">
 
-                    <div className="wa-sidebar-top">
-                        <div className="wa-profile">
+                    {showContactList ? (
 
-                            <div className="wa-profile-avatar">
-                                <i className="bi bi-person-fill"></i>
-                            </div>
+                        /* ================= NEW CHAT PANEL (contact list) ================= */
+                        <div className="wa-newchat">
 
-                            <div className="wa-profile-title">
-                                <strong>WhatsApp Inbox</strong>
-                                <span>Business conversations</span>
-                            </div>
-
-                            <div className="wa-top-actions">
-                                <button type="button" title="New chat">
-                                    <i className="bi bi-chat-square-plus"></i>
-                                </button>
-                            </div>
-
-                        </div>
-                    </div>
-
-                    <div className="wa-search-area">
-                        <div className="wa-search-box">
-                            <i className="bi bi-search"></i>
-
-                            <input
-                                type="text"
-                                placeholder="Search or start a new chat"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-
-                            {search && (
+                            <div className="wa-newchat-header">
                                 <button
                                     type="button"
-                                    onClick={() => setSearch("")}
+                                    title="Back"
+                                    onClick={() => setShowContactList(false)}
                                 >
-                                    <i className="bi bi-x-lg"></i>
+                                    <i className="bi bi-arrow-left"></i>
                                 </button>
-                            )}
-                        </div>
-                    </div>
 
-                    <div className="wa-filter-area">
+                                <h3>New chat</h3>
+                            </div>
 
-                        <div className="wa-status-filters">
+                            <div className="wa-search-area">
+                                <div className="wa-search-box">
+                                    <i className="bi bi-search"></i>
 
-                            {[
-                                { label: "All", value: "ALL", color: "#064e45" },
-                                { label: "Unread", value: "UNREAD", color: "#e5a000" },
-                                { label: "Closed", value: "CLOSED", color: "#89949a" },
-                                // { label: "Pending", value: "PENDING", color: "#e67e22" },
-                            ].map((filter) => (
-                                <button
-                                    key={filter.value}
-                                    type="button"
-                                    className={
-                                        activeFilter === filter.value &&
-                                            selectedCategoryId === null
-                                            ? "wa-filter-active"
-                                            : ""
-                                    }
-                                    onClick={() => {
-                                        setActiveFilter(filter.value as typeof activeFilter);
-                                        setSelectedCategoryId(null);
-                                    }}
-                                >
-                                    <span
-                                        className="wa-filter-dot"
-                                        style={{ backgroundColor: filter.color }}
+                                    <input
+                                        type="text"
+                                        placeholder="Search name or number"
+                                        value={contactSearch}
+                                        onChange={(e) =>
+                                            setContactSearch(e.target.value)
+                                        }
+                                        autoFocus
                                     />
-                                    {filter.label}
-                                </button>
-                            ))}
+
+                                    {contactSearch && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setContactSearch("")}
+                                        >
+                                            <i className="bi bi-x-lg"></i>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="wa-newchat-list">
+
+                                {loadingContacts ? (
+                                    <div className="wa-newchat-empty">
+                                        <div className="wa-contact-spinner"></div>
+                                        Loading contacts...
+                                    </div>
+                                ) : contactGroups.length === 0 ? (
+                                    <div className="wa-newchat-empty">
+                                        <i className="bi bi-people"></i>
+
+                                        <strong>
+                                            {allContacts.length === 0
+                                                ? "No contacts found"
+                                                : "No matching contacts"}
+                                        </strong>
+
+                                        {allContacts.length === 0 && (
+                                            <span>
+                                                Add contacts to your Contacts module first.
+                                            </span>
+                                        )}
+                                    </div>
+                                ) : (
+                                    contactGroups.map(([letter, contacts]) => (
+                                        <div key={letter}>
+
+                                            <div className="wa-newchat-letter">
+                                                {letter}
+                                            </div>
+
+                                            {contacts.map((contact) => (
+                                                <div
+                                                    key={contact.id}
+                                                    className="wa-newchat-item"
+                                                    onClick={() =>
+                                                        openContactChat(contact)
+                                                    }
+                                                >
+                                                    <div className="wa-contact-avatar">
+                                                        {getInitials(
+                                                            contact.name ||
+                                                            contact.contactName ||
+                                                            "?"
+                                                        )}
+                                                    </div>
+
+                                                    <div className="wa-newchat-details">
+                                                        <strong>
+                                                            {contact.name ||
+                                                                contact.contactName ||
+                                                                "Unknown Contact"}
+                                                        </strong>
+
+                                                        <span>
+                                                            +{normalizePhone(contact.phone)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                        </div>
+                                    ))
+                                )}
+
+                            </div>
 
                         </div>
 
-                        <div
-                            className="wa-category-filters"
-                            ref={categoryRowRef}
-                            onWheel={handleCategoryWheel}
-                        >
+                    ) : (
+                        <>
 
-                            {categories.map((category) => (
+                            <div className="wa-sidebar-top">
+                                <div className="wa-profile">
+
+                                    <div className="wa-profile-avatar">
+                                        <i className="bi bi-person-fill"></i>
+                                    </div>
+
+                                    <div className="wa-profile-title">
+                                        <strong>WhatsApp Inbox</strong>
+                                        <span>Business conversations</span>
+                                    </div>
+
+                                    <div className="wa-top-actions">
+                                        <button
+                                            type="button"
+                                            title="New chat"
+                                            onClick={openNewChat}
+                                        >
+                                            <i className="bi bi-chat-square-plus"></i>
+                                        </button>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <div className="wa-search-area">
+                                <div className="wa-search-box">
+                                    <i className="bi bi-search"></i>
+
+                                    <input
+                                        type="text"
+                                        placeholder="Search or start a new chat"
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                    />
+
+                                    {search && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSearch("")}
+                                        >
+                                            <i className="bi bi-x-lg"></i>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="wa-filter-area">
+
+                                <div className="wa-status-filters">
+
+                                    {[
+                                        { label: "All", value: "ALL", color: "#064e45" },
+                                        { label: "Unread", value: "UNREAD", color: "#e5a000" },
+                                        { label: "Closed", value: "CLOSED", color: "#89949a" },
+                                        // { label: "Pending", value: "PENDING", color: "#e67e22" },
+                                    ].map((filter) => (
+                                        <button
+                                            key={filter.value}
+                                            type="button"
+                                            className={
+                                                activeFilter === filter.value &&
+                                                    selectedCategoryId === null
+                                                    ? "wa-filter-active"
+                                                    : ""
+                                            }
+                                            onClick={() => {
+                                                setActiveFilter(filter.value as typeof activeFilter);
+                                                setSelectedCategoryId(null);
+                                            }}
+                                        >
+                                            <span
+                                                className="wa-filter-dot"
+                                                style={{ backgroundColor: filter.color }}
+                                            />
+                                            {filter.label}
+                                        </button>
+                                    ))}
+
+                                </div>
+
+                                <div
+                                    className="wa-category-filters"
+                                    ref={categoryRowRef}
+                                    onWheel={handleCategoryWheel}
+                                >
+
+                                    {categories.map((category) => (
+                                        <button
+                                            type="button"
+                                            key={category.id}
+                                            className={
+                                                selectedCategoryId === Number(category.id)
+                                                    ? "wa-filter-active"
+                                                    : ""
+                                            }
+                                            onClick={() => selectCategory(Number(category.id))}
+                                            title={category.categoryName}
+                                        >
+                                            <span className="wa-filter-dot" />
+                                            {category.categoryName}
+                                        </button>
+                                    ))}
+
+                                </div>
+                                <div className="add-tags">
+                                    <button
+                                        type="button"
+                                        className="wa-add-category-btn"
+                                        title="Create category"
+                                        onClick={() => setShowCreateCategory(true)}
+                                    >
+                                        <i className="bi bi-plus-lg"></i>
+                                    </button>
+                                </div>
+
+                            </div>
+
+                            {loadingFilters && (
+                                <div className="wa-filter-loading">
+                                    Loading categories...
+                                </div>
+                            )}
+
+                            <div className="wa-conversation-list">
+
+                                {filteredConvs.map((c) => {
+                                    const rem = remainingFor(c, now);
+
+                                    return (
+                                        <div
+                                            key={c.phone}
+                                            className={`wa-conversation ${active?.phone === c.phone
+                                                ? "wa-conversation-active"
+                                                : ""
+                                                }`}
+                                            onClick={() => open(c)}
+                                        >
+                                            <div className="wa-contact-avatar">
+                                                {getInitials(c.name)}
+                                            </div>
+
+                                            <div className="wa-conversation-content">
+
+                                                <div className="wa-conversation-heading">
+                                                    <strong>
+                                                        {c.name || c.phone}
+                                                    </strong>
+                                                </div>
+
+                                                <div className="wa-conversation-preview">
+                                                    <span>
+                                                        {c.lastDirection === "OUTBOUND" && (
+                                                            <i className="bi bi-check2-all wa-preview-tick"></i>
+                                                        )}
+
+                                                        {c.lastMessage || "No messages yet"}
+                                                    </span>
+
+                                                    {c.unreadCount > 0 && (
+                                                        <span className="wa-unread-badge">
+                                                            {c.unreadCount}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <div className="wa-conversation-phone">
+                                                    +{c.phone}
+
+                                                    <span
+                                                        className={`wa-window-tag ${rem > 0
+                                                            ? "wa-window-tag-open"
+                                                            : "wa-window-tag-closed"
+                                                            }`}
+                                                    >
+                                                        <i className="bi bi-clock"></i>
+
+                                                        {rem > 0
+                                                            ? `${formatRemaining(rem)} left`
+                                                            : "Window closed"}
+                                                    </span>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+
+                                {filteredConvs.length === 0 && (
+                                    <div className="wa-no-conversations">
+                                        <div className="wa-no-chat-icon">
+                                            <i className="bi bi-chat-dots"></i>
+                                        </div>
+
+                                        <strong>No conversations found</strong>
+
+                                        <span>
+                                            {search
+                                                ? "Try searching with another name or number."
+                                                : selectedCategoryId !== null
+                                                    ? "No conversations found in this category."
+                                                    : "Your conversations will appear here."}
+                                        </span>
+                                    </div>
+                                )}
+
+                            </div>
+
+                            <div className="wa-sidebar-footer">
+
+                                <div className="wa-sidebar-footer-info">
+                                    <i className="bi bi-lock-fill"></i>
+                                    Your conversations are private
+                                </div>
+
                                 <button
                                     type="button"
-                                    key={category.id}
-                                    className={
-                                        selectedCategoryId === Number(category.id)
-                                            ? "wa-filter-active"
-                                            : ""
-                                    }
-                                    onClick={() => selectCategory(Number(category.id))}
-                                    title={category.categoryName}
+                                    className="wa-new-chat-bottom"
+                                    onClick={openNewChat}
+                                    title="Start a new chat"
                                 >
-                                    <span className="wa-filter-dot" />
-                                    {category.categoryName}
+                                    <i className="bi bi-plus-lg"></i>
+                                    <span>New Chat</span>
                                 </button>
-                            ))}
 
-                        </div>
-                        <div className="add-tags">
-                            <button
-                                type="button"
-                                className="wa-add-category-btn"
-                                title="Create category"
-                                onClick={() => setShowCreateCategory(true)}
-                            >
-                                <i className="bi bi-plus-lg"></i>
-                            </button>
-                        </div>
-
-                    </div>
-
-                    {loadingFilters && (
-                        <div className="wa-filter-loading">
-                            Loading categories...
-                        </div>
-                    )}
-
-                    <div className="wa-conversation-list">
-
-                        {filteredConvs.map((c) => {
-                            const rem = remainingFor(c, now);
-
-                            return (
-                                <div
-                                    key={c.phone}
-                                    className={`wa-conversation ${active?.phone === c.phone
-                                        ? "wa-conversation-active"
-                                        : ""
-                                        }`}
-                                    onClick={() => open(c)}
-                                >
-                                    <div className="wa-contact-avatar">
-                                        {getInitials(c.name)}
-                                    </div>
-
-                                    <div className="wa-conversation-content">
-
-                                        <div className="wa-conversation-heading">
-                                            <strong>
-                                                {c.name || c.phone}
-                                            </strong>
-                                        </div>
-
-                                        <div className="wa-conversation-preview">
-                                            <span>
-                                                {c.lastDirection === "OUTBOUND" && (
-                                                    <i className="bi bi-check2-all wa-preview-tick"></i>
-                                                )}
-
-                                                {c.lastMessage || "No messages yet"}
-                                            </span>
-
-                                            {c.unreadCount > 0 && (
-                                                <span className="wa-unread-badge">
-                                                    {c.unreadCount}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className="wa-conversation-phone">
-                                            +{c.phone}
-
-                                            <span
-                                                className={`wa-window-tag ${rem > 0
-                                                    ? "wa-window-tag-open"
-                                                    : "wa-window-tag-closed"
-                                                    }`}
-                                            >
-                                                <i className="bi bi-clock"></i>
-
-                                                {rem > 0
-                                                    ? `${formatRemaining(rem)} left`
-                                                    : "Window closed"}
-                                            </span>
-                                        </div>
-
-                                    </div>
-                                </div>
-                            );
-                        })}
-
-                        {filteredConvs.length === 0 && (
-                            <div className="wa-no-conversations">
-                                <div className="wa-no-chat-icon">
-                                    <i className="bi bi-chat-dots"></i>
-                                </div>
-
-                                <strong>No conversations found</strong>
-
-                                <span>
-                                    {search
-                                        ? "Try searching with another name or number."
-                                        : selectedCategoryId !== null
-                                            ? "No conversations found in this category."
-                                            : "Your conversations will appear here."}
-                                </span>
                             </div>
-                        )}
 
-                    </div>
-
-                    <div className="wa-sidebar-footer">
-
-                        <div className="wa-sidebar-footer-info">
-                            <i className="bi bi-lock-fill"></i>
-                            Your conversations are private
-                        </div>
-
-                        <button
-                            type="button"
-                            className="wa-new-chat-bottom"
-                            onClick={openNewChat}
-                            title="Start a new chat"
-                        >
-                            <i className="bi bi-plus-lg"></i>
-                            <span>New Chat</span>
-                        </button>
-
-                    </div>
+                        </>
+                    )}
 
                 </aside>
 
@@ -1943,150 +2097,6 @@ export default function InboxPage() {
                     onClose={() => setShowCreateCategory(false)}
                     onCategoryCreated={handleCategoryCreated}
                 />
-            )}
-            {showContactList && (
-                <div
-                    className="wa-contact-list-overlay"
-                    onClick={() => setShowContactList(false)}
-                >
-                    <div
-                        className="wa-contact-list-modal"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-
-                        <div className="wa-contact-list-header">
-
-                            <div>
-                                <h3>
-                                    <i className="bi bi-person-plus-fill"></i>
-                                    New Chat
-                                </h3>
-
-                                <p>Select a contact to start chatting</p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setShowContactList(false)}
-                            >
-                                <i className="bi bi-x-lg"></i>
-                            </button>
-
-                        </div>
-
-                        <div className="wa-contact-list-search">
-                            <i className="bi bi-search"></i>
-
-                            <input
-                                type="text"
-                                placeholder="Search contacts..."
-                                value={contactSearch}
-                                onChange={(e) => setContactSearch(e.target.value)}
-                                autoFocus
-                            />
-                        </div>
-
-                        <div className="wa-contact-list-body">
-
-                            {loadingContacts ? (
-                                <div className="wa-contact-list-empty">
-                                    <div className="wa-contact-spinner"></div>
-                                    Loading contacts...
-                                </div>
-                            ) : (
-                                <>
-                                    {allContacts
-                                        .filter((contact) => {
-                                            const name = (
-                                                contact.name ||
-                                                contact.contactName ||
-                                                ""
-                                            ).toLowerCase();
-
-                                            const phone = String(
-                                                contact.phone || ""
-                                            ).toLowerCase();
-
-                                            const searchValue =
-                                                contactSearch.toLowerCase().trim();
-
-                                            return (
-                                                name.includes(searchValue) ||
-                                                phone.includes(searchValue)
-                                            );
-                                        })
-                                        .map((contact) => (
-                                            <button
-                                                type="button"
-                                                key={contact.id}
-                                                className="wa-contact-list-item"
-                                                onClick={() => openContactChat(contact)}
-                                            >
-
-                                                <div className="wa-contact-avatar">
-                                                    {getInitials(
-                                                        contact.name ||
-                                                        contact.contactName ||
-                                                        "?"
-                                                    )}
-                                                </div>
-
-                                                <div className="wa-contact-list-details">
-
-                                                    <strong>
-                                                        {contact.name ||
-                                                            contact.contactName ||
-                                                            "Unknown Contact"}
-                                                    </strong>
-
-                                                    <span>
-                                                        +{normalizePhone(contact.phone)}
-                                                    </span>
-
-                                                </div>
-
-                                                <i className="bi bi-chat-dots wa-contact-chat-icon"></i>
-
-                                            </button>
-                                        ))}
-
-                                    {allContacts.length === 0 && (
-                                        <div className="wa-contact-list-empty">
-                                            <i className="bi bi-people"></i>
-                                            <strong>No contacts found</strong>
-                                            <span>Add contacts to your Contacts module first.</span>
-                                        </div>
-                                    )}
-
-                                    {allContacts.length > 0 &&
-                                        !allContacts.some((contact) => {
-                                            const searchValue =
-                                                contactSearch.toLowerCase().trim();
-
-                                            return (
-                                                String(contact.name || contact.contactName || "")
-                                                    .toLowerCase()
-                                                    .includes(searchValue) ||
-                                                String(contact.phone || "")
-                                                    .toLowerCase()
-                                                    .includes(searchValue)
-                                            );
-                                        }) && (
-                                            <div className="wa-contact-list-empty">
-                                                No matching contacts found.
-                                            </div>
-                                        )}
-                                </>
-                            )}
-
-                        </div>
-
-                        <div className="wa-contact-list-footer">
-                            {allContacts.length} contacts
-                        </div>
-
-                    </div>
-                </div>
             )}
         </>
     );

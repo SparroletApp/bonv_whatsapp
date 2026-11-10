@@ -69,6 +69,7 @@
     flex-direction: column;
     background: #fff;
     border-right: 1px solid #e9edef;
+    min-height: 0;
 }
 
 .wa-sidebar-top {
@@ -144,6 +145,7 @@
 .wa-search-area {
     padding: 10px 12px;
     background: #fff;
+    flex-shrink: 0;
 }
 
 .wa-search-box {
@@ -394,143 +396,106 @@
 }
 
 
-/* Contact list popup */
+/* ===== New Chat panel (contact list inside the sidebar) ===== */
 
-.wa-contact-list-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 10000;
-    background: rgba(0, 0, 0, 0.45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 15px;
-}
-
-.wa-contact-list-modal {
-    width: 100%;
-    max-width: 440px;
-    height: 600px;
-    max-height: 85vh;
-    background: #fff;
-    border-radius: 13px;
+.wa-newchat {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
-}
-
-.wa-contact-list-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 19px;
-    border-bottom: 1px solid #edf0f1;
-}
-
-.wa-contact-list-header h3 {
-    font-size: 17px;
-    font-weight: 700;
-    color: #064e45;
-    margin: 0;
-}
-
-.wa-contact-list-header h3 i {
-    margin-right: 9px;
-}
-
-.wa-contact-list-header p {
-    margin: 5px 0 0;
-    color: #89949a;
-    font-size: 12px;
-}
-
-.wa-contact-list-header button {
-    border: none;
-    background: #f1f4f3;
-    color: #53615d;
-    width: 33px;
-    height: 33px;
-    border-radius: 50%;
-    cursor: pointer;
-}
-
-.wa-contact-list-search {
-    margin: 15px;
-    padding: 0 12px;
-    height: 42px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #f1f5f4;
-    border-radius: 8px;
-    color: #84918d;
-}
-
-.wa-contact-list-search input {
-    flex: 1;
-    min-width: 0;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-size: 13px;
-    color: #263c38;
-}
-
-.wa-contact-list-body {
-    flex: 1;
-    overflow-y: auto;
-}
-
-.wa-contact-list-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    padding: 12px 17px;
-    border: none;
-    border-bottom: 1px solid #f0f2f2;
+    height: 100%;
+    min-height: 0;
     background: #fff;
-    text-align: left;
-    cursor: pointer;
-    transition: background 0.2s;
 }
 
-.wa-contact-list-item:hover {
-    background: #edf6f3;
-}
-
-.wa-contact-list-item .wa-contact-avatar {
-    width: 43px;
-    height: 43px;
+.wa-newchat-header {
+    height: 68px;
+    padding: 0 18px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: #064e45;
+    color: #fff;
     flex-shrink: 0;
 }
 
-.wa-contact-list-details {
+.wa-newchat-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.wa-newchat-header button {
+    border: none;
+    background: transparent;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
     display: flex;
-    flex-direction: column;
-    gap: 5px;
+    align-items: center;
+}
+
+.wa-newchat-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.wa-newchat-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.wa-newchat-list::-webkit-scrollbar-thumb {
+    background: #ced4d8;
+    border-radius: 10px;
+}
+
+.wa-newchat-letter {
+    padding: 18px 24px 8px;
+    color: #008069;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.wa-newchat-item {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 0 15px;
+    min-height: 66px;
+    cursor: pointer;
+    transition: background 0.18s ease;
+}
+
+.wa-newchat-item:hover {
+    background: #f5f6f6;
+}
+
+.wa-newchat-details {
     flex: 1;
     min-width: 0;
+    padding: 13px 0;
+    border-bottom: 1px solid #f0f2f5;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.wa-contact-list-details strong {
-    font-size: 13px;
-    color: #263c38;
+.wa-newchat-details strong {
+    font-size: 14px;
+    font-weight: 500;
+    color: #111b21;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
-.wa-contact-list-details span {
+.wa-newchat-details span {
     font-size: 12px;
-    color: #84918d;
+    color: #667781;
 }
 
-.wa-contact-chat-icon {
-    color: #064e45;
-    font-size: 18px;
-}
-
-.wa-contact-list-empty {
+.wa-newchat-empty {
     min-height: 180px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -541,20 +506,13 @@
     text-align: center;
 }
 
-.wa-contact-list-empty > i {
+.wa-newchat-empty>i {
     font-size: 30px;
     color: #064e45;
 }
 
-.wa-contact-list-empty strong {
+.wa-newchat-empty strong {
     color: #263c38;
-}
-
-.wa-contact-list-footer {
-    padding: 12px 17px;
-    border-top: 1px solid #edf0f1;
-    color: #89949a;
-    font-size: 12px;
 }
 
 .wa-contact-spinner {
@@ -1123,6 +1081,7 @@
     border-bottom: 1px solid #edf0ef;
 }
 
+.wa-template-modal-header h3,
 .wa-template-modal-header h5 {
     margin: 0 0 5px;
     font-size: 17px;
