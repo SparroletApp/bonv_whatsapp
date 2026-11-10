@@ -197,19 +197,12 @@ function EditContact({
         }
     };
 
-    // ==========================================
-    // CLOSE DRAWER
-    // ==========================================
 
     const handleClose = () => {
         if (saving) return;
 
         onClose();
     };
-
-    // ==========================================
-    // UPDATE CONTACT
-    // ==========================================
 
     const handleSubmit = async (
         event: React.FormEvent<HTMLFormElement>
@@ -247,16 +240,14 @@ function EditContact({
                 categoryIds: formData.categoryIds,
             });
 
-            await Swal.fire({
-                icon: "success",
-                title: "Contact Updated!",
-                text: "Contact details updated successfully.",
-                confirmButtonColor: "#064e45",
-            });
+            // Show success toast
+            showToast("success", "Contact updated successfully!");
 
-            await onUpdated();
-
+            // Close drawer immediately
             onClose();
+
+            // Refresh contacts in the background
+            await onUpdated();
 
         } catch (error: unknown) {
             console.error("Contact update error:", error);
@@ -265,15 +256,11 @@ function EditContact({
                 "error",
                 errorService.getErrorMessage(error)
             );
-
         } finally {
             setSaving(false);
         }
     };
 
-    // ==========================================
-    // LOADING VIEW
-    // ==========================================
 
     if (loading) {
         return (
@@ -430,9 +417,8 @@ function EditContact({
                                 </label>
 
                                 <div
-                                    className={`edit-category-multi-select ${
-                                        showCategoryDropdown ? "active" : ""
-                                    }`}
+                                    className={`edit-category-multi-select ${showCategoryDropdown ? "active" : ""
+                                        }`}
                                     onClick={() =>
                                         setShowCategoryDropdown((previous) => !previous)
                                     }
@@ -480,9 +466,8 @@ function EditContact({
                                     </div>
 
                                     <i
-                                        className={`bi bi-chevron-down edit-category-dropdown-arrow ${
-                                            showCategoryDropdown ? "rotated" : ""
-                                        }`}
+                                        className={`bi bi-chevron-down edit-category-dropdown-arrow ${showCategoryDropdown ? "rotated" : ""
+                                            }`}
                                     ></i>
 
                                 </div>
@@ -504,9 +489,8 @@ function EditContact({
                                                 return (
                                                     <div
                                                         key={category.id}
-                                                        className={`edit-category-option ${
-                                                            selected ? "selected" : ""
-                                                        }`}
+                                                        className={`edit-category-option ${selected ? "selected" : ""
+                                                            }`}
                                                         onClick={() =>
                                                             toggleCategory(category.id)
                                                         }
