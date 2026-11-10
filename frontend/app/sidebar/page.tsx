@@ -75,34 +75,29 @@ function Sidebar() {
 
 
 
-            <div className={`sidebar-logo ${collapsed ? "logo-collapsed" : "logo-expanded"}`}>
+           <div className={`sidebar-logo ${collapsed ? "logo-collapsed" : "logo-expanded"}`}>
 
-                {collapsed ? (
-                    <div className="logo-icon">
-                        <img src="/logo-replace.png" />
-                    </div>
-                ) : (
-                    <div className="expanded-logo">
-                        <img
-                            src="/logo-bonv.png"
-                            alt="WhatsAppPro Logo"
-                            className="expanded-logo-img"
-                        />
+    <div className="bonv-brand">
+        <div className="bonv-icon">
+            B
+        </div>
 
-                    </div>
-                )}
+        {!collapsed && (
+            <span className="bonv-text">bonv</span>
+        )}
+    </div>
 
-                <button
-                    type="button"
-                    className="sidebar-toggle"
-                    onClick={() => setCollapsed((prev) => !prev)}
-                    aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                    title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                >
-                    <i className={`bi ${collapsed ? "bi-chevron-right" : "bi-chevron-left"}`} />
-                </button>
+    <button
+        type="button"
+        className="sidebar-toggle"
+        onClick={() => setCollapsed((prev) => !prev)}
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+    >
+        <i className={`bi ${collapsed ? "bi-chevron-right" : "bi-chevron-left"}`} />
+    </button>
 
-            </div>
+</div>
 
 
             <div className="sidebar-menu">
