@@ -204,15 +204,11 @@
     flex-direction: row;
     align-items: center;
     gap: 8px;
-
     padding: 12px 14px;
-
     overflow-x: auto;
     overflow-y: hidden;
-
     white-space: nowrap;
     flex-shrink: 0;
-
     scrollbar-width: thin;
     scrollbar-color: #cbd5d1 transparent;
 }
@@ -295,13 +291,16 @@
 
 .wa-filter-area .wa-add-category-btn {
     flex: 0 0 32px;
-
     width: 32px;
     min-width: 32px;
     height: 32px;
-position: absolute;
+
+    position: sticky !important;
+    right: 0;
+    z-index: 10;
+
+    margin-left: auto;
     padding: 0;
-    right: 0px;
 
     display: inline-flex;
     align-items: center;
