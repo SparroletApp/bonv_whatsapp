@@ -314,82 +314,29 @@
     font-size: 14px;
 }
 
-/* Filter buttons */
-.wa-filter-area button {
-    flex: 0 0 auto;
-    height: 32px;
-    padding: 0 12px;
-
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-
-    border: none;
-    border-radius: 7px;
-
-    background: #f2f4f3;
+.wa-status-filters button {
+    background: #f2f2f2 !important;
+    border: none !important;
     color: #53635e;
-
-    font-size: 11px;
-    font-weight: 600;
-    white-space: nowrap;
-
-    cursor: pointer;
-    transition: all 0.2s ease;
 }
 
-/* Left-side colored dot */
+.wa-status-filters button:hover {
+    background: #e8e8e8 !important;
+}
+
+.wa-status-filters button.wa-filter-active {
+    background: #e8e8e8 !important;
+    border: none !important;
+    color: #064e45;
+}
+
 .wa-filter-dot {
     width: 7px;
     height: 7px;
     min-width: 7px;
     border-radius: 50%;
-    background: #064e45;
+    background-color: #064e45;
     display: inline-block;
-}
-
-/* Hover */
-.wa-filter-area button:hover {
-    background: #e9eeec;
-    border: none;
-    color: #064e45;
-}
-
-/* Active filter */
-.wa-filter-area button.wa-filter-active {
-    background: #e3eeeb;
-    border: none;
-    color: #064e45;
-    font-weight: 700;
-}
-
-/* Add category button - preserve existing design */
-.wa-filter-area .wa-add-category-btn {
-    flex: 0 0 32px;
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-
-    margin-left: auto;
-    padding: 0;
-
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    border: 1px dashed #064e45;
-    border-radius: 50%;
-
-    background: #e8f3f0;
-    color: #064e45;
-
-    font-size: 14px;
-}
-
-.wa-filter-area .wa-add-category-btn:hover {
-    background: #064e45;
-    color: #fff;
 }
 
 .add-tags {
