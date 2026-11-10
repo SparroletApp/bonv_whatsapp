@@ -988,11 +988,10 @@ export default function InboxPage() {
                         return (
                             <div
                                 key={c.phone}
-                                className={`wa-conversation ${
-                                    active?.phone === c.phone
+                                className={`wa-conversation ${active?.phone === c.phone
                                         ? "wa-conversation-active"
                                         : ""
-                                }`}
+                                    }`}
                                 onClick={() => open(c)}
                             >
                                 <div className="wa-contact-avatar">
@@ -1027,11 +1026,10 @@ export default function InboxPage() {
                                         +{c.phone}
 
                                         <span
-                                            className={`wa-window-tag ${
-                                                rem > 0
+                                            className={`wa-window-tag ${rem > 0
                                                     ? "wa-window-tag-open"
                                                     : "wa-window-tag-closed"
-                                            }`}
+                                                }`}
                                         >
                                             <i className="bi bi-clock"></i>
 
@@ -1139,19 +1137,17 @@ export default function InboxPage() {
                                 return (
                                     <div
                                         key={m.id}
-                                        className={`wa-message-row ${
-                                            m.direction === "OUTBOUND"
+                                        className={`wa-message-row ${m.direction === "OUTBOUND"
                                                 ? "wa-message-outgoing"
                                                 : "wa-message-incoming"
-                                        }`}
+                                            }`}
                                     >
 
                                         <div
-                                            className={`wa-message-bubble ${
-                                                isTemplate
+                                            className={`wa-message-bubble ${isTemplate
                                                     ? "wa-template-message-bubble"
                                                     : ""
-                                            }`}
+                                                }`}
                                         >
 
                                             {/* TEMPLATE IMAGE HEADER */}
@@ -1190,13 +1186,12 @@ export default function InboxPage() {
 
                                                 {m.direction === "OUTBOUND" && (
                                                     <span
-                                                        className={`wa-message-tick ${
-                                                            m.status === "READ"
+                                                        className={`wa-message-tick ${m.status === "READ"
                                                                 ? "wa-tick-read"
                                                                 : m.status === "FAILED"
                                                                     ? "wa-tick-failed"
                                                                     : ""
-                                                        }`}
+                                                            }`}
                                                     >
                                                         {tick(m)}
                                                     </span>
@@ -1269,14 +1264,16 @@ export default function InboxPage() {
 
                             {recording ? (
                                 <>
-                                    <button
-                                        type="button"
-                                        className="wa-composer-icon"
-                                        title="Cancel recording"
-                                        onClick={() => stopRecording(true)}
-                                    >
-                                        <i className="bi bi-trash"></i>
-                                    </button>
+                                    {windowOpen && (
+                                        <button
+                                            type="button"
+                                            title="Attach image"
+                                            className="wa-composer-icon"
+                                            onClick={() => fileInput.current?.click()}
+                                        >
+                                            <i className="bi bi-plus-lg"></i>
+                                        </button>
+                                    )}
 
                                     <div className="wa-recording">
                                         <span className="wa-rec-dot" />
@@ -1295,7 +1292,7 @@ export default function InboxPage() {
                                 <>
                                     <div className="wa-composer-actions">
 
-                                
+
 
                                         <button
                                             type="button"
