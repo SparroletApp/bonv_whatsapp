@@ -431,36 +431,59 @@ export default function InboxPage() {
         }
     };
 
-    const openEditContact = async () => {
-        if (!active) return;
+    
+const openEditContact = async () => {
+    if (!active) return;
 
-        try {
-            setError("");
+    try {
+        setError("");
 
-            const response = await contactService.getAllContacts();
-            const contacts = unwrapResponse<any[]>(response);
+        const response = await contactService.getAllContacts();
+        const contacts = unwrapResponse<any[]>(response);
 
-            const activePhone = normalizePhone(active.phone);
+        console.log("Active conversation:", active);
+        console.log("Contacts API response:", contacts);
 
-            const contact = Array.isArray(contacts)
-                ? contacts.find(
-                    (item) =>
-                        normalizePhone(item.phone) === activePhone
-                )
-                : null;
+        const activePhone = normalizePhone(active.phone);
+        const activeLast10 = activePhone.slice(-10);
 
-            if (!contact) {
-                setError("Contact details not found.");
-                return;
-            }
+        const contact = Array.isArray(contacts)
+            ? contacts.find((item) => {
+                const contactPhone = normalizePhone(
+                    item.phone ??
+                    item.contactPhone ??
+                    item.mobile ??
+                    item.phoneNumber
+                );
 
-            setEditingContactId(Number(contact.id));
-            setShowEditContact(true);
+                return (
+                    contactPhone === activePhone ||
+                    (
+                        contactPhone.length >= 10 &&
+                        activeLast10.length === 10 &&
+                        contactPhone.slice(-10) === activeLast10
+                    )
+                );
+            })
+            : null;
 
-        } catch (error) {
-            setError(apiError(error));
+        if (!contact) {
+            console.log("Contact not matched for:", activePhone);
+            setError("Contact details not found. Check the browser console for the contact API response.");
+            return;
         }
-    };
+
+        console.log("Matched contact:", contact);
+
+        setEditingContactId(Number(contact.id));
+        setShowEditContact(true);
+
+    } catch (error) {
+        console.error("Edit contact error:", error);
+        setError(apiError(error));
+    }
+};
+
 
     const loadConvs = async () => {
         try {
