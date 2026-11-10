@@ -1264,16 +1264,14 @@ export default function InboxPage() {
 
                             {recording ? (
                                 <>
-                                    {windowOpen && (
-                                        <button
-                                            type="button"
-                                            title="Attach image"
-                                            className="wa-composer-icon"
-                                            onClick={() => fileInput.current?.click()}
-                                        >
-                                            <i className="bi bi-plus-lg"></i>
-                                        </button>
-                                    )}
+                                    <button
+                                        type="button"
+                                        className="wa-composer-icon"
+                                        title="Cancel recording"
+                                        onClick={() => stopRecording(true)}
+                                    >
+                                        <i className="bi bi-trash"></i>
+                                    </button>
 
                                     <div className="wa-recording">
                                         <span className="wa-rec-dot" />
@@ -1294,15 +1292,16 @@ export default function InboxPage() {
 
 
 
-                                        <button
-                                            type="button"
-                                            title="Attach image"
-                                            className="wa-composer-icon"
-                                            disabled={!windowOpen}
-                                            onClick={() => fileInput.current?.click()}
-                                        >
-                                            <i className="bi bi-plus-lg"></i>
-                                        </button>
+                                        {windowOpen && (
+                                            <button
+                                                type="button"
+                                                title="Attach image"
+                                                className="wa-composer-icon"
+                                                onClick={() => fileInput.current?.click()}
+                                            >
+                                                <i className="bi bi-plus-lg"></i>
+                                            </button>
+                                        )}
 
                                         <button
                                             type="button"

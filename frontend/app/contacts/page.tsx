@@ -10,6 +10,7 @@ import contactService from "../apiservice/contactservice";
 import categoryService, {
     CategoryResponseDto,
 } from "../apiservice/categoryservice";
+import EditContact from "./edit/page";
 
 type ContactResponseDto = {
     id: number;
@@ -42,7 +43,10 @@ function Contact() {
 
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(20);
-
+const [editingContactId, setEditingContactId] = useState<number | null>(null);
+const openEditPage = (contact: ContactResponseDto) => {
+    setEditingContactId(contact.id);
+};
     useEffect(() => {
         fetchContacts();
         fetchCategories();
@@ -72,10 +76,7 @@ function Contact() {
         }
     };
 
-    const openEditPage = (contact: ContactResponseDto) => {
-        localStorage.setItem("contactId", String(contact.id));
-        router.push("/contacts/edit");
-    };
+    
 
     const totalPages = Math.ceil(contacts.length / rowsPerPage);
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -693,7 +694,15 @@ function Contact() {
                 )}
 
             </div>
+            {editingContactId !== null && (
+    <EditContact
+        contactId={editingContactId}
+        onClose={() => setEditingContactId(null)}
+        onUpdated={fetchContacts}
+    />
+)}
         </section>
+        
     );
 }
 
