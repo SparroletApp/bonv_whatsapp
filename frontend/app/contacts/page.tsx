@@ -44,6 +44,9 @@ function Contact() {
     const [editingContactId, setEditingContactId] = useState<number | null>(
         null
     );
+    const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+        null
+    );
 
     const openEditPage = (contact: ContactResponseDto) => {
         setEditingContactId(contact.id);
@@ -54,7 +57,22 @@ function Contact() {
         fetchCategories();
     }, []);
 
-    // Fetch category names using category IDs from contacts
+    const filteredContacts =
+        selectedCategoryId === null
+            ? contacts
+            : contacts.filter((contact) =>
+                contact.categoryIds?.includes(selectedCategoryId)
+            );
+
+    const totalPages = Math.ceil(filteredContacts.length / rowsPerPage);
+
+    const startIndex = (currentPage - 1) * rowsPerPage;
+
+    const currentContacts = filteredContacts.slice(
+        startIndex,
+        startIndex + rowsPerPage
+    );
+
     const fetchCategoryNames = async (
         contactsList: ContactResponseDto[]
     ) => {
@@ -108,7 +126,6 @@ function Contact() {
         }
     };
 
-    // Fetch all contacts
     const fetchContacts = async () => {
         try {
             setLoading(true);
@@ -129,7 +146,6 @@ function Contact() {
         }
     };
 
-    // Fetch categories for Excel validation
     const fetchCategories = async () => {
         try {
             const response = await categoryService.getAllCategories();
@@ -139,13 +155,7 @@ function Contact() {
         }
     };
 
-    const totalPages = Math.ceil(contacts.length / rowsPerPage);
-    const startIndex = (currentPage - 1) * rowsPerPage;
 
-    const currentContacts = contacts.slice(
-        startIndex,
-        startIndex + rowsPerPage
-    );
 
     const handleRowsChange = (
         event: React.ChangeEvent<HTMLSelectElement>
@@ -169,7 +179,6 @@ function Contact() {
         });
     };
 
-    // Delete contact
     const handleDelete = async (id: number) => {
         const result = await Swal.fire({
             title: "Are you sure?",
@@ -223,7 +232,6 @@ function Contact() {
         });
     };
 
-    // Download Excel template
     const downloadExcelTemplate = () => {
         const sampleData = [
             {
@@ -255,7 +263,6 @@ function Contact() {
         );
     };
 
-    // Excel bulk upload
     const handleBulkUpload = async (
         event: React.ChangeEvent<HTMLInputElement>
     ) => {
@@ -440,23 +447,22 @@ function Contact() {
                     <div style="text-align:left">
                         <p><strong>Successfully uploaded:</strong> ${successCount}</p>
                         <p><strong>Failed:</strong> ${uploadErrors.length}</p>
-                        ${
-                            uploadErrors.length
-                                ? `
+                        ${uploadErrors.length
+                        ? `
                                     <hr/>
                                     <p><strong>Errors:</strong></p>
                                     <div style="max-height:150px;overflow-y:auto;text-align:left">
                                         ${uploadErrors
-                                            .slice(0, 15)
-                                            .map(
-                                                (item) =>
-                                                    `<div>${item}</div>`
-                                            )
-                                            .join("")}
+                            .slice(0, 15)
+                            .map(
+                                (item) =>
+                                    `<div>${item}</div>`
+                            )
+                            .join("")}
                                     </div>
                                 `
-                                : ""
-                        }
+                        : ""
+                    }
                     </div>
                 `,
                 confirmButtonColor: "#064e45",
@@ -503,12 +509,84 @@ function Contact() {
                     </div>
                 </div>
 
+                <div className="contact-category-filter-section">
+
+                    <div className="contact-category-filter-heading">
+                        <div>
+                            <h3>Filter by Category</h3>
+                            <p>Select a category to view its contacts</p>
+                        </div>
+                    </div>
+
+                    <div className="contact-category-filter-list">
+
+                        <button
+                            type="button"
+                            className={`contact-filter-item ${selectedCategoryId === null ? "active" : ""
+                                }`}
+                            onClick={() => {
+                                setSelectedCategoryId(null);
+                                setCurrentPage(1);
+                            }}
+                        >
+                            <span className="contact-filter-name">
+                                <i className="bi bi-people"></i>
+                                All Contacts
+                            </span>
+
+                            <span className="contact-filter-count">
+                                {contacts.length}
+                            </span>
+                        </button>
+
+                        {categories.map((category) => {
+
+                            const count = contacts.filter((contact) =>
+                                contact.categoryIds?.includes(Number(category.id))
+                            ).length;
+
+                            return (
+                                <button
+                                    type="button"
+                                    key={category.id}
+                                    className={`contact-filter-item ${selectedCategoryId === Number(category.id)
+                                        ? "active"
+                                        : ""
+                                        }`}
+                                    onClick={() => {
+                                        setSelectedCategoryId(Number(category.id));
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <span className="contact-filter-name">
+                                        <i className="bi bi-tag"></i>
+                                        {category.categoryName}
+                                    </span>
+
+                                    <span className="contact-filter-count">
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+
+                    </div>
+                </div>
+
                 <div className="category-table-card">
 
                     <div className="category-table-heading">
                         <div>
                             <h3>Contact List</h3>
-                            <p>View and manage all your contacts</p>
+                            <p>
+                                {selectedCategoryId === null
+                                    ? "View and manage all your contacts"
+                                    : `Showing contacts in ${categories.find(
+                                        (category) =>
+                                            Number(category.id) === selectedCategoryId
+                                    )?.categoryName || "selected category"
+                                    }`}
+                            </p>
                         </div>
 
                         <div className="contact-header-buttons">
@@ -733,9 +811,9 @@ function Contact() {
                                     {contacts.length === 0
                                         ? "0 of 0"
                                         : `${startIndex + 1}-${Math.min(
-                                              startIndex + rowsPerPage,
-                                              contacts.length
-                                          )} of ${contacts.length}`}
+                                            startIndex + rowsPerPage,
+                                            contacts.length
+                                        )} of ${contacts.length}`}
                                 </span>
                             </div>
 
@@ -764,11 +842,10 @@ function Contact() {
                                     <button
                                         key={page}
                                         type="button"
-                                        className={`category-page-number ${
-                                            currentPage === page
-                                                ? "active"
-                                                : ""
-                                        }`}
+                                        className={`category-page-number ${currentPage === page
+                                            ? "active"
+                                            : ""
+                                            }`}
                                         onClick={() =>
                                             setCurrentPage(page)
                                         }

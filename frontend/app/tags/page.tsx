@@ -175,7 +175,6 @@ function Category() {
                 </div>
                 <div className="category-table-wrapper">
                     <table className="category-table">
-
                         <thead>
                             <tr>
                                 <th>Tag ID</th>
@@ -185,7 +184,6 @@ function Category() {
                                 <th>Action</th>
                             </tr>
                         </thead>
-
                         <tbody>
                             {loading ? (
                                 <tr>
