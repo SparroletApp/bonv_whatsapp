@@ -42,7 +42,7 @@ function EditCategory({
         const trimmedName = categoryName.trim();
 
         if (!trimmedName) {
-            setError("Please enter a broadcast name.");
+            setError("Please enter a tag name.");
             return;
         }
 
@@ -55,7 +55,7 @@ function EditCategory({
                 categoryName: trimmedName,
             });
 
-            console.log("Category updated:", response);
+            console.log("Tag updated:", response);
 
             setCategoryName("");
             onClose();
@@ -65,18 +65,18 @@ function EditCategory({
                 toast: true,
                 position: "top-end",
                 icon: "success",
-                title: "Broadcast updated successfully!",
+                title: "Tag updated successfully!",
                 showConfirmButton: false,
                 timer: 2500,
                 timerProgressBar: true,
             });
 
         } catch (err: any) {
-            console.error("Broadcast update error:", err);
+            console.error("Tag update error:", err);
 
             setError(
                 err?.response?.data?.message ||
-                "Failed to update broadcast. Please try again."
+                "Failed to update tag. Please try again."
             );
 
         } finally {
@@ -111,8 +111,8 @@ function EditCategory({
                         </div>
 
                         <div>
-                            <h2>Edit Broadcast</h2>
-                            <p>Update your contact broadcast</p>
+                            <h2>Edit Tag</h2>
+                            <p>Update your contact tag</p>
                         </div>
 
                     </div>
@@ -132,7 +132,7 @@ function EditCategory({
                     <div className="category-modal-body">
 
                         <label htmlFor="editCategoryName">
-                           Broadcast Name
+                           Tag Name
                             <span className="required-star">*</span>
                         </label>
                         <div className="category-input-wrapper">
@@ -157,7 +157,7 @@ function EditCategory({
                             </p>
                         )}
                         <p className="category-input-hint">
-                            Update the broadcast name to organize your contacts.
+                            Update the tag name to organize your contacts.
                         </p>
                     </div>
                     <div className="category-modal-footer">
@@ -182,7 +182,7 @@ function EditCategory({
                             ) : (
                                 <>
                                     <i className="bi bi-check-lg"></i>
-                                    Update Broadcast
+                                    Update Tag
                                 </>
                             )}
                         </button>

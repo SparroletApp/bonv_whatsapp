@@ -26,7 +26,7 @@ function Sidebar() {
 
        const menuItems = [
     { name: "Overview", icon: "bi-grid-1x2", path: "/dashboard" },
-    { name: "Broadcasts", icon: "bi-tags", path: "/broadcasts" },
+    { name: "Tags", icon: "bi-tags", path: "/tags" },
     { name: "Contacts", icon: "bi-people", path: "/contacts" },
     { name: "Campaigns", icon: "bi-megaphone", path: "/campaign" },
     { name: "Templates", icon: "bi-file-earmark-text", path: "/templates" },

@@ -134,8 +134,8 @@ const router = useRouter();
         <section className="category-page">
             <div className="category-header">
                 <div>
-                    <h2>Broadcast</h2>
-                    <p>Manage and organize your contact broadcast</p>
+                    <h2>Tags</h2>
+                    <p>Manage and organize your contact tag</p>
                 </div>
 
                 <div className="category-header-actions">
@@ -151,7 +151,7 @@ const router = useRouter();
                         onClick={() => setShowCreateCategory(true)}
                     >
                         <i className="bi bi-plus-lg"></i>
-                        Add Broadcast
+                        Add Tag
                     </button>
                 </div>
             </div>
@@ -159,8 +159,8 @@ const router = useRouter();
 
                 <div className="category-table-heading">
                     <div>
-                        <h3>Broadcast List</h3>
-                        <p>View all your available categories</p>
+                        <h3>Tag List</h3>
+                        <p>View all your available tags</p>
                     </div>
 
                     <button
@@ -178,9 +178,8 @@ const router = useRouter();
 
                         <thead>
                             <tr>
-                                {/* <th>#</th> */}
-                                <th>Broadcast ID</th>
-                                <th>Broadcast Name</th>
+                                <th>Tag ID</th>
+                                <th>Tag Name</th>
                                 <th>Created Date</th>
                                 <th>Updated Date</th>
                                 <th>Action</th>
@@ -191,7 +190,7 @@ const router = useRouter();
                             {loading ? (
                                 <tr>
                                     <td colSpan={5} className="category-message">
-                                        Loading broadcasts...
+                                        Loading tags...
                                     </td>
                                 </tr>
                             ) : error ? (
@@ -236,8 +235,6 @@ const router = useRouter();
 
                                         <td>
                                             <div className="category-actions">
-
-                                                {/* View Broadcast */}
                                                 <button
                                                     type="button"
                                                     title="View broadcast"
@@ -266,7 +263,6 @@ const router = useRouter();
                                                     <i className="bi bi-pencil-square"></i>
                                                 </button>
 
-                                                {/* Delete Category */}
                                                 <button
                                                     type="button"
                                                     title="Delete category"

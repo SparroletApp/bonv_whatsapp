@@ -31,7 +31,7 @@ function CreateCategory({
         const trimmedName = categoryName.trim();
 
         if (!trimmedName) {
-            setError("Please enter a Broadcast name.");
+            setError("Please enter a Tag name.");
             return;
         }
 
@@ -43,7 +43,7 @@ function CreateCategory({
                 categoryName: trimmedName,
             });
 
-            console.log("Broadcast created successfully:", response);
+            console.log("Tag created successfully:", response);
 
             setCategoryName("");
             setError("");
@@ -62,11 +62,11 @@ function CreateCategory({
             onCategoryCreated();
 
         } catch (err: any) {
-            console.error("Broadcast creation error:", err);
+            console.error("Tag creation error:", err);
 
             setError(
                 err?.response?.data?.message ||
-                "Failed to create broadcast. Please try again."
+                "Failed to create tag. Please try again."
             );
 
         } finally {
@@ -99,8 +99,8 @@ function CreateCategory({
                         </div>
 
                         <div>
-                            <h2>Create Broadcast</h2>
-                            <p>Add a new contact broadcast</p>
+                            <h2>Create Tag</h2>
+                            <p>Add a new contact tag</p>
                         </div>
                     </div>
 
@@ -119,7 +119,7 @@ function CreateCategory({
                     <div className="category-modal-body">
 
                         <label htmlFor="categoryName">
-                            Broadcast Name
+                           Tag Name
                             <span className="required-star">*</span>
                         </label>
 
@@ -150,7 +150,7 @@ function CreateCategory({
                         )}
 
                         <p className="category-input-hint">
-                            Organize your contacts by creating meaningful broadcasts.
+                            Organize your contacts by creating meaningful tags.
                         </p>
 
                     </div>
@@ -178,7 +178,7 @@ function CreateCategory({
                             ) : (
                                 <>
                                     <i className="bi bi-plus-lg"></i>
-                                    Create Broadcast
+                                    Create Tag
                                 </>
                             )}
                         </button>
