@@ -64,7 +64,7 @@ function Category() {
     const handleDelete = async (id: number) => {
         const result = await Swal.fire({
             title: "Are you sure?",
-            text: "Do you want to delete this Broadcast?",
+            text: "Do you want to delete this Tag?",
             icon: "warning",
             showCancelButton: true,
             confirmButtonColor: "#064e45",
@@ -246,7 +246,7 @@ function Category() {
                                                             category.id.toString()
                                                         );
 
-                                                        router.push("/broadcasts/view");
+                                                        router.push("/tags/view");
                                                     }}
                                                 >
                                                     <i className="bi bi-eye"></i>
