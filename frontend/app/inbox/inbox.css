@@ -258,7 +258,8 @@
     height: 32px;
     padding: 0 13px;
 
-    display: inline-flex;
+    display: flex;
+    gap: 10px;
     align-items: center;
     justify-content: center;
 
@@ -317,6 +318,8 @@
 .wa-status-filters button {
     background: #f2f2f2 !important;
     border: none !important;
+    display: flex;
+    grid-auto-flow: 10px;
     color: #53635e;
 }
 
@@ -342,8 +345,231 @@
 .add-tags {
     background-color: white;
     position: sticky !important;
-    right: -11PX;
+    right: -14PX;
     padding: 5px;
+}
+
+/* Sidebar bottom section */
+
+.wa-sidebar-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px;
+    border-top: 1px solid #e9edef;
+    background: #fff;
+}
+
+.wa-sidebar-footer-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #86969b;
+    font-size: 11px;
+}
+
+.wa-new-chat-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 8px;
+    background: #064e45;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.wa-new-chat-bottom:hover {
+    background: #043c35;
+}
+
+.wa-new-chat-bottom i {
+    font-size: 17px;
+}
+
+
+/* Contact list popup */
+
+.wa-contact-list-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+}
+
+.wa-contact-list-modal {
+    width: 100%;
+    max-width: 440px;
+    height: 600px;
+    max-height: 85vh;
+    background: #fff;
+    border-radius: 13px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+}
+
+.wa-contact-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 19px;
+    border-bottom: 1px solid #edf0f1;
+}
+
+.wa-contact-list-header h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: #064e45;
+    margin: 0;
+}
+
+.wa-contact-list-header h3 i {
+    margin-right: 9px;
+}
+
+.wa-contact-list-header p {
+    margin: 5px 0 0;
+    color: #89949a;
+    font-size: 12px;
+}
+
+.wa-contact-list-header button {
+    border: none;
+    background: #f1f4f3;
+    color: #53615d;
+    width: 33px;
+    height: 33px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.wa-contact-list-search {
+    margin: 15px;
+    padding: 0 12px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f1f5f4;
+    border-radius: 8px;
+    color: #84918d;
+}
+
+.wa-contact-list-search input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 13px;
+    color: #263c38;
+}
+
+.wa-contact-list-body {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.wa-contact-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 17px;
+    border: none;
+    border-bottom: 1px solid #f0f2f2;
+    background: #fff;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.wa-contact-list-item:hover {
+    background: #edf6f3;
+}
+
+.wa-contact-list-item .wa-contact-avatar {
+    width: 43px;
+    height: 43px;
+    flex-shrink: 0;
+}
+
+.wa-contact-list-details {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+}
+
+.wa-contact-list-details strong {
+    font-size: 13px;
+    color: #263c38;
+}
+
+.wa-contact-list-details span {
+    font-size: 12px;
+    color: #84918d;
+}
+
+.wa-contact-chat-icon {
+    color: #064e45;
+    font-size: 18px;
+}
+
+.wa-contact-list-empty {
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    color: #89949a;
+    font-size: 13px;
+    text-align: center;
+}
+
+.wa-contact-list-empty > i {
+    font-size: 30px;
+    color: #064e45;
+}
+
+.wa-contact-list-empty strong {
+    color: #263c38;
+}
+
+.wa-contact-list-footer {
+    padding: 12px 17px;
+    border-top: 1px solid #edf0f1;
+    color: #89949a;
+    font-size: 12px;
+}
+
+.wa-contact-spinner {
+    width: 25px;
+    height: 25px;
+    border: 3px solid #e3eeeb;
+    border-top-color: #064e45;
+    border-radius: 50%;
+    animation: waContactSpin 0.7s linear infinite;
+}
+
+@keyframes waContactSpin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .wa-filter-area .wa-add-category-btn:hover {

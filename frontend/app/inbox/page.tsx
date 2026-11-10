@@ -289,14 +289,17 @@ export default function InboxPage() {
     const [convs, setConvs] = useState<Conversation[]>([]);
     const [active, setActive] = useState<Conversation | null>(null);
     const [msgs, setMsgs] = useState<InboxMessage[]>([]);
-
+    const [showContactList, setShowContactList] = useState(false);
+    const [allContacts, setAllContacts] = useState<any[]>([]);
+    const [contactSearch, setContactSearch] = useState("");
+    const [loadingContacts, setLoadingContacts] = useState(false);
     const [categories, setCategories] = useState<CategoryResponseDto[]>([]);
 
     const [contactCategoryMap, setContactCategoryMap] =
         useState<Record<string, number[]>>({});
 
     const [activeFilter, setActiveFilter] = useState<
-        "ALL" | "UNREAD" | "CLOSED" | "PENDING"
+        "ALL" | "UNREAD" | "CLOSED"
     >("ALL");
 
     const [selectedCategoryId, setSelectedCategoryId] =
@@ -1010,13 +1013,6 @@ export default function InboxPage() {
             return false;
         }
 
-        if (
-            activeFilter === "PENDING" &&
-            conversation.lastDirection !== "INBOUND"
-        ) {
-            return false;
-        }
-
         if (selectedCategoryId !== null) {
             const phoneKeys = getPhoneKeys(conversation.phone);
 
@@ -1031,6 +1027,59 @@ export default function InboxPage() {
 
         return true;
     });
+
+    const openNewChat = async () => {
+        setShowContactList(true);
+        setContactSearch("");
+        setLoadingContacts(true);
+
+        try {
+            const response = await contactService.getAllContacts();
+
+            const data = unwrapResponse<any[]>(response);
+
+            setAllContacts(Array.isArray(data) ? data : []);
+        } catch (error) {
+            setError(apiError(error));
+        } finally {
+            setLoadingContacts(false);
+        }
+    };
+
+    const openContactChat = async (contact: any) => {
+        const phone = normalizePhone(contact.phone);
+
+        if (!phone) return;
+        const existingConversation = convs.find((conversation) =>
+            getPhoneKeys(conversation.phone).some((key) =>
+                getPhoneKeys(phone).includes(key)
+            )
+        );
+
+        setShowContactList(false);
+
+        if (existingConversation) {
+            await open(existingConversation);
+            return;
+        }
+        const newConversation = {
+            phone,
+            name: contact.name || contact.contactName || phone,
+            unreadCount: 0,
+            lastDirection: "",
+            lastMessage: "",
+            windowExpiresAt: null,
+        } as unknown as Conversation;
+
+        activePhoneRef.current = phone;
+
+        setActive(newConversation);
+        setMsgs([]);
+        setText("");
+        setError("");
+
+        await loadMsgs(phone);
+    };
 
 
     const selectCategory = (categoryId: number) => {
@@ -1261,8 +1310,22 @@ export default function InboxPage() {
                     </div>
 
                     <div className="wa-sidebar-footer">
-                        <i className="bi bi-lock-fill"></i>
-                        Your conversations are private
+
+                        <div className="wa-sidebar-footer-info">
+                            <i className="bi bi-lock-fill"></i>
+                            Your conversations are private
+                        </div>
+
+                        <button
+                            type="button"
+                            className="wa-new-chat-bottom"
+                            onClick={openNewChat}
+                            title="Start a new chat"
+                        >
+                            <i className="bi bi-plus-lg"></i>
+                            <span>New Chat</span>
+                        </button>
+
                     </div>
 
                 </aside>
@@ -1881,7 +1944,150 @@ export default function InboxPage() {
                     onCategoryCreated={handleCategoryCreated}
                 />
             )}
+            {showContactList && (
+                <div
+                    className="wa-contact-list-overlay"
+                    onClick={() => setShowContactList(false)}
+                >
+                    <div
+                        className="wa-contact-list-modal"
+                        onClick={(e) => e.stopPropagation()}
+                    >
 
+                        <div className="wa-contact-list-header">
+
+                            <div>
+                                <h3>
+                                    <i className="bi bi-person-plus-fill"></i>
+                                    New Chat
+                                </h3>
+
+                                <p>Select a contact to start chatting</p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setShowContactList(false)}
+                            >
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+
+                        </div>
+
+                        <div className="wa-contact-list-search">
+                            <i className="bi bi-search"></i>
+
+                            <input
+                                type="text"
+                                placeholder="Search contacts..."
+                                value={contactSearch}
+                                onChange={(e) => setContactSearch(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+
+                        <div className="wa-contact-list-body">
+
+                            {loadingContacts ? (
+                                <div className="wa-contact-list-empty">
+                                    <div className="wa-contact-spinner"></div>
+                                    Loading contacts...
+                                </div>
+                            ) : (
+                                <>
+                                    {allContacts
+                                        .filter((contact) => {
+                                            const name = (
+                                                contact.name ||
+                                                contact.contactName ||
+                                                ""
+                                            ).toLowerCase();
+
+                                            const phone = String(
+                                                contact.phone || ""
+                                            ).toLowerCase();
+
+                                            const searchValue =
+                                                contactSearch.toLowerCase().trim();
+
+                                            return (
+                                                name.includes(searchValue) ||
+                                                phone.includes(searchValue)
+                                            );
+                                        })
+                                        .map((contact) => (
+                                            <button
+                                                type="button"
+                                                key={contact.id}
+                                                className="wa-contact-list-item"
+                                                onClick={() => openContactChat(contact)}
+                                            >
+
+                                                <div className="wa-contact-avatar">
+                                                    {getInitials(
+                                                        contact.name ||
+                                                        contact.contactName ||
+                                                        "?"
+                                                    )}
+                                                </div>
+
+                                                <div className="wa-contact-list-details">
+
+                                                    <strong>
+                                                        {contact.name ||
+                                                            contact.contactName ||
+                                                            "Unknown Contact"}
+                                                    </strong>
+
+                                                    <span>
+                                                        +{normalizePhone(contact.phone)}
+                                                    </span>
+
+                                                </div>
+
+                                                <i className="bi bi-chat-dots wa-contact-chat-icon"></i>
+
+                                            </button>
+                                        ))}
+
+                                    {allContacts.length === 0 && (
+                                        <div className="wa-contact-list-empty">
+                                            <i className="bi bi-people"></i>
+                                            <strong>No contacts found</strong>
+                                            <span>Add contacts to your Contacts module first.</span>
+                                        </div>
+                                    )}
+
+                                    {allContacts.length > 0 &&
+                                        !allContacts.some((contact) => {
+                                            const searchValue =
+                                                contactSearch.toLowerCase().trim();
+
+                                            return (
+                                                String(contact.name || contact.contactName || "")
+                                                    .toLowerCase()
+                                                    .includes(searchValue) ||
+                                                String(contact.phone || "")
+                                                    .toLowerCase()
+                                                    .includes(searchValue)
+                                            );
+                                        }) && (
+                                            <div className="wa-contact-list-empty">
+                                                No matching contacts found.
+                                            </div>
+                                        )}
+                                </>
+                            )}
+
+                        </div>
+
+                        <div className="wa-contact-list-footer">
+                            {allContacts.length} contacts
+                        </div>
+
+                    </div>
+                </div>
+            )}
         </>
     );
 }
