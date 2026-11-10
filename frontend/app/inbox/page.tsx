@@ -1402,13 +1402,30 @@ export default function InboxPage() {
                                                     </strong>
                                                 </div>
 
+
                                                 <div className="wa-conversation-preview">
-                                                    <span>
-                                                        {c.lastDirection === "OUTBOUND" && (
-                                                            <i className="bi bi-check2-all wa-preview-tick"></i>
+                                                    <span className="wa-preview-message">
+
+                                                        {c.lastDirection?.toUpperCase() === "OUTBOUND" && (
+                                                            <i
+                                                                className={`bi ${c.lastMessageStatus?.toUpperCase() === "READ"
+                                                                        ? "bi-check2-all wa-tick-read"
+                                                                        : c.lastMessageStatus?.toUpperCase() === "DELIVERED"
+                                                                            ? "bi-check2-all wa-tick-delivered"
+                                                                            : c.lastMessageStatus?.toUpperCase() === "SENT"
+                                                                                ? "bi-check2 wa-tick-sent"
+                                                                                : c.lastMessageStatus?.toUpperCase() === "FAILED"
+                                                                                    ? "bi-exclamation-circle wa-tick-failed"
+                                                                                    : "bi-clock wa-tick-pending"
+                                                                    }`}
+                                                                title={`Message status: ${c.lastMessageStatus || "PENDING"}`}
+                                                            />
                                                         )}
 
-                                                        {c.lastMessage || "No messages yet"}
+                                                        <span className="wa-preview-text">
+                                                            {c.lastMessage || "No messages yet"}
+                                                        </span>
+
                                                     </span>
 
                                                     {c.unreadCount > 0 && (

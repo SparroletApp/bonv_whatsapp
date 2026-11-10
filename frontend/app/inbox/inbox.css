@@ -587,6 +587,48 @@
     border-bottom: 1px solid #f0f2f5;
 }
 
+
+.wa-preview-message {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.wa-preview-message > i {
+    flex-shrink: 0;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.wa-preview-text {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.wa-tick-pending {
+    color: #89949a;
+}
+
+.wa-tick-sent {
+    color: #89949a;
+}
+
+.wa-tick-delivered {
+    color: #89949a;
+}
+
+.wa-tick-read {
+    color: #53bdeb;
+}
+
+.wa-tick-failed {
+    color: #e53935;
+}
+
 .wa-conversation-heading {
     display: flex;
     justify-content: space-between;

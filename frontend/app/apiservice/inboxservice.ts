@@ -8,6 +8,7 @@ export interface Conversation {
     lastMessageAt: string;
     lastDirection: "INBOUND" | "OUTBOUND";
     unreadCount: number;
+    lastMessageStatus: string | null;
     lastInboundAt: string | null;
     windowExpiresAt: string | null;
 }
