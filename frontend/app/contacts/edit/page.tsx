@@ -3,7 +3,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Swal from "sweetalert2";
-import { useRouter } from "next/navigation";
 
 import contactService, {
     ContactUpdateDto,
@@ -17,10 +16,18 @@ import errorService from "../../apiservice/errorservice";
 
 import "./contact-edit.css";
 
-function EditContact() {
-    const router = useRouter();
+type EditContactProps = {
+    contactId: number;
+    onClose: () => void;
+    onUpdated: () => Promise<void>;
+};
 
-    const [contactId, setContactId] = useState<number | null>(null);
+function EditContact({
+    contactId,
+    onClose,
+    onUpdated,
+}: EditContactProps) {
+
     const [categories, setCategories] = useState<CategoryResponseDto[]>([]);
 
     const [formData, setFormData] = useState<ContactUpdateDto>({
@@ -41,31 +48,17 @@ function EditContact() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
+    // ==========================================
+    // LOAD CONTACT AND CATEGORIES
+    // ==========================================
+
     useEffect(() => {
-        const storedId = localStorage.getItem("contactId");
+        loadData(contactId);
+    }, [contactId]);
 
-        if (
-            !storedId ||
-            !Number.isInteger(Number(storedId)) ||
-            Number(storedId) <= 0
-        ) {
-            Swal.fire({
-                icon: "warning",
-                title: "Contact not selected",
-                text: "Please select a contact to edit.",
-                confirmButtonColor: "#064e45",
-            }).then(() => {
-                router.push("/contacts");
-            });
-
-            return;
-        }
-
-        const id = Number(storedId);
-
-        setContactId(id);
-        loadData(id);
-    }, []);
+    // ==========================================
+    // CLOSE CATEGORY DROPDOWN ON OUTSIDE CLICK
+    // ==========================================
 
     useEffect(() => {
         const handleOutsideClick = (event: MouseEvent) => {
@@ -84,6 +77,10 @@ function EditContact() {
         };
     }, []);
 
+    // ==========================================
+    // TOAST
+    // ==========================================
+
     const showToast = (
         icon: "success" | "error" | "warning",
         title: string
@@ -98,6 +95,10 @@ function EditContact() {
             timerProgressBar: true,
         });
     };
+
+    // ==========================================
+    // LOAD CONTACT DATA
+    // ==========================================
 
     const loadData = async (id: number) => {
         try {
@@ -119,7 +120,11 @@ function EditContact() {
             };
 
             setFormData(contactData);
-            setOriginalData(contactData);
+
+            setOriginalData({
+                ...contactData,
+                categoryIds: [...contactData.categoryIds],
+            });
 
         } catch (error: unknown) {
             console.error("Contact loading error:", error);
@@ -129,11 +134,16 @@ function EditContact() {
                 errorService.getErrorMessage(error)
             );
 
-            router.push("/contacts");
+            onClose();
+
         } finally {
             setLoading(false);
         }
     };
+
+    // ==========================================
+    // INPUT CHANGE
+    // ==========================================
 
     const handleChange = (
         event: React.ChangeEvent<HTMLInputElement>
@@ -146,6 +156,10 @@ function EditContact() {
         }));
     };
 
+    // ==========================================
+    // TOGGLE CATEGORY
+    // ==========================================
+
     const toggleCategory = (categoryId: number) => {
         setFormData((previous) => ({
             ...previous,
@@ -155,6 +169,10 @@ function EditContact() {
         }));
     };
 
+    // ==========================================
+    // REMOVE CATEGORY
+    // ==========================================
+
     const removeCategory = (categoryId: number) => {
         setFormData((previous) => ({
             ...previous,
@@ -163,6 +181,10 @@ function EditContact() {
             ),
         }));
     };
+
+    // ==========================================
+    // RESET FORM
+    // ==========================================
 
     const handleReset = () => {
         if (originalData) {
@@ -175,10 +197,19 @@ function EditContact() {
         }
     };
 
+    // ==========================================
+    // CLOSE DRAWER
+    // ==========================================
+
     const handleClose = () => {
         if (saving) return;
-        router.push("/contacts");
+
+        onClose();
     };
+
+    // ==========================================
+    // UPDATE CONTACT
+    // ==========================================
 
     const handleSubmit = async (
         event: React.FormEvent<HTMLFormElement>
@@ -187,6 +218,16 @@ function EditContact() {
 
         if (!contactId) {
             showToast("error", "Contact ID is missing.");
+            return;
+        }
+
+        if (!formData.name.trim()) {
+            showToast("warning", "Please enter contact name.");
+            return;
+        }
+
+        if (!formData.phone.trim()) {
+            showToast("warning", "Please enter phone number.");
             return;
         }
 
@@ -213,9 +254,9 @@ function EditContact() {
                 confirmButtonColor: "#064e45",
             });
 
-            localStorage.removeItem("contactId");
+            await onUpdated();
 
-            router.push("/contacts");
+            onClose();
 
         } catch (error: unknown) {
             console.error("Contact update error:", error);
@@ -224,23 +265,39 @@ function EditContact() {
                 "error",
                 errorService.getErrorMessage(error)
             );
+
         } finally {
             setSaving(false);
         }
     };
 
+    // ==========================================
+    // LOADING VIEW
+    // ==========================================
+
     if (loading) {
         return (
             <div className="edit-contact-overlay">
+
+                <div
+                    className="edit-contact-backdrop"
+                    onClick={handleClose}
+                />
+
                 <div className="edit-contact-drawer">
                     <div className="edit-drawer-loading">
                         <i className="bi bi-arrow-repeat"></i>
                         <p>Loading contact details...</p>
                     </div>
                 </div>
+
             </div>
         );
     }
+
+    // ==========================================
+    // DRAWER UI
+    // ==========================================
 
     return (
         <div className="edit-contact-overlay">
@@ -282,7 +339,7 @@ function EditContact() {
 
                 </div>
 
-                {/* DRAWER CONTENT */}
+                {/* DRAWER FORM */}
                 <form
                     className="edit-drawer-form"
                     onSubmit={handleSubmit}
@@ -292,13 +349,16 @@ function EditContact() {
 
                         <div className="edit-drawer-section-title">
                             <h3>Contact Information</h3>
-                            <p>Enter the details below to update this contact.</p>
+                            <p>
+                                Enter the details below to update this contact.
+                            </p>
                         </div>
 
                         <div className="edit-drawer-form-grid">
 
                             {/* NAME */}
                             <div className="edit-drawer-field">
+
                                 <label>
                                     Full Name <span>*</span>
                                 </label>
@@ -315,10 +375,12 @@ function EditContact() {
                                         required
                                     />
                                 </div>
+
                             </div>
 
                             {/* PHONE */}
                             <div className="edit-drawer-field">
+
                                 <label>
                                     Phone Number <span>*</span>
                                 </label>
@@ -335,10 +397,12 @@ function EditContact() {
                                         required
                                     />
                                 </div>
+
                             </div>
 
                             {/* EMAIL */}
                             <div className="edit-drawer-field">
+
                                 <label>Email Address</label>
 
                                 <div className="edit-drawer-input-wrapper">
@@ -352,6 +416,7 @@ function EditContact() {
                                         onChange={handleChange}
                                     />
                                 </div>
+
                             </div>
 
                             {/* MULTIPLE CATEGORY SELECT */}
@@ -359,6 +424,7 @@ function EditContact() {
                                 className="edit-drawer-field edit-drawer-category-field"
                                 ref={categoryDropdownRef}
                             >
+
                                 <label>
                                     Categories <span>*</span>
                                 </label>
@@ -371,6 +437,7 @@ function EditContact() {
                                         setShowCategoryDropdown((previous) => !previous)
                                     }
                                 >
+
                                     <div className="edit-category-selected-tags">
 
                                         {formData.categoryIds.length === 0 ? (
@@ -404,6 +471,7 @@ function EditContact() {
                                                         >
                                                             <i className="bi bi-x"></i>
                                                         </button>
+
                                                     </span>
                                                 );
                                             })
@@ -416,6 +484,7 @@ function EditContact() {
                                             showCategoryDropdown ? "rotated" : ""
                                         }`}
                                     ></i>
+
                                 </div>
 
                                 {showCategoryDropdown && (
@@ -442,6 +511,7 @@ function EditContact() {
                                                             toggleCategory(category.id)
                                                         }
                                                     >
+
                                                         <input
                                                             type="checkbox"
                                                             checked={selected}
@@ -455,6 +525,7 @@ function EditContact() {
                                                         {selected && (
                                                             <i className="bi bi-check2"></i>
                                                         )}
+
                                                     </div>
                                                 );
                                             })
@@ -466,6 +537,7 @@ function EditContact() {
                                 <small>
                                     Select one or more categories.
                                 </small>
+
                             </div>
 
                         </div>
@@ -473,6 +545,7 @@ function EditContact() {
                         {/* INFORMATION NOTE */}
                         <div className="edit-drawer-info">
                             <i className="bi bi-info-circle"></i>
+
                             <span>
                                 Update the contact details and click Save Changes
                                 to apply your modifications.

@@ -43,10 +43,10 @@ function Contact() {
 
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(20);
-const [editingContactId, setEditingContactId] = useState<number | null>(null);
-const openEditPage = (contact: ContactResponseDto) => {
-    setEditingContactId(contact.id);
-};
+    const [editingContactId, setEditingContactId] = useState<number | null>(null);
+    const openEditPage = (contact: ContactResponseDto) => {
+        setEditingContactId(contact.id);
+    };
     useEffect(() => {
         fetchContacts();
         fetchCategories();
@@ -76,7 +76,7 @@ const openEditPage = (contact: ContactResponseDto) => {
         }
     };
 
-    
+
 
     const totalPages = Math.ceil(contacts.length / rowsPerPage);
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -369,17 +369,16 @@ const openEditPage = (contact: ContactResponseDto) => {
                     <div style="text-align:left">
                         <p><strong>Successfully uploaded:</strong> ${successCount}</p>
                         <p><strong>Failed:</strong> ${uploadErrors.length}</p>
-                        ${
-                            uploadErrors.length
-                                ? `<hr/><p><strong>Errors:</strong></p>
+                        ${uploadErrors.length
+                        ? `<hr/><p><strong>Errors:</strong></p>
                                    <div style="max-height:150px;overflow-y:auto;text-align:left">
                                    ${uploadErrors
-                                       .slice(0, 15)
-                                       .map((item) => `<div>${item}</div>`)
-                                       .join("")}
+                            .slice(0, 15)
+                            .map((item) => `<div>${item}</div>`)
+                            .join("")}
                                    </div>`
-                                : ""
-                        }
+                        : ""
+                    }
                     </div>
                 `,
                 confirmButtonColor: "#064e45",
@@ -398,6 +397,7 @@ const openEditPage = (contact: ContactResponseDto) => {
     };
 
     return (
+        <>
         <section className="category-page">
 
             {/* HEADER */}
@@ -636,9 +636,9 @@ const openEditPage = (contact: ContactResponseDto) => {
                                 {contacts.length === 0
                                     ? "0 of 0"
                                     : `${startIndex + 1}-${Math.min(
-                                          startIndex + rowsPerPage,
-                                          contacts.length
-                                      )} of ${contacts.length}`}
+                                        startIndex + rowsPerPage,
+                                        contacts.length
+                                    )} of ${contacts.length}`}
                             </span>
 
                         </div>
@@ -665,9 +665,8 @@ const openEditPage = (contact: ContactResponseDto) => {
                                 <button
                                     key={page}
                                     type="button"
-                                    className={`category-page-number ${
-                                        currentPage === page ? "active" : ""
-                                    }`}
+                                    className={`category-page-number ${currentPage === page ? "active" : ""
+                                        }`}
                                     onClick={() => setCurrentPage(page)}
                                 >
                                     {page}
@@ -694,15 +693,16 @@ const openEditPage = (contact: ContactResponseDto) => {
                 )}
 
             </div>
-            {editingContactId !== null && (
-    <EditContact
-        contactId={editingContactId}
-        onClose={() => setEditingContactId(null)}
-        onUpdated={fetchContacts}
-    />
-)}
+           
         </section>
-        
+         {editingContactId !== null && (
+                <EditContact
+                    contactId={editingContactId}
+                    onClose={() => setEditingContactId(null)}
+                    onUpdated={fetchContacts}
+                />
+            )}
+</>
     );
 }
 
