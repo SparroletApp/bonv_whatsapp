@@ -181,25 +181,6 @@
     cursor: pointer;
 }
 
-/* ==========================================
-   HORIZONTAL STATUS + CATEGORY FILTERS
-========================================== */
-.wa-filter-area {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-
-    padding: 12px 14px;
-
-    overflow: hidden;
-    flex-shrink: 0;
-
-    border-bottom: 1px solid #e9edef;
-}
-
-/* STATUS FILTERS */
 
 .wa-status-filters {
     display: flex;
@@ -257,11 +238,70 @@
     background: transparent;
 }
 
-/* FILTER BUTTONS */
+/* ==========================================
+   STATUS + CATEGORY FILTERS (single-line scroll)
+========================================== */
 
+.wa-filter-area {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-bottom: 1px solid #e9edef;
+}
+
+/* One line, horizontal scroll, never wraps */
+.wa-status-filters,
+.wa-category-filters {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5d1 transparent;
+}
+
+.wa-status-filters {
+    scrollbar-width: none;
+}
+
+.wa-status-filters::-webkit-scrollbar {
+    display: none;
+}
+
+.wa-category-filters {
+    padding-bottom: 6px;
+}
+
+.wa-category-filters::-webkit-scrollbar {
+    height: 4px;
+}
+
+.wa-category-filters::-webkit-scrollbar-thumb {
+    background: #cbd5d1;
+    border-radius: 10px;
+}
+
+.wa-category-filters::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Chips: never shrink, never wrap */
 .wa-filter-area button {
     flex: 0 0 auto;
-
     height: 32px;
     padding: 0 13px;
 
@@ -271,16 +311,13 @@
 
     border: 1px solid #e1e9e6;
     border-radius: 20px;
-
-    background: #ffffff;
+    background: #fff;
     color: #53635e;
 
     font-size: 11px;
     font-weight: 600;
-
     white-space: nowrap;
     cursor: pointer;
-
     transition: all 0.2s ease;
 }
 
@@ -290,15 +327,39 @@
     color: #064e45;
 }
 
-/* ACTIVE */
-
 .wa-filter-area button.wa-filter-active {
     background: #064e45;
-    color: #ffffff;
     border-color: #064e45;
+    color: #fff;
 }
 
-/* ADD CATEGORY */
+/* "+" button stays visible at the right edge while chips scroll */
+.wa-category-filters .wa-add-category-btn {
+    position: sticky;
+    right: 0;
+    flex: 0 0 32px;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px dashed #064e45;
+    border-radius: 50%;
+    background: #e8f3f0;
+    color: #064e45;
+    font-size: 14px;
+    z-index: 1;
+}
+
+.wa-category-filters .wa-add-category-btn:hover {
+    background: #064e45;
+    color: #fff;
+}
+
+.wa-filter-loading {
+    padding: 4px 14px;
+    font-size: 11px;
+    color: #82918d;
+}
 
 .wa-category-filters .wa-add-category-btn {
     width: 32px;
@@ -321,14 +382,6 @@
     color: #ffffff;
 }
 
-/* LOADING */
-
-.wa-filter-loading {
-    padding: 4px 14px;
-    font-size: 11px;
-    color: #82918d;
-}
-/* STATUS FILTERS */
 
 .wa-status-filters {
     display: flex;
@@ -338,7 +391,6 @@
     flex-shrink: 0;
 }
 
-/* CATEGORY FILTERS */
 
 .wa-category-filters {
     display: flex;

@@ -313,7 +313,14 @@ export default function InboxPage() {
 
     const [selectedCategoryId, setSelectedCategoryId] =
         useState<number | null>(null);
+    const categoryRowRef = useRef<HTMLDivElement>(null);
 
+    const handleCategoryWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+        if (!categoryRowRef.current) return;
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            categoryRowRef.current.scrollLeft += e.deltaY;
+        }
+    };
     const [loadingFilters, setLoadingFilters] = useState(false);
 
     const [text, setText] = useState("");
@@ -1269,7 +1276,11 @@ export default function InboxPage() {
 
                         </div>
 
-                        <div className="wa-category-filters">
+                        <div
+                            className="wa-category-filters"
+                            ref={categoryRowRef}
+                            onWheel={handleCategoryWheel}
+                        >
 
                             {categories.map((category) => (
                                 <button
