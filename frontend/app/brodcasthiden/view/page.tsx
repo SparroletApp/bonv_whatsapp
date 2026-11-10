@@ -184,11 +184,11 @@ export default function BroadcastView() {
                 contact.phone?.toLowerCase().includes(searchText) ||
                 contact.email?.toLowerCase().includes(searchText);
 
-            const matchesCategory =
-                selectedCategory === "all" ||
-                contact.categoryId.toString() === selectedCategory;
+            // const matchesCategory =
+            //     selectedCategory === "all" ||
+            //     contact.categoryId.toString() === selectedCategory;
 
-            return matchesSearch && matchesCategory;
+            // return matchesSearch && matchesCategory;
         });
     }, [availableContacts, search, selectedCategory]);
 
@@ -468,11 +468,11 @@ export default function BroadcastView() {
                                             </div>
                                         </td>
 
-                                        <td>
+                                        {/* <td>
                                             <span className="broadcast-contact-category">
                                                 {contact.categoryName || "Uncategorized"}
                                             </span>
-                                        </td>
+                                        </td> */}
                                     </tr>
                                 ))}
                             </tbody>
@@ -748,11 +748,11 @@ export default function BroadcastView() {
                                                         </div>
                                                     </td>
 
-                                                    <td>
+                                                    {/* <td>
                                                         <span className="broadcast-contact-category">
                                                             {contact.categoryName || "Uncategorized"}
                                                         </span>
-                                                    </td>
+                                                    </td> */}
                                                 </tr>
                                             );
                                         })}
