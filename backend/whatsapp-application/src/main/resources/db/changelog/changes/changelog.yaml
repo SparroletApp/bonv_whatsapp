@@ -113,11 +113,11 @@ databaseChangeLog:
             relativeToChangelogFile: true
 
   - changeSet:
-      id: alter_contact_add_catogories
+      id: alter_contact_add_categories
       author: amrutha
       changes:
         - sqlFile:
-            path: sql/alter_contact_add_catogories.sql
+            path: sql/alter_contact_add_categories.sql
             relativeToChangelogFile: true
 
 

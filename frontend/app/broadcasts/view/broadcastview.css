@@ -16,6 +16,40 @@
     flex-wrap: wrap;
 }
 
+
+/* MULTIPLE CATEGORY BADGES */
+
+.broadcast-category-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-width: 120px;
+}
+
+.broadcast-category-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 9px;
+    border-radius: 5px;
+    background: #e8f3f0;
+    color: #064e45;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.broadcast-category-badge i {
+    font-size: 10px;
+}
+
+.broadcast-category-empty {
+    color: #929e9a;
+    font-size: 12px;
+}
+
+
 .broadcast-view-title {
     display: flex;
     align-items: center;
