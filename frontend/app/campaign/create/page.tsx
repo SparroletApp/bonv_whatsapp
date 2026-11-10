@@ -1,3 +1,4 @@
+
 "use client";
 
 import campaignService from "@/app/apiservice/campaignservice";
@@ -35,13 +36,6 @@ const SAMPLE: Record<Exclude<Kind, "TEXT">, string> = {
 
 const MEDIA_HEADERS = ["IMAGE", "VIDEO", "DOCUMENT"];
 
-// Earliest selectable time for the date picker (now + 5 min, in local time) as "YYYY-MM-DDTHH:mm"
-const minSchedule = () => {
-    const d = new Date(Date.now() + 5 * 60000);
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
-};
-
 export default function CampaignCreatePage() {
     const nav = useRouter();
 
@@ -53,9 +47,6 @@ export default function CampaignCreatePage() {
     const [templateId, setTemplateId] = useState<number | "">("");
 
     const [mapping, setMapping] = useState<VarMap[]>([]);
-
-    const [sendMode, setSendMode] = useState<"NOW" | "LATER">("NOW");
-    const [scheduledAt, setScheduledAt] = useState("");
 
     const [showTemplateForm, setShowTemplateForm] = useState(false);
     const [launching, setLaunching] = useState(false);
@@ -107,8 +98,6 @@ export default function CampaignCreatePage() {
             (m) => m.kind === "TEXT" && !m.text.trim()
         );
 
-    const scheduleReady = sendMode === "NOW" || !!scheduledAt;
-
     const loadTemplates = async () => {
         const data = await templateService.list();
         setTemplates(data);
@@ -126,7 +115,7 @@ export default function CampaignCreatePage() {
                 setError("");
             }
         } catch (e) {
-            await loadTemplates().catch(() => { });
+            await loadTemplates().catch(() => {});
 
             if (!silent) {
                 setError(
@@ -145,8 +134,6 @@ export default function CampaignCreatePage() {
             .catch((e) => setError(apiError(e)));
 
         refreshFromMeta(true);
-
-
     }, []);
 
     useEffect(() => {
@@ -175,14 +162,6 @@ export default function CampaignCreatePage() {
             current.includes(id)
                 ? current.filter((x) => x !== id)
                 : [...current, id]
-        );
-    };
-
-    const selectAllCategories = () => {
-        setSelected((current) =>
-            current.length === categories.length
-                ? []
-                : categories.map((c) => c.id)
         );
     };
 
@@ -247,6 +226,15 @@ export default function CampaignCreatePage() {
         }
 
         if (
+            mapping.length !== template.variableCount
+        ) {
+            setError(
+                "Please configure all template variables."
+            );
+            return;
+        }
+
+        if (
             mapping.some(
                 (m) =>
                     m.kind === "TEXT" &&
@@ -266,33 +254,18 @@ export default function CampaignCreatePage() {
             return;
         }
 
-        if (sendMode === "LATER") {
-            if (!scheduledAt) {
-                setError("Please choose a date and time to send the campaign.");
-                return;
-            }
-
-            if (new Date(scheduledAt).getTime() < Date.now() + 60_000) {
-                setError("Scheduled time must be at least 1 minute in the future.");
-                return;
-            }
-        }
-
         setLaunching(true);
 
         try {
-
             await campaignService.create({
                 name: name.trim(),
                 templateId: template.id,
                 categoryIds: selected,
                 variableMapping: mapping.map((m) =>
                     m.kind === "TEXT"
-                        ? `TEXT:${m.text}`
+                        ? `TEXT:${m.text.trim()}`
                         : m.kind
                 ),
-                // null = send immediately, otherwise e.g. "2026-11-10T18:30"
-                scheduledAt: sendMode === "LATER" ? scheduledAt : null,
             });
 
             nav.push(CAMPAIGNS_PAGE);
@@ -352,10 +325,7 @@ export default function CampaignCreatePage() {
 
                         <div className="cc-progress-line" />
 
-                        <div
-                            className={`cc-progress-item ${selected.length ? "active" : ""
-                                }`}
-                        >
+                        <div className={`cc-progress-item ${selected.length ? "active" : ""}`}>
                             <span>02</span>
                             <div>
                                 <strong>Audience</strong>
@@ -365,10 +335,7 @@ export default function CampaignCreatePage() {
 
                         <div className="cc-progress-line" />
 
-                        <div
-                            className={`cc-progress-item ${template ? "active" : ""
-                                }`}
-                        >
+                        <div className={`cc-progress-item ${template ? "active" : ""}`}>
                             <span>03</span>
                             <div>
                                 <strong>Message</strong>
@@ -383,9 +350,7 @@ export default function CampaignCreatePage() {
             {error && (
                 <div className="cc-alert cc-alert-error">
                     <i className="bi bi-exclamation-circle-fill" />
-
                     <span>{error}</span>
-
                     <button onClick={() => setError("")}>
                         <i className="bi bi-x-lg" />
                     </button>
@@ -395,9 +360,7 @@ export default function CampaignCreatePage() {
             {info && (
                 <div className="cc-alert cc-alert-success">
                     <i className="bi bi-check-circle-fill" />
-
                     <span>{info}</span>
-
                     <button onClick={() => setInfo("")}>
                         <i className="bi bi-x-lg" />
                     </button>
@@ -407,6 +370,8 @@ export default function CampaignCreatePage() {
             <div className="cc-layout">
 
                 <div className="cc-main">
+
+                    {/* STEP 01 - CAMPAIGN INFORMATION */}
 
                     <section className="cc-card">
 
@@ -434,9 +399,7 @@ export default function CampaignCreatePage() {
                                 id="campaignName"
                                 type="text"
                                 value={name}
-                                onChange={(e) =>
-                                    setName(e.target.value)
-                                }
+                                onChange={(e) => setName(e.target.value)}
                                 placeholder="e.g. Diwali Special Offers - November 2026"
                                 maxLength={100}
                             />
@@ -448,12 +411,12 @@ export default function CampaignCreatePage() {
                                     this campaign.
                                 </span>
 
-                                <small>
-                                    {name.length}/100
-                                </small>
+                                <small>{name.length}/100</small>
                             </div>
                         </div>
                     </section>
+
+                    {/* STEP 02 - AUDIENCE */}
 
                     <section className="cc-card">
 
@@ -464,7 +427,9 @@ export default function CampaignCreatePage() {
 
                             <div>
                                 <h2>Choose your audience</h2>
-                                <p>Select the contact groups you want to reach.</p>
+                                <p>
+                                    Select the contact groups you want to reach.
+                                </p>
                             </div>
 
                             <span className="cc-step">STEP 02</span>
@@ -476,7 +441,9 @@ export default function CampaignCreatePage() {
                             </div>
 
                             <div>
-                                <strong>{totalContacts.toLocaleString("en-IN")}</strong>
+                                <strong>
+                                    {totalContacts.toLocaleString("en-IN")}
+                                </strong>
                                 <span>Contacts selected</span>
                             </div>
 
@@ -492,8 +459,7 @@ export default function CampaignCreatePage() {
 
                             <button
                                 type="button"
-                                className={`cc-category-trigger ${categoryDropdownOpen ? "open" : ""
-                                    }`}
+                                className={`cc-category-trigger ${categoryDropdownOpen ? "open" : ""}`}
                                 onClick={() =>
                                     setCategoryDropdownOpen((prev) => !prev)
                                 }
@@ -517,15 +483,18 @@ export default function CampaignCreatePage() {
                                 </div>
 
                                 <i className={`bi ${categoryDropdownOpen
-                                        ? "bi-chevron-up"
-                                        : "bi-chevron-down"
+                                    ? "bi-chevron-up"
+                                    : "bi-chevron-down"
                                     }`} />
                             </button>
 
                             {selectedCategories.length > 0 && (
                                 <div className="cc-selected-chips">
                                     {selectedCategories.map((category) => (
-                                        <span key={category.id} className="cc-category-chip">
+                                        <span
+                                            key={category.id}
+                                            className="cc-category-chip"
+                                        >
                                             {category.name}
 
                                             <button
@@ -592,9 +561,7 @@ export default function CampaignCreatePage() {
 
                                             <button
                                                 type="button"
-                                                onClick={() => {
-                                                    setSelected([]);
-                                                }}
+                                                onClick={() => setSelected([])}
                                             >
                                                 Clear all
                                             </button>
@@ -612,8 +579,7 @@ export default function CampaignCreatePage() {
                                                 return (
                                                     <label
                                                         key={category.id}
-                                                        className={`cc-category-option ${isSelected ? "selected" : ""
-                                                            }`}
+                                                        className={`cc-category-option ${isSelected ? "selected" : ""}`}
                                                     >
                                                         <input
                                                             type="checkbox"
@@ -655,9 +621,7 @@ export default function CampaignCreatePage() {
                                     </div>
 
                                     <div className="cc-category-dropdown-footer">
-                                        <span>
-                                            {selected.length} selected
-                                        </span>
+                                        <span>{selected.length} selected</span>
 
                                         <button
                                             type="button"
@@ -681,7 +645,7 @@ export default function CampaignCreatePage() {
 
                     </section>
 
-
+                    {/* STEP 03 - MESSAGE TEMPLATE */}
 
                     <section className="cc-card">
 
@@ -708,10 +672,7 @@ export default function CampaignCreatePage() {
                                 onClick={() => refreshFromMeta(false)}
                                 disabled={syncing}
                             >
-                                <i
-                                    className={`bi bi-arrow-repeat ${syncing ? "cc-spinning" : ""
-                                        }`}
-                                />
+                                <i className={`bi bi-arrow-repeat ${syncing ? "cc-spinning" : ""}`} />
 
                                 {syncing
                                     ? "Refreshing..."
@@ -721,9 +682,7 @@ export default function CampaignCreatePage() {
                             <button
                                 type="button"
                                 className="cc-create-template-btn"
-                                onClick={() =>
-                                    setShowTemplateForm(true)
-                                }
+                                onClick={() => setShowTemplateForm(true)}
                             >
                                 <i className="bi bi-plus-lg" />
                                 New template
@@ -759,10 +718,7 @@ export default function CampaignCreatePage() {
                                     </option>
 
                                     {approvedTemplates.map((t) => (
-                                        <option
-                                            key={t.id}
-                                            value={t.id}
-                                        >
+                                        <option key={t.id} value={t.id}>
                                             {t.name} ({t.language})
                                         </option>
                                     ))}
@@ -864,9 +820,7 @@ export default function CampaignCreatePage() {
                                                         rel="noopener noreferrer"
                                                     >
                                                         <i className="bi bi-file-earmark-pdf" />
-
                                                         View saved template document
-
                                                         <i className="bi bi-box-arrow-up-right" />
                                                     </a>
                                                 )}
@@ -902,9 +856,7 @@ export default function CampaignCreatePage() {
 
                                         <div className="cc-variable-heading">
                                             <div>
-                                                <h3>
-                                                    Personalize your message
-                                                </h3>
+                                                <h3>Personalize your message</h3>
 
                                                 <p>
                                                     Map each template variable
@@ -1061,9 +1013,7 @@ export default function CampaignCreatePage() {
 
                                 <button
                                     type="button"
-                                    onClick={() =>
-                                        setShowTemplateForm(true)
-                                    }
+                                    onClick={() => setShowTemplateForm(true)}
                                 >
                                     <i className="bi bi-plus-lg" />
                                     Create template
@@ -1074,74 +1024,9 @@ export default function CampaignCreatePage() {
 
                     </section>
 
-                    <section className="cc-card">
-
-                        <div className="cc-card-header">
-                            <div className="cc-section-icon">
-                                <i className="bi bi-clock" />
-                            </div>
-
-                            <div>
-                                <h2>Send time</h2>
-                                <p>
-                                    Send right away or schedule for later.
-                                </p>
-                            </div>
-
-                            <span className="cc-step">STEP 04</span>
-                        </div>
-
-                        <div style={{ display: "flex", gap: 24, marginBottom: 14, flexWrap: "wrap" }}>
-                            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                                <input
-                                    type="radio"
-                                    name="sendMode"
-                                    checked={sendMode === "NOW"}
-                                    onChange={() => setSendMode("NOW")}
-                                />
-                                Send immediately
-                            </label>
-
-                            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                                <input
-                                    type="radio"
-                                    name="sendMode"
-                                    checked={sendMode === "LATER"}
-                                    onChange={() => setSendMode("LATER")}
-                                />
-                                Schedule for later
-                            </label>
-                        </div>
-
-                        {sendMode === "LATER" && (
-                            <div className="cc-field">
-                                <label htmlFor="scheduledAt">
-                                    Date &amp; time <span>*</span>
-                                </label>
-
-                                <input
-                                    id="scheduledAt"
-                                    type="datetime-local"
-                                    min={minSchedule()}
-                                    value={scheduledAt}
-                                    onChange={(e) =>
-                                        setScheduledAt(e.target.value)
-                                    }
-                                />
-
-                                <div className="cc-field-bottom">
-                                    <span>
-                                        <i className="bi bi-info-circle" />
-                                        Messages will be sent automatically at
-                                        this time (India time).
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-
-                    </section>
-
                 </div>
+
+                {/* CAMPAIGN SUMMARY */}
 
                 <aside className="cc-sidebar">
 
@@ -1215,29 +1100,7 @@ export default function CampaignCreatePage() {
                                     Variables
                                 </span>
 
-                                <strong>
-                                    {mapping.length}
-                                </strong>
-                            </div>
-
-                            <div className="cc-summary-row">
-                                <span>
-                                    <i className="bi bi-clock" />
-                                    Send time
-                                </span>
-
-                                <strong>
-                                    {sendMode === "NOW"
-                                        ? "Immediately"
-                                        : scheduledAt
-                                            ? new Date(scheduledAt).toLocaleString(undefined, {
-                                                day: "numeric",
-                                                month: "short",
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                            })
-                                            : "Not set"}
-                                </strong>
+                                <strong>{mapping.length}</strong>
                             </div>
 
                         </div>
@@ -1249,66 +1112,44 @@ export default function CampaignCreatePage() {
                             <h4>Launch checklist</h4>
 
                             <div className={name.trim() ? "completed" : ""}>
-                                <i
-                                    className={`bi ${name.trim()
-                                        ? "bi-check-circle-fill"
-                                        : "bi-circle"
-                                        }`}
-                                />
+                                <i className={`bi ${name.trim()
+                                    ? "bi-check-circle-fill"
+                                    : "bi-circle"
+                                    }`} />
                                 Campaign name added
                             </div>
 
                             <div className={selected.length ? "completed" : ""}>
-                                <i
-                                    className={`bi ${selected.length
-                                        ? "bi-check-circle-fill"
-                                        : "bi-circle"
-                                        }`}
-                                />
+                                <i className={`bi ${selected.length
+                                    ? "bi-check-circle-fill"
+                                    : "bi-circle"
+                                    }`} />
                                 Audience selected
                             </div>
 
                             <div className={template ? "completed" : ""}>
-                                <i
-                                    className={`bi ${template
-                                        ? "bi-check-circle-fill"
-                                        : "bi-circle"
-                                        }`}
-                                />
+                                <i className={`bi ${template
+                                    ? "bi-check-circle-fill"
+                                    : "bi-circle"
+                                    }`} />
                                 Template selected
                             </div>
 
                             <div className={variablesReady ? "completed" : ""}>
-                                <i
-                                    className={`bi ${variablesReady
-                                        ? "bi-check-circle-fill"
-                                        : "bi-circle"
-                                        }`}
-                                />
+                                <i className={`bi ${variablesReady
+                                    ? "bi-check-circle-fill"
+                                    : "bi-circle"
+                                    }`} />
                                 Variables configured
                             </div>
 
                             {needsMedia && (
                                 <div className={mediaReady ? "completed" : ""}>
-                                    <i
-                                        className={`bi ${mediaReady
-                                            ? "bi-check-circle-fill"
-                                            : "bi-circle"
-                                            }`}
-                                    />
+                                    <i className={`bi ${mediaReady
+                                        ? "bi-check-circle-fill"
+                                        : "bi-circle"
+                                        }`} />
                                     Template media available
-                                </div>
-                            )}
-
-                            {sendMode === "LATER" && (
-                                <div className={scheduleReady ? "completed" : ""}>
-                                    <i
-                                        className={`bi ${scheduleReady
-                                            ? "bi-check-circle-fill"
-                                            : "bi-circle"
-                                            }`}
-                                    />
-                                    Schedule time set
                                 </div>
                             )}
 
@@ -1319,24 +1160,22 @@ export default function CampaignCreatePage() {
                             className="cc-launch-btn"
                             disabled={
                                 launching ||
+                                !name.trim() ||
+                                selected.length === 0 ||
                                 !template ||
-                                (needsMedia && !mediaReady) ||
-                                !scheduleReady
+                                !variablesReady ||
+                                (needsMedia && !mediaReady)
                             }
                             onClick={launch}
                         >
                             {launching ? (
                                 <>
                                     <span className="cc-loader" />
-                                    {sendMode === "LATER"
-                                        ? "Scheduling campaign..."
-                                        : "Launching campaign..."}
+                                    Launching campaign...
                                 </>
                             ) : (
                                 <>
-                                    {sendMode === "LATER"
-                                        ? "Schedule campaign"
-                                        : "Launch campaign"}
+                                    Launch campaign
                                     <i className="bi bi-arrow-right" />
                                 </>
                             )}
@@ -1344,7 +1183,7 @@ export default function CampaignCreatePage() {
 
                         <p className="cc-launch-note">
                             <i className="bi bi-shield-lock" />
-                            Review your campaign details before launching.
+                            Your campaign will start immediately after launch.
                         </p>
 
                     </div>
@@ -1369,6 +1208,8 @@ export default function CampaignCreatePage() {
                 </aside>
 
             </div>
+
+            {/* CREATE TEMPLATE MODAL */}
 
             {showTemplateForm && (
                 <Modal
