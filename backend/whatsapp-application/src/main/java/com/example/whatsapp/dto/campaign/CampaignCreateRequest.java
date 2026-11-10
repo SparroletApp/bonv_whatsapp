@@ -1,6 +1,7 @@
 package com.example.whatsapp.dto.campaign;
 
 import jakarta.validation.constraints.*;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record CampaignCreateRequest(
@@ -8,5 +9,6 @@ public record CampaignCreateRequest(
         @NotNull Long templateId,
         @NotEmpty List<Long> categoryIds,
         List<String> variableMapping,
-        String headerMediaUrl
+        String headerMediaUrl,
+        LocalDateTime scheduledAt
 ) {}

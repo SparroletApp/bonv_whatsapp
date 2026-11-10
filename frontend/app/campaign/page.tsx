@@ -6,7 +6,7 @@ import { apiError } from "@/app/utils/apiError";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-const STATUSES = ["ALL", "RUNNING", "COMPLETED", "FAILED"];
+const STATUSES = ["ALL", "SCHEDULED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"];
 const MSG_FILTERS = ["ALL", "PENDING", "SENT", "DELIVERED", "READ", "FAILED"];
 
 const fmt = (d: string | null) =>
@@ -22,6 +22,7 @@ export default function CampaignsPage() {
     const [msgs, setMsgs] = useState<CampaignMessage[]>([]);
     const [msgFilter, setMsgFilter] = useState("ALL");
     const [resuming, setResuming] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
 
     const loadList = async () => {
         try { setItems(await campaignService.list()); setError(""); }
@@ -54,6 +55,15 @@ export default function CampaignsPage() {
         try { await campaignService.resume(selected.id); await loadList(); }
         catch (e) { setError(apiError(e)); }
         finally { setResuming(false); }
+    };
+
+    const cancel = async () => {
+        if (!selected) return;
+        if (!confirm("Cancel this scheduled campaign? No messages will be sent.")) return;
+        setCancelling(true);
+        try { await campaignService.cancel(selected.id); await loadList(); }
+        catch (e) { setError(apiError(e)); }
+        finally { setCancelling(false); }
     };
 
 
@@ -91,7 +101,13 @@ export default function CampaignsPage() {
     }, [items, q, status]);
 
     const shownMsgs = msgFilter === "ALL" ? msgs : msgs.filter((m) => m.status === msgFilter);
-    const pct = (c: CampaignResponse) => (c.total ? Math.round(((c.total - c.pending) / c.total) * 100) : 0);
+    const pct = (c: CampaignResponse) =>
+        c.status === "SCHEDULED" || c.status === "CANCELLED"
+            ? 0
+            : (c.total ? Math.round(((c.total - c.pending) / c.total) * 100) : 0);
+
+    // Scheduled campaign -> its scheduled date; sent right away -> the time it was created/sent
+    const sendTime = (c: CampaignResponse) => (c.scheduledAt ? c.scheduledAt : c.createdAt);
 
     return (
         <div className="cmp-page">
@@ -125,14 +141,14 @@ export default function CampaignsPage() {
                     <thead>
                     <tr>
                         <th>Campaign</th><th>Template</th><th>Status</th><th>Progress</th>
-                        <th>Total</th><th>Sent</th><th>Unread</th><th>Read</th><th>Replies</th><th>Failed</th><th>Created</th>
+                        <th>Total</th><th>Sent</th><th>Unread</th><th>Read</th><th>Replies</th><th>Failed</th><th>Send time</th>
                     </tr>
                     </thead>
                     <tbody>
                     {loading && <tr><td colSpan={11} className="cmp-empty">Loading…</td></tr>}
                     {!loading && shown.length === 0 && (
                         <tr><td colSpan={11} className="cmp-empty">
-                            No campaigns yet. <Link href="/campaigns/create">Create your first campaign</Link>
+                            No campaigns yet. <Link href="/campaign/create">Create your first campaign</Link>
                         </td></tr>
                     )}
                     {shown.map((c) => (
@@ -152,7 +168,10 @@ export default function CampaignsPage() {
                             <td>{c.read}</td>
                             <td>{c.replied}</td>
                             <td className={c.failed ? "cmp-err" : ""}>{c.failed}</td>
-                            <td className="cmp-mono">{fmt(c.createdAt)}</td>
+                            <td className="cmp-mono">
+                                {fmt(sendTime(c))}
+                                {c.scheduledAt && <small style={{ display: "block" }}>Scheduled</small>}
+                            </td>
                         </tr>
                     ))}
                     </tbody>
@@ -167,7 +186,12 @@ export default function CampaignsPage() {
                             <div>
                                 <h2>{selected.name}</h2>
                                 <span className={`cmp-badge cmp-${selected.status.toLowerCase()}`}>{selected.status}</span>
-                                <p className="cmp-sub">Template: <strong>{selected.templateName}</strong> · {fmt(selected.createdAt)}</p>
+                                <p className="cmp-sub">Template: <strong>{selected.templateName}</strong> · Created {fmt(selected.createdAt)}</p>
+                                <p className="cmp-sub">
+                                    {selected.scheduledAt
+                                        ? <>Scheduled at: <strong>{fmt(selected.scheduledAt)}</strong></>
+                                        : <>Sent at: <strong>{fmt(selected.createdAt)}</strong></>}
+                                </p>
                             </div>
                             <button className="cmp-close" onClick={close} aria-label="Close">✕</button>
                         </header>
@@ -176,9 +200,17 @@ export default function CampaignsPage() {
                             <div className="cmp-progress"><div style={{ width: `${pct(selected)}%` }} /></div>
                             <p className="cmp-sub">
                                 {pct(selected)}% processed · {selected.pending} pending
-                                {selected.pending > 0 && selected.status !== "RUNNING" && (
+                                {selected.pending > 0 &&
+                                    selected.status !== "RUNNING" &&
+                                    selected.status !== "SCHEDULED" &&
+                                    selected.status !== "CANCELLED" && (
                                     <button className="cmp-link" disabled={resuming} onClick={resume}>
                                         {resuming ? "Resuming…" : "Resume sending"}
+                                    </button>
+                                )}
+                                {selected.status === "SCHEDULED" && (
+                                    <button className="cmp-link" disabled={cancelling} onClick={cancel}>
+                                        {cancelling ? "Cancelling…" : "Cancel scheduled send"}
                                     </button>
                                 )}
                             </p>

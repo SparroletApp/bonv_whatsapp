@@ -1,4 +1,3 @@
-
 "use client";
 
 import campaignService from "@/app/apiservice/campaignservice";
@@ -36,6 +35,13 @@ const SAMPLE: Record<Exclude<Kind, "TEXT">, string> = {
 
 const MEDIA_HEADERS = ["IMAGE", "VIDEO", "DOCUMENT"];
 
+// Earliest selectable time for the date picker (now + 5 min, in local time) as "YYYY-MM-DDTHH:mm"
+const minSchedule = () => {
+    const d = new Date(Date.now() + 5 * 60000);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+};
+
 export default function CampaignCreatePage() {
     const nav = useRouter();
 
@@ -47,6 +53,9 @@ export default function CampaignCreatePage() {
     const [templateId, setTemplateId] = useState<number | "">("");
 
     const [mapping, setMapping] = useState<VarMap[]>([]);
+
+    const [sendMode, setSendMode] = useState<"NOW" | "LATER">("NOW");
+    const [scheduledAt, setScheduledAt] = useState("");
 
     const [showTemplateForm, setShowTemplateForm] = useState(false);
     const [launching, setLaunching] = useState(false);
@@ -97,6 +106,8 @@ export default function CampaignCreatePage() {
         !mapping.some(
             (m) => m.kind === "TEXT" && !m.text.trim()
         );
+
+    const scheduleReady = sendMode === "NOW" || !!scheduledAt;
 
     const loadTemplates = async () => {
         const data = await templateService.list();
@@ -255,6 +266,18 @@ export default function CampaignCreatePage() {
             return;
         }
 
+        if (sendMode === "LATER") {
+            if (!scheduledAt) {
+                setError("Please choose a date and time to send the campaign.");
+                return;
+            }
+
+            if (new Date(scheduledAt).getTime() < Date.now() + 60_000) {
+                setError("Scheduled time must be at least 1 minute in the future.");
+                return;
+            }
+        }
+
         setLaunching(true);
 
         try {
@@ -268,6 +291,8 @@ export default function CampaignCreatePage() {
                         ? `TEXT:${m.text}`
                         : m.kind
                 ),
+                // null = send immediately, otherwise e.g. "2026-11-10T18:30"
+                scheduledAt: sendMode === "LATER" ? scheduledAt : null,
             });
 
             nav.push(CAMPAIGNS_PAGE);
@@ -1049,6 +1074,73 @@ export default function CampaignCreatePage() {
 
                     </section>
 
+                    <section className="cc-card">
+
+                        <div className="cc-card-header">
+                            <div className="cc-section-icon">
+                                <i className="bi bi-clock" />
+                            </div>
+
+                            <div>
+                                <h2>Send time</h2>
+                                <p>
+                                    Send right away or schedule for later.
+                                </p>
+                            </div>
+
+                            <span className="cc-step">STEP 04</span>
+                        </div>
+
+                        <div style={{ display: "flex", gap: 24, marginBottom: 14, flexWrap: "wrap" }}>
+                            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                                <input
+                                    type="radio"
+                                    name="sendMode"
+                                    checked={sendMode === "NOW"}
+                                    onChange={() => setSendMode("NOW")}
+                                />
+                                Send immediately
+                            </label>
+
+                            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                                <input
+                                    type="radio"
+                                    name="sendMode"
+                                    checked={sendMode === "LATER"}
+                                    onChange={() => setSendMode("LATER")}
+                                />
+                                Schedule for later
+                            </label>
+                        </div>
+
+                        {sendMode === "LATER" && (
+                            <div className="cc-field">
+                                <label htmlFor="scheduledAt">
+                                    Date &amp; time <span>*</span>
+                                </label>
+
+                                <input
+                                    id="scheduledAt"
+                                    type="datetime-local"
+                                    min={minSchedule()}
+                                    value={scheduledAt}
+                                    onChange={(e) =>
+                                        setScheduledAt(e.target.value)
+                                    }
+                                />
+
+                                <div className="cc-field-bottom">
+                                    <span>
+                                        <i className="bi bi-info-circle" />
+                                        Messages will be sent automatically at
+                                        this time (India time).
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
+                    </section>
+
                 </div>
 
                 <aside className="cc-sidebar">
@@ -1128,6 +1220,26 @@ export default function CampaignCreatePage() {
                                 </strong>
                             </div>
 
+                            <div className="cc-summary-row">
+                                <span>
+                                    <i className="bi bi-clock" />
+                                    Send time
+                                </span>
+
+                                <strong>
+                                    {sendMode === "NOW"
+                                        ? "Immediately"
+                                        : scheduledAt
+                                            ? new Date(scheduledAt).toLocaleString(undefined, {
+                                                day: "numeric",
+                                                month: "short",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                            })
+                                            : "Not set"}
+                                </strong>
+                            </div>
+
                         </div>
 
                         <div className="cc-summary-divider" />
@@ -1188,6 +1300,18 @@ export default function CampaignCreatePage() {
                                 </div>
                             )}
 
+                            {sendMode === "LATER" && (
+                                <div className={scheduleReady ? "completed" : ""}>
+                                    <i
+                                        className={`bi ${scheduleReady
+                                            ? "bi-check-circle-fill"
+                                            : "bi-circle"
+                                            }`}
+                                    />
+                                    Schedule time set
+                                </div>
+                            )}
+
                         </div>
 
                         <button
@@ -1196,18 +1320,23 @@ export default function CampaignCreatePage() {
                             disabled={
                                 launching ||
                                 !template ||
-                                (needsMedia && !mediaReady)
+                                (needsMedia && !mediaReady) ||
+                                !scheduleReady
                             }
                             onClick={launch}
                         >
                             {launching ? (
                                 <>
                                     <span className="cc-loader" />
-                                    Launching campaign...
+                                    {sendMode === "LATER"
+                                        ? "Scheduling campaign..."
+                                        : "Launching campaign..."}
                                 </>
                             ) : (
                                 <>
-                                    Launch campaign
+                                    {sendMode === "LATER"
+                                        ? "Schedule campaign"
+                                        : "Launch campaign"}
                                     <i className="bi bi-arrow-right" />
                                 </>
                             )}

@@ -1,5 +1,6 @@
 package com.example.whatsapp.entity;
 
+import com.example.whatsapp.util.AppTime;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,7 +33,7 @@ public class CampaignEntity {
     private String variableMapping;          // JSON array
 
     @Column(nullable = false, length = 30)
-    private String status = "RUNNING";       // RUNNING, COMPLETED
+    private String status = "RUNNING";       // SCHEDULED, RUNNING, COMPLETED, FAILED, CANCELLED
 
     @Column(nullable = false)
     private int totalCount;
@@ -40,9 +41,10 @@ public class CampaignEntity {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    private LocalDateTime scheduledAt;       // null = send immediately
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
 
     @PrePersist
-    void onCreate() { createdAt = LocalDateTime.now(); }
+    void onCreate() { createdAt = AppTime.now(); }
 }

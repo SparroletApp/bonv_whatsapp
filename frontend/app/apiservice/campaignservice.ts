@@ -1,4 +1,3 @@
-
 import api from "./apiservice";
 
 export interface CampaignCreateRequest {
@@ -6,13 +5,14 @@ export interface CampaignCreateRequest {
     templateId: number;
     categoryIds: number[];
     variableMapping: string[];
+    scheduledAt?: string | null;   // "2026-11-10T18:30" (local time), null = send immediately
 }
 
 export interface CampaignResponse {
     id: number;
     name: string;
     templateName: string;
-    status: "RUNNING" | "COMPLETED" | "FAILED";
+    status: "SCHEDULED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
     total: number;
     pending: number;
     sent: number;
@@ -22,6 +22,7 @@ export interface CampaignResponse {
     replied: number;
     createdAt: string;
     completedAt: string | null;
+    scheduledAt: string | null;
 }
 
 export interface CampaignMessage {
@@ -50,6 +51,9 @@ const campaignService = {
 
     resume: (id: number) =>
         api.post<CampaignResponse>(`/campaigns/${id}/resume`, {}),
+
+    cancel: (id: number) =>
+        api.post<CampaignResponse>(`/campaigns/${id}/cancel`, {}),
 };
 
 export default campaignService;

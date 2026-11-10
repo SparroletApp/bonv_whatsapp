@@ -1,9 +1,9 @@
-
 package com.example.whatsapp.service;
 
 import com.example.whatsapp.dto.campaign.*;
 import com.example.whatsapp.entity.*;
 import com.example.whatsapp.repository.*;
+import com.example.whatsapp.util.AppTime;
 import com.example.whatsapp.util.PhoneUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -43,6 +44,16 @@ public class CampaignService {
 
         if (req.categoryIds() == null || req.categoryIds().isEmpty()) {
             throw new IllegalArgumentException("Select at least one category");
+        }
+
+        // Validate schedule (null = send immediately)
+        LocalDateTime scheduledAt = req.scheduledAt();
+
+        if (scheduledAt != null
+                && scheduledAt.isBefore(AppTime.now().plusMinutes(1))) {
+            throw new IllegalArgumentException(
+                    "Schedule time must be at least 1 minute in the future"
+            );
         }
 
         // Load selected template
@@ -132,7 +143,15 @@ public class CampaignService {
 
         campaign.setVariableMapping(toJson(mapping));
         campaign.setTotalCount(contacts.size());
-        campaign.setStatus("RUNNING");
+
+        campaign.setScheduledAt(scheduledAt);
+
+        if (scheduledAt == null) {
+            campaign.setStatus("RUNNING");
+            campaign.setStartedAt(AppTime.now());
+        } else {
+            campaign.setStatus("SCHEDULED");
+        }
 
         campaign = campaignRepo.save(campaign);
 
@@ -178,6 +197,32 @@ public class CampaignService {
         }
 
         messageRepo.saveAll(messages);
+
+        return toResponse(campaign);
+    }
+
+    /**
+     * Cancels a campaign that has not started yet.
+     * Its PENDING messages are marked CANCELLED so they can never be sent.
+     */
+    @Transactional
+    public CampaignResponse cancel(Long id) {
+
+        CampaignEntity campaign = campaignRepo.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Campaign not found"));
+
+        if (!"SCHEDULED".equals(campaign.getStatus())) {
+            throw new IllegalArgumentException(
+                    "Only scheduled campaigns can be cancelled"
+            );
+        }
+
+        campaign.setStatus("CANCELLED");
+        campaign.setCompletedAt(AppTime.now());
+        campaign = campaignRepo.save(campaign);
+
+        messageRepo.markCancelled(id);
 
         return toResponse(campaign);
     }
@@ -309,11 +354,16 @@ public class CampaignService {
 
         long failed = counts.getOrDefault("FAILED", 0L);
 
-        long replied = campaign.getCreatedAt() == null
+        // Replies only count once sending has started
+        LocalDateTime repliesSince = campaign.getStartedAt() != null
+                ? campaign.getStartedAt()
+                : campaign.getCreatedAt();
+
+        long replied = repliesSince == null
                 ? 0L
                 : messageRepo.countReplies(
                 campaign.getId(),
-                campaign.getCreatedAt()
+                repliesSince
         );
 
         return new CampaignResponse(
@@ -329,7 +379,8 @@ public class CampaignService {
                 failed,
                 replied,
                 campaign.getCreatedAt(),
-                campaign.getCompletedAt()
+                campaign.getCompletedAt(),
+                campaign.getScheduledAt()
         );
     }
 

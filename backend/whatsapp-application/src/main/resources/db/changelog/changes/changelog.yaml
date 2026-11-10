@@ -120,4 +120,12 @@ databaseChangeLog:
             path: sql/alter_contact_add_categories.sql
             relativeToChangelogFile: true
 
+  - changeSet:
+      id: alter_campaign_add_scheduled_at
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_campaign_add_scheduled_at.sql
+            relativeToChangelogFile: true
+
 

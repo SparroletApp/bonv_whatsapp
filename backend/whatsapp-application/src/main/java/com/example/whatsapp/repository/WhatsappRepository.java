@@ -1,6 +1,7 @@
 package com.example.whatsapp.repository;
 
 import com.example.whatsapp.entity.WhatsappEntity;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -60,5 +61,12 @@ public interface WhatsappRepository extends JpaRepository<WhatsappEntity, Long> 
         where m.direction = 'INBOUND'
         group by m.recipientPhone
         """)
+
     List<Object[]> lastInboundTimes();
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("update WhatsappEntity m set m.status = 'CANCELLED' " +
+            "where m.campaignId = :id and m.status = 'PENDING'")
+    void markCancelled(@Param("id") Long id);
+
 }

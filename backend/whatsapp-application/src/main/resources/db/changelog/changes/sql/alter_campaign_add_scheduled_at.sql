@@ -1,0 +1,1 @@
+ALTER TABLE campaigns ADD COLUMN scheduled_at DATETIME NULL;
