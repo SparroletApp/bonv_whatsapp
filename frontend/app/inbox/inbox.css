@@ -317,7 +317,7 @@
 .add-tags {
     background-color: white;
     position: sticky !important;
-    right: 0;
+    right: -11PX;
     padding: 5px;
 }
 
