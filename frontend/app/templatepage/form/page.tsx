@@ -459,7 +459,6 @@ export default function TemplateForm({
                         <i className="bi bi-pencil-square tf-section-icon" />
                     </div>
 
-                    {/* HEADER TYPE */}
                     <div className="tf-field">
                         <label>
                             Header type
@@ -571,7 +570,6 @@ export default function TemplateForm({
                                 </div>
                             )}
 
-                            {/* MEDIA PREVIEW */}
                             {previewMediaUrl && (
                                 <div className="tf-upload-preview">
                                     <strong>
@@ -617,7 +615,6 @@ export default function TemplateForm({
                         </div>
                     )}
 
-                    {/* BODY */}
                     <div className="tf-field">
                         <div className="tf-label-row">
                             <label>
@@ -861,7 +858,6 @@ export default function TemplateForm({
                     </div>
                 </div>
 
-                {/* PREVIEW */}
                 <div className="tf-preview-column">
                     <div className="tf-preview-sticky">
                         <div className="tf-preview-heading">

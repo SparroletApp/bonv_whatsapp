@@ -99,7 +99,6 @@ function CategoryView() {
     return (
         <section className="broadcast-view-page">
 
-            {/* HEADER */}
             <div className="broadcast-view-header">
 
                 <div className="broadcast-view-title">
@@ -146,7 +145,6 @@ function CategoryView() {
 
             </div>
 
-            {/* SUMMARY CARDS */}
             <div className="broadcast-view-summary">
 
                 <div className="broadcast-summary-card">
@@ -177,7 +175,6 @@ function CategoryView() {
 
             </div>
 
-            {/* CONTACT TABLE */}
             <div className="broadcast-view-table-card">
 
                 <div className="broadcast-view-table-heading">

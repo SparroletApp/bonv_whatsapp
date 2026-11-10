@@ -16,9 +16,6 @@
     flex-wrap: wrap;
 }
 
-
-/* MULTIPLE CATEGORY BADGES */
-
 .broadcast-category-list {
     display: flex;
     flex-wrap: wrap;
@@ -130,10 +127,6 @@
     cursor: not-allowed;
 }
 
-/* =====================================
-   SUMMARY CARDS
-===================================== */
-
 .broadcast-view-summary {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 220px));
@@ -179,10 +172,6 @@
     color: #173d35;
 }
 
-/* =====================================
-   TABLE CARD
-===================================== */
-
 .broadcast-view-table-card {
     background: #ffffff;
     border: 1px solid #e9efec;
@@ -226,10 +215,6 @@
 .broadcast-contact-count i {
     margin-right: 6px;
 }
-
-/* =====================================
-   TABLE
-===================================== */
 
 .broadcast-view-table-wrapper {
     width: 100%;
@@ -277,10 +262,6 @@
 .broadcast-view-table tbody tr:last-child td {
     border-bottom: none;
 }
-
-/* =====================================
-   CONTACT DETAILS
-===================================== */
 
 .broadcast-contact-id {
     color: #064e45;
@@ -332,9 +313,6 @@
     font-weight: 700;
 }
 
-/* =====================================
-   LOADING / EMPTY / ERROR
-===================================== */
 
 .broadcast-view-message {
     padding: 55px 20px !important;
@@ -406,9 +384,6 @@
     margin-right: 8px;
 }
 
-/* =====================================
-   FOOTER
-===================================== */
 
 .broadcast-view-footer {
     padding: 15px 22px;
@@ -418,9 +393,6 @@
     font-weight: 550;
 }
 
-/* =====================================
-   RESPONSIVE
-===================================== */
 
 @media (max-width: 768px) {
 

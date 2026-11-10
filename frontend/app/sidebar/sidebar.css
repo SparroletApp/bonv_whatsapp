@@ -123,10 +123,6 @@
     margin-left: 3px;
 }
 
-/* ==============================
-   BONV BRAND LOGO
-============================== */
-
 .sidebar-logo {
     display: flex;
     align-items: center;
@@ -170,7 +166,6 @@
     line-height: 1;
 }
 
-/* Collapsed */
 
 .sidebar.collapsed .sidebar-logo {
     flex-direction: column;
@@ -190,7 +185,6 @@
     font-size: 23px;
 }
 
-/* Expanded */
 
 .sidebar.expanded .bonv-brand {
     gap: 9px;
@@ -199,8 +193,6 @@
 .sidebar-menu {
     flex: 1;
     min-height: 0;
-    /* overflow-y: auto; */
-    /* overflow-x: visible; */
 }
 
 .sidebar-heading {

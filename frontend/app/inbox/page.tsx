@@ -458,10 +458,6 @@ export default function InboxPage() {
         }
     };
 
-    /* ==========================================
-       LOAD CONVERSATIONS
-    ========================================== */
-
     const loadConvs = async () => {
         try {
             const response = await inboxService.conversations();
@@ -516,9 +512,6 @@ export default function InboxPage() {
         return () => clearInterval(interval);
     }, [active?.phone]);
 
-    /* ==========================================
-       CURRENT TIME
-    ========================================== */
 
     useEffect(() => {
         setNow(Date.now());
@@ -530,9 +523,6 @@ export default function InboxPage() {
         return () => clearInterval(interval);
     }, []);
 
-    /* ==========================================
-       AUTO SCROLL
-    ========================================== */
 
     useEffect(() => {
         bottom.current?.scrollIntoView({
@@ -540,9 +530,6 @@ export default function InboxPage() {
         });
     }, [msgs.length]);
 
-    /* ==========================================
-       PREVIEW CLEANUP
-    ========================================== */
 
     useEffect(() => {
         return () => {
@@ -551,10 +538,6 @@ export default function InboxPage() {
             }
         };
     }, [previewUrl]);
-
-    /* ==========================================
-       RECORDING CLEANUP
-    ========================================== */
 
     useEffect(() => {
         return () => {
@@ -570,9 +553,6 @@ export default function InboxPage() {
         };
     }, []);
 
-    /* ==========================================
-       ACTIVE CONVERSATION
-    ========================================== */
 
     const activeConv =
         convs.find((c) => c.phone === active?.phone) ?? active;
@@ -580,9 +560,7 @@ export default function InboxPage() {
     const remainingMs = remainingFor(activeConv, now);
     const windowOpen = remainingMs > 0;
 
-    /* ==========================================
-       OPEN CONVERSATION
-    ========================================== */
+ 
 
     const open = async (c: Conversation) => {
         activePhoneRef.current = c.phone;
@@ -603,10 +581,6 @@ export default function InboxPage() {
         }
     };
 
-    /* ==========================================
-       TEMPLATE SELECTION
-    ========================================== */
-
     const selectedTemplate = useMemo(
         () =>
             approvedTemplates.find(
@@ -614,10 +588,6 @@ export default function InboxPage() {
             ) ?? null,
         [approvedTemplates, selectedTemplateId]
     );
-
-    /* ==========================================
-       BODY VARIABLES
-    ========================================== */
 
     const bodyVariableNumbers = useMemo(() => {
         if (!selectedTemplate?.body) return [];
@@ -632,10 +602,6 @@ export default function InboxPage() {
             new Set(matches.map((match) => Number(match[1])))
         ).sort((a, b) => a - b);
     }, [selectedTemplate]);
-
-    /* ==========================================
-       TEMPLATE VALIDATION
-    ========================================== */
 
     const unsupportedTemplateReason = useMemo(() => {
         if (!selectedTemplate) return "";
@@ -658,10 +624,6 @@ export default function InboxPage() {
 
         return "";
     }, [selectedTemplate]);
-
-    /* ==========================================
-       OPEN TEMPLATE MODAL
-    ========================================== */
 
     const openTemplateModal = async () => {
         if (!active) return;
@@ -693,11 +655,6 @@ export default function InboxPage() {
             setLoadingTemplates(false);
         }
     };
-
-    /* ==========================================
-       SELECT TEMPLATE
-    ========================================== */
-
     const selectTemplate = (value: string) => {
         const id = value ? Number(value) : "";
 
@@ -730,11 +687,6 @@ export default function InboxPage() {
 
         setTemplateParameters(numbers.map(() => ""));
     };
-
-    /* ==========================================
-       UPDATE TEMPLATE VARIABLES
-    ========================================== */
-
     const updateTemplateParameter = (
         index: number,
         value: string
@@ -746,9 +698,6 @@ export default function InboxPage() {
         );
     };
 
-    /* ==========================================
-       TEMPLATE PREVIEW
-    ========================================== */
 
     const templatePreview = useMemo(() => {
         if (!selectedTemplate) return "";
@@ -774,10 +723,6 @@ export default function InboxPage() {
         bodyVariableNumbers,
         templateParameters,
     ]);
-
-    /* ==========================================
-       SEND TEMPLATE
-    ========================================== */
 
     const sendTemplate = async () => {
         if (!active || !selectedTemplate) {
@@ -827,10 +772,6 @@ export default function InboxPage() {
         }
     };
 
-    /* ==========================================
-       CLEAR IMAGE
-    ========================================== */
-
     const clearImage = () => {
         setPendingImage(null);
         setPreviewUrl("");
@@ -839,10 +780,6 @@ export default function InboxPage() {
             fileInput.current.value = "";
         }
     };
-
-    /* ==========================================
-       NORMAL MESSAGE SENDING
-    ========================================== */
 
     const send = async () => {
         if (!active || !windowOpen) return;
@@ -877,10 +814,6 @@ export default function InboxPage() {
         }
     };
 
-    /* ==========================================
-       PICK IMAGE
-    ========================================== */
-
     const pickImage = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
 
@@ -902,10 +835,6 @@ export default function InboxPage() {
         setPendingImage(file);
         setPreviewUrl(URL.createObjectURL(file));
     };
-
-    /* ==========================================
-       AUDIO RECORDING
-    ========================================== */
 
     const startRecording = async () => {
         if (!active || !windowOpen) return;
@@ -1044,9 +973,6 @@ export default function InboxPage() {
             seconds % 60
         ).padStart(2, "0")}`;
 
-    /* ==========================================
-       MESSAGE STATUS
-    ========================================== */
 
     const tick = (m: InboxMessage) => {
         if (m.direction !== "OUTBOUND") return "";
@@ -1060,10 +986,6 @@ export default function InboxPage() {
 
         return statusMap[m.status] || "…";
     };
-
-    /* ==========================================
-       FILTER CONVERSATIONS
-    ========================================== */
 
     const filteredConvs = convs.filter((conversation) => {
         const searchValue = search.trim().toLowerCase();
@@ -1121,19 +1043,12 @@ export default function InboxPage() {
         );
     };
 
-    /* ==========================================
-       CATEGORY CREATED
-    ========================================== */
 
     const handleCategoryCreated = async () => {
         setShowCreateCategory(false);
 
         await loadCategoriesAndContacts();
     };
-
-    /* ==========================================
-       RENDER
-    ========================================== */
 
     return (
         <>
@@ -1366,7 +1281,6 @@ export default function InboxPage() {
 
                 </aside>
 
-                {/* CHAT PANEL */}
 
                 <section className="wa-chat-panel">
 
@@ -1409,7 +1323,6 @@ export default function InboxPage() {
 
                             </header>
 
-                            {/* CHAT MESSAGES */}
 
                             <div className="wa-chat-messages">
 
@@ -1516,7 +1429,6 @@ export default function InboxPage() {
                                 </div>
                             )}
 
-                            {/* IMAGE PREVIEW */}
 
                             {pendingImage && (
                                 <div className="wa-image-preview">
@@ -1537,7 +1449,6 @@ export default function InboxPage() {
                                 </div>
                             )}
 
-                            {/* COMPOSER */}
 
                             <footer className="wa-composer">
 
@@ -1959,7 +1870,6 @@ export default function InboxPage() {
 
             </div>
 
-            {/* EDIT CONTACT DRAWER */}
 
             {showEditContact && editingContactId !== null && (
                 <EditContact
