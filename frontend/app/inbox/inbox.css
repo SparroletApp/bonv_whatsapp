@@ -295,8 +295,7 @@
     min-width: 32px;
     height: 32px;
 
-    position: sticky !important;
-    right: 0;
+
     z-index: 10;
 
     margin-left: auto;
@@ -313,6 +312,13 @@
     color: #064e45;
 
     font-size: 14px;
+}
+
+.add-tags {
+    background-color: white;
+    position: sticky !important;
+    right: 0;
+    padding: 5px;
 }
 
 .wa-filter-area .wa-add-category-btn:hover {

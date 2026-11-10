@@ -560,7 +560,7 @@ export default function InboxPage() {
     const remainingMs = remainingFor(activeConv, now);
     const windowOpen = remainingMs > 0;
 
- 
+
 
     const open = async (c: Conversation) => {
         activePhoneRef.current = c.phone;
@@ -1172,15 +1172,16 @@ export default function InboxPage() {
                             ))}
 
                         </div>
-
-                        <button
-                            type="button"
-                            className="wa-add-category-btn"
-                            title="Create category"
-                            onClick={() => setShowCreateCategory(true)}
-                        >
-                            <i className="bi bi-plus-lg"></i>
-                        </button>
+                        <div className="add-tags">
+                            <button
+                                type="button"
+                                className="wa-add-category-btn"
+                                title="Create category"
+                                onClick={() => setShowCreateCategory(true)}
+                            >
+                                <i className="bi bi-plus-lg"></i>
+                            </button>
+                        </div>
 
                     </div>
 
