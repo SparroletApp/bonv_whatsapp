@@ -377,7 +377,7 @@
     border: none;
     border-radius: 50%;
     background-color: #00a884;
-    color: white;
+    color: white !important;
     display: flex;
     align-items: center;
     justify-content: center;
