@@ -1405,33 +1405,31 @@ export default function InboxPage() {
 
                                                 <div className="wa-conversation-preview">
                                                     <span className="wa-preview-message">
-    {c.lastDirection?.toUpperCase() === "OUTBOUND" &&
-        c.lastMessageStatus && (
-            <i
-                className={`bi ${
-                    c.lastMessageStatus.toUpperCase() === "READ" ||
-                    c.lastMessageStatus.toUpperCase() === "DELIVERED"
-                        ? "bi-check2-all"
-                        : c.lastMessageStatus.toUpperCase() === "SENT"
-                            ? "bi-check2"
-                            : c.lastMessageStatus.toUpperCase() === "FAILED"
-                                ? "bi-exclamation-circle"
-                                : ""
-                } ${
-                    c.lastMessageStatus.toUpperCase() === "READ"
-                        ? "wa-tick-read"
-                        : c.lastMessageStatus.toUpperCase() === "FAILED"
-                            ? "wa-tick-failed"
-                            : "wa-tick-sent"
-                }`}
-                title={`Message status: ${c.lastMessageStatus}`}
-            />
-        )}
+                                                        {c.lastDirection?.toUpperCase() === "OUTBOUND" &&
+                                                            c.lastMessageStatus && (
+                                                                <i
+                                                                    className={`bi ${c.lastMessageStatus.toUpperCase() === "READ" ||
+                                                                            c.lastMessageStatus.toUpperCase() === "DELIVERED"
+                                                                            ? "bi-check2-all"
+                                                                            : c.lastMessageStatus.toUpperCase() === "SENT"
+                                                                                ? "bi-check2"
+                                                                                : c.lastMessageStatus.toUpperCase() === "FAILED"
+                                                                                    ? "bi-exclamation-circle"
+                                                                                    : ""
+                                                                        } ${c.lastMessageStatus.toUpperCase() === "READ"
+                                                                            ? "wa-tick-read"
+                                                                            : c.lastMessageStatus.toUpperCase() === "FAILED"
+                                                                                ? "wa-tick-failed"
+                                                                                : "wa-tick-sent"
+                                                                        }`}
+                                                                    title={`Message status: ${c.lastMessageStatus}`}
+                                                                />
+                                                            )}
 
-    <span className="wa-preview-text">
-        {c.lastMessage || "No messages yet"}
-    </span>
-</span>
+                                                        <span className="wa-preview-text">
+                                                            {c.lastMessage || "No messages yet"}
+                                                        </span>
+                                                    </span>
 
                                                     {c.unreadCount > 0 && (
                                                         <span className="wa-unread-badge">
@@ -1495,8 +1493,8 @@ export default function InboxPage() {
                                     onClick={openNewChat}
                                     title="Start a new chat"
                                 >
-                                    <i className="bi bi-plus-lg"></i>
-                                    <span>New Chat</span>
+                                    <i className="bi bi-chat-square-plus-fill"></i>
+
                                 </button>
 
                             </div>

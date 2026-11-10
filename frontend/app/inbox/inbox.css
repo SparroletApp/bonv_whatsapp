@@ -370,33 +370,32 @@
     color: #86969b;
     font-size: 11px;
 }
-
 .wa-new-chat-bottom {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border: none;
+    border-radius: 50%;
+    background-color: #00a884;
+    color: #111b21;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 8px;
-    background: #064e45;
-    color: #fff;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 21px;
+    padding: 0;
     cursor: pointer;
-    transition: 0.2s;
+    transition: background-color 0.2s ease;
 }
 
 .wa-new-chat-bottom:hover {
-    background: #043c35;
+    background-color: #06cf9b;
 }
 
 .wa-new-chat-bottom i {
-    font-size: 17px;
+    line-height: 1;
 }
 
 
-/* ===== New Chat panel (contact list inside the sidebar) ===== */
 
 .wa-newchat {
     display: flex;
