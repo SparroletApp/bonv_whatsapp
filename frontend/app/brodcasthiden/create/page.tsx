@@ -68,7 +68,7 @@ function CreateBroadcast({ onClose, onSubmit }: CreateBroadcastProps) {
                         <input
                             id="broadcast-name"
                             type="text"
-                            placeholder="Enter broadcast name"
+                            placeholder="Enter tag name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             autoFocus

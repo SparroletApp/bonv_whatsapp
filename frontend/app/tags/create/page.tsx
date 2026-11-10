@@ -130,7 +130,7 @@ function CreateCategory({
                             <input
                                 type="text"
                                 id="categoryName"
-                                placeholder="Enter Broadcast name"
+                                placeholder="Enter tag name"
                                 value={categoryName}
                                 onChange={(e) => {
                                     setCategoryName(e.target.value);
