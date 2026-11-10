@@ -1,22 +1,21 @@
 
 import api from "./apiservice";
+export interface ContactCreateDto {
+    name: string;
+    phone: string;
+    email?: string;
+    categoryIds: number[];
+}
 
 export interface ContactResponseDto {
     id: number;
     name: string;
     phone: string;
     email: string | null;
-    categoryId: number;
-    categoryName: string;
+    categoryIds: number[];
+    categoryNames: string[];
     createdAt: string;
     updatedAt: string | null;
-}
-
-export interface ContactCreateDto {
-    name: string;
-    phone: string;
-    email?: string;
-    categoryId: number;
 }
 
 
@@ -25,7 +24,7 @@ export interface ContactUpdateDto {
     name: string;
     phone: string;
     email: string;
-    categoryId: number;
+    categoryIds: number[];
 }
 
 export interface CategoryIdDto {

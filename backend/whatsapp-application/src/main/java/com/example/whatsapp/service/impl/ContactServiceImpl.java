@@ -24,9 +24,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -49,18 +48,14 @@ public class ContactServiceImpl implements ContactService {
             );
         }
 
-        CategoryEntity category = categoryRepository.findById(dto.getCategoryId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Category not found"
-                ));
+        Long[] categoryIds = validateCategoryIds(dto.getCategoryIds());
 
         ContactEntity contact = new ContactEntity();
 
         contact.setName(dto.getName().trim());
         contact.setPhone(phone);
         contact.setEmail(dto.getEmail());
-        contact.setCategory(category);
+        contact.setCategoryIds(categoryIds);
 
         ContactEntity savedContact = contactRepository.save(contact);
 
@@ -108,16 +103,12 @@ public class ContactServiceImpl implements ContactService {
             );
         }
 
-        CategoryEntity category = categoryRepository.findById(dto.getCategoryId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Category not found"
-                ));
+        Long[] categoryIds = validateCategoryIds(dto.getCategoryIds());
 
         contact.setName(dto.getName().trim());
         contact.setPhone(phone);
         contact.setEmail(dto.getEmail());
-        contact.setCategory(category);
+        contact.setCategoryIds(categoryIds);
 
         ContactEntity updatedContact = contactRepository.save(contact);
 
@@ -163,7 +154,6 @@ public class ContactServiceImpl implements ContactService {
             );
         }
 
-        // Assign broadcast to selected contacts
         for (ContactEntity contact : contacts) {
             contact.setBroadcast(broadcast);
         }
@@ -191,16 +181,47 @@ public class ContactServiceImpl implements ContactService {
     @Transactional(readOnly = true)
     public List<ContactResponseDto> getContactsByCategoryId(CategoryIdDto dto) {
 
-        CategoryEntity category = categoryRepository.findById(dto.getId())
+        categoryRepository.findById(dto.getId())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Category not found"
                 ));
 
-        return contactRepository.findAllByCategory_Id(category.getId())
+        return contactRepository.findAllByCategoryId(dto.getId())
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    private Long[] validateCategoryIds(List<Long> ids) {
+
+        if (ids == null || ids.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Please select at least one category"
+            );
+        }
+
+        if (ids.stream().anyMatch(id -> id == null || id <= 0)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Category IDs must be positive"
+            );
+        }
+
+        List<Long> uniqueIds = new ArrayList<>(new LinkedHashSet<>(ids));
+
+        List<CategoryEntity> categories =
+                categoryRepository.findAllById(uniqueIds);
+
+        if (categories.size() != uniqueIds.size()) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "One or more categories were not found"
+            );
+        }
+
+        return uniqueIds.toArray(new Long[0]);
     }
 
     private ContactResponseDto mapToResponse(ContactEntity contact) {
@@ -212,8 +233,28 @@ public class ContactServiceImpl implements ContactService {
         response.setPhone(contact.getPhone());
         response.setEmail(contact.getEmail());
 
-        response.setCategoryId(contact.getCategory().getId());
-        response.setCategoryName(contact.getCategory().getCategoryName());
+        Long[] ids = contact.getCategoryIds();
+
+        List<Long> categoryIds = ids == null
+                ? Collections.emptyList()
+                : Arrays.asList(ids);
+
+        response.setCategoryIds(categoryIds);
+
+        List<CategoryEntity> categories =
+                categoryRepository.findAllById(categoryIds);
+
+        Map<Long, String> categoryNameMap = categories.stream()
+                .collect(Collectors.toMap(
+                        CategoryEntity::getId,
+                        CategoryEntity::getCategoryName
+                ));
+
+        List<String> categoryNames = categoryIds.stream()
+                .map(categoryNameMap::get)
+                .filter(Objects::nonNull)
+                .toList();
+
 
         response.setCreatedAt(contact.getCreatedAt());
         response.setUpdatedAt(contact.getUpdatedAt());

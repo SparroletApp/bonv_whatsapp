@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
 
@@ -30,8 +30,14 @@ function EditContact() {
         name: "",
         phone: "",
         email: "",
-        categoryId: 0,
+        categoryIds: [],
     });
+
+    const [originalData, setOriginalData] = useState<ContactUpdateDto | null>(null);
+
+    const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+
+    const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -39,7 +45,11 @@ function EditContact() {
     useEffect(() => {
         const storedId = localStorage.getItem("contactId");
 
-        if (!storedId || !Number.isInteger(Number(storedId)) || Number(storedId) <= 0) {
+        if (
+            !storedId ||
+            !Number.isInteger(Number(storedId)) ||
+            Number(storedId) <= 0
+        ) {
             Swal.fire({
                 icon: "warning",
                 title: "Contact not selected",
@@ -57,6 +67,23 @@ function EditContact() {
         setContactId(id);
 
         loadData(id);
+    }, []);
+
+    useEffect(() => {
+        const handleOutsideClick = (event: MouseEvent) => {
+            if (
+                categoryDropdownRef.current &&
+                !categoryDropdownRef.current.contains(event.target as Node)
+            ) {
+                setShowCategoryDropdown(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleOutsideClick);
+
+        return () => {
+            document.removeEventListener("mousedown", handleOutsideClick);
+        };
     }, []);
 
     const showToast = (
@@ -85,13 +112,16 @@ function EditContact() {
 
             setCategories(categoryList);
 
-            setFormData({
+            const contactData: ContactUpdateDto = {
                 id: contact.id,
                 name: contact.name,
                 phone: contact.phone,
                 email: contact.email || "",
-                categoryId: contact.categoryId,
-            });
+                categoryIds: contact.categoryIds || [],
+            };
+
+            setFormData(contactData);
+            setOriginalData(contactData);
 
         } catch (error: unknown) {
             console.error("Contact loading error:", error);
@@ -108,14 +138,46 @@ function EditContact() {
     };
 
     const handleChange = (
-        event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+        event: React.ChangeEvent<HTMLInputElement>
     ) => {
         const { name, value } = event.target;
 
         setFormData((previous) => ({
             ...previous,
-            [name]: name === "categoryId" ? Number(value) : value,
+            [name]: value,
         }));
+    };
+
+    // Multiple category selection
+    const toggleCategory = (categoryId: number) => {
+        setFormData((previous) => ({
+            ...previous,
+            categoryIds: previous.categoryIds.includes(categoryId)
+                ? previous.categoryIds.filter((id) => id !== categoryId)
+                : [...previous.categoryIds, categoryId],
+        }));
+    };
+
+    // Remove individual selected category
+    const removeCategory = (categoryId: number) => {
+        setFormData((previous) => ({
+            ...previous,
+            categoryIds: previous.categoryIds.filter(
+                (id) => id !== categoryId
+            ),
+        }));
+    };
+
+    // Restore original contact details
+    const handleReset = () => {
+        if (originalData) {
+            setFormData({
+                ...originalData,
+                categoryIds: [...originalData.categoryIds],
+            });
+
+            setShowCategoryDropdown(false);
+        }
     };
 
     const handleSubmit = async (
@@ -128,8 +190,8 @@ function EditContact() {
             return;
         }
 
-        if (!formData.categoryId) {
-            showToast("warning", "Please select a category.");
+        if (formData.categoryIds.length === 0) {
+            showToast("warning", "Please select at least one category.");
             return;
         }
 
@@ -141,7 +203,7 @@ function EditContact() {
                 name: formData.name.trim(),
                 phone: formData.phone.trim(),
                 email: formData.email.trim(),
-                categoryId: formData.categoryId,
+                categoryIds: formData.categoryIds,
             });
 
             await Swal.fire({
@@ -258,30 +320,119 @@ function EditContact() {
                             />
                         </div>
 
-                        <div className="edit-contact-form-group">
+                        {/* MULTIPLE CATEGORY SELECT */}
+
+                        <div
+                            className="edit-contact-form-group edit-category-multi-group"
+                            ref={categoryDropdownRef}
+                        >
                             <label>
-                                Category <span>*</span>
+                                Categories <span>*</span>
                             </label>
 
-                            <select
-                                name="categoryId"
-                                value={formData.categoryId}
-                                onChange={handleChange}
-                                required
+                            <div
+                                className={`edit-category-multi-select ${
+                                    showCategoryDropdown ? "active" : ""
+                                }`}
+                                onClick={() =>
+                                    setShowCategoryDropdown((previous) => !previous)
+                                }
                             >
-                                <option value={0}>
-                                    Select Category
-                                </option>
+                                <div className="edit-category-selected-tags">
 
-                                {categories.map((category) => (
-                                    <option
-                                        key={category.id}
-                                        value={category.id}
-                                    >
-                                        {category.categoryName}
-                                    </option>
-                                ))}
-                            </select>
+                                    {formData.categoryIds.length === 0 ? (
+                                        <span className="edit-category-placeholder">
+                                            Select categories
+                                        </span>
+                                    ) : (
+                                        formData.categoryIds.map((id) => {
+                                            const category = categories.find(
+                                                (item) => item.id === id
+                                            );
+
+                                            if (!category) return null;
+
+                                            return (
+                                                <span
+                                                    className="edit-category-selected-tag"
+                                                    key={id}
+                                                    onClick={(event) =>
+                                                        event.stopPropagation()
+                                                    }
+                                                >
+                                                    {category.categoryName}
+
+                                                    <button
+                                                        type="button"
+                                                        title={`Remove ${category.categoryName}`}
+                                                        onClick={() =>
+                                                            removeCategory(id)
+                                                        }
+                                                    >
+                                                        <i className="bi bi-x-lg"></i>
+                                                    </button>
+                                                </span>
+                                            );
+                                        })
+                                    )}
+
+                                </div>
+
+                                <i
+                                    className={`bi bi-chevron-down edit-category-dropdown-arrow ${
+                                        showCategoryDropdown ? "rotated" : ""
+                                    }`}
+                                ></i>
+                            </div>
+
+                            {showCategoryDropdown && (
+                                <div className="edit-category-dropdown-options">
+
+                                    {categories.length === 0 ? (
+                                        <div className="edit-category-empty">
+                                            No categories available
+                                        </div>
+                                    ) : (
+                                        categories.map((category) => {
+                                            const selected =
+                                                formData.categoryIds.includes(
+                                                    category.id
+                                                );
+
+                                            return (
+                                                <div
+                                                    key={category.id}
+                                                    className={`edit-category-option ${
+                                                        selected ? "selected" : ""
+                                                    }`}
+                                                    onClick={() =>
+                                                        toggleCategory(category.id)
+                                                    }
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selected}
+                                                        readOnly
+                                                    />
+
+                                                    <span>
+                                                        {category.categoryName}
+                                                    </span>
+
+                                                    {selected && (
+                                                        <i className="bi bi-check2"></i>
+                                                    )}
+                                                </div>
+                                            );
+                                        })
+                                    )}
+
+                                </div>
+                            )}
+
+                            <small>
+                                Select one or more categories. Click × to remove.
+                            </small>
                         </div>
 
                     </div>
@@ -291,7 +442,7 @@ function EditContact() {
                         <button
                             type="button"
                             className="edit-contact-reset-btn"
-                            onClick={() => contactId && loadData(contactId)}
+                            onClick={handleReset}
                             disabled={saving}
                         >
                             <i className="bi bi-arrow-counterclockwise"></i>

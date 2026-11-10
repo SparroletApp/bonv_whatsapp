@@ -104,5 +104,20 @@ databaseChangeLog:
             path: sql/alter_whatsapp_add_header.sql
             relativeToChangelogFile: true
 
+  - changeSet:
+      id: alter_contact_drop_category_id
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_contact_drop_category_id.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_contact_add_catogories
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_contact_add_catogories.sql
+            relativeToChangelogFile: true
 
 

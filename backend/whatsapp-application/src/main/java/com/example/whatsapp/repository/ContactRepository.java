@@ -2,6 +2,8 @@ package com.example.whatsapp.repository;
 
 import com.example.whatsapp.entity.ContactEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,4 +18,11 @@ public interface ContactRepository extends JpaRepository<ContactEntity, Long> {
     long countByCategoryId(Long categoryId);
     List<ContactEntity> findAllByBroadcast_Id(Long broadcastId);
     List<ContactEntity> findAllByCategory_Id(Long categoryId);
+
+    @Query(
+            value = "SELECT * FROM contacts WHERE CAST(:categoryId AS BIGINT) = ANY(category_ids)",
+            nativeQuery = true
+    )
+    List<ContactEntity> findAllByCategoryId(@Param("categoryId") Long categoryId);
+
 }
