@@ -1405,28 +1405,33 @@ export default function InboxPage() {
 
                                                 <div className="wa-conversation-preview">
                                                     <span className="wa-preview-message">
+    {c.lastDirection?.toUpperCase() === "OUTBOUND" &&
+        c.lastMessageStatus && (
+            <i
+                className={`bi ${
+                    c.lastMessageStatus.toUpperCase() === "READ" ||
+                    c.lastMessageStatus.toUpperCase() === "DELIVERED"
+                        ? "bi-check2-all"
+                        : c.lastMessageStatus.toUpperCase() === "SENT"
+                            ? "bi-check2"
+                            : c.lastMessageStatus.toUpperCase() === "FAILED"
+                                ? "bi-exclamation-circle"
+                                : ""
+                } ${
+                    c.lastMessageStatus.toUpperCase() === "READ"
+                        ? "wa-tick-read"
+                        : c.lastMessageStatus.toUpperCase() === "FAILED"
+                            ? "wa-tick-failed"
+                            : "wa-tick-sent"
+                }`}
+                title={`Message status: ${c.lastMessageStatus}`}
+            />
+        )}
 
-                                                        {c.lastDirection?.toUpperCase() === "OUTBOUND" && (
-                                                            <i
-                                                                className={`bi ${c.lastMessageStatus?.toUpperCase() === "READ"
-                                                                        ? "bi-check2-all wa-tick-read"
-                                                                        : c.lastMessageStatus?.toUpperCase() === "DELIVERED"
-                                                                            ? "bi-check2-all wa-tick-delivered"
-                                                                            : c.lastMessageStatus?.toUpperCase() === "SENT"
-                                                                                ? "bi-check2 wa-tick-sent"
-                                                                                : c.lastMessageStatus?.toUpperCase() === "FAILED"
-                                                                                    ? "bi-exclamation-circle wa-tick-failed"
-                                                                                    : "bi-clock wa-tick-pending"
-                                                                    }`}
-                                                                title={`Message status: ${c.lastMessageStatus || "PENDING"}`}
-                                                            />
-                                                        )}
-
-                                                        <span className="wa-preview-text">
-                                                            {c.lastMessage || "No messages yet"}
-                                                        </span>
-
-                                                    </span>
+    <span className="wa-preview-text">
+        {c.lastMessage || "No messages yet"}
+    </span>
+</span>
 
                                                     {c.unreadCount > 0 && (
                                                         <span className="wa-unread-badge">
