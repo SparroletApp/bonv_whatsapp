@@ -13,7 +13,6 @@ export interface ContactResponseDto {
     phone: string;
     email: string | null;
     categoryIds: number[];
-    categoryNames: string[];
     createdAt: string;
     updatedAt: string | null;
 }

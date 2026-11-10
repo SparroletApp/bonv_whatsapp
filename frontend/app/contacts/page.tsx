@@ -6,22 +6,15 @@ import * as XLSX from "xlsx";
 import { useRouter } from "next/navigation";
 import "./contacts.css";
 
-import contactService from "../apiservice/contactservice";
+import contactService, {
+    ContactResponseDto,
+} from "../apiservice/contactservice";
+
 import categoryService, {
     CategoryResponseDto,
 } from "../apiservice/categoryservice";
-import EditContact from "./edit/page";
 
-type ContactResponseDto = {
-    id: number;
-    name: string;
-    phone: string;
-    email: string | null;
-    categoryIds: number[];
-    categoryNames: string[];
-    createdAt: string;
-    updatedAt: string | null;
-};
+import EditContact from "./edit/page";
 
 type ExcelContact = {
     name: string;
@@ -37,28 +30,97 @@ function Contact() {
     const [contacts, setContacts] = useState<ContactResponseDto[]>([]);
     const [categories, setCategories] = useState<CategoryResponseDto[]>([]);
 
+    const [categoryNameMap, setCategoryNameMap] = useState<
+        Record<number, string>
+    >({});
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [bulkUploading, setBulkUploading] = useState(false);
 
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(20);
-    const [editingContactId, setEditingContactId] = useState<number | null>(null);
+
+    const [editingContactId, setEditingContactId] = useState<number | null>(
+        null
+    );
+
     const openEditPage = (contact: ContactResponseDto) => {
         setEditingContactId(contact.id);
     };
+
     useEffect(() => {
         fetchContacts();
         fetchCategories();
     }, []);
 
+    // Fetch category names using category IDs from contacts
+    const fetchCategoryNames = async (
+        contactsList: ContactResponseDto[]
+    ) => {
+        try {
+            const categoryIds = [
+                ...new Set(
+                    contactsList.flatMap(
+                        (contact) => contact.categoryIds || []
+                    )
+                ),
+            ];
+
+            if (categoryIds.length === 0) {
+                setCategoryNameMap({});
+                return;
+            }
+
+            const categoryResults = await Promise.all(
+                categoryIds.map(async (id) => {
+                    try {
+                        const category =
+                            await categoryService.getCategoryById({ id });
+
+                        return {
+                            id,
+                            name: category.categoryName,
+                        };
+                    } catch (err) {
+                        console.error(
+                            `Unable to fetch category ${id}:`,
+                            err
+                        );
+
+                        return {
+                            id,
+                            name: `Category ${id}`,
+                        };
+                    }
+                })
+            );
+
+            const nameMap: Record<number, string> = {};
+
+            categoryResults.forEach((category) => {
+                nameMap[category.id] = category.name;
+            });
+
+            setCategoryNameMap(nameMap);
+        } catch (err) {
+            console.error("Category name fetch error:", err);
+        }
+    };
+
+    // Fetch all contacts
     const fetchContacts = async () => {
         try {
             setLoading(true);
             setError("");
 
             const response = await contactService.getAllContacts();
+
             setContacts(response);
+
+            await fetchCategoryNames(response);
+
+            setCurrentPage(1);
         } catch (err) {
             console.error("Contact fetch error:", err);
             setError("Unable to load contacts.");
@@ -67,6 +129,7 @@ function Contact() {
         }
     };
 
+    // Fetch categories for Excel validation
     const fetchCategories = async () => {
         try {
             const response = await categoryService.getAllCategories();
@@ -75,8 +138,6 @@ function Contact() {
             console.error("Category fetch error:", err);
         }
     };
-
-
 
     const totalPages = Math.ceil(contacts.length / rowsPerPage);
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -108,6 +169,7 @@ function Contact() {
         });
     };
 
+    // Delete contact
     const handleDelete = async (id: number) => {
         const result = await Swal.fire({
             title: "Are you sure?",
@@ -161,7 +223,7 @@ function Contact() {
         });
     };
 
-
+    // Download Excel template
     const downloadExcelTemplate = () => {
         const sampleData = [
             {
@@ -187,10 +249,13 @@ function Contact() {
             "Contacts"
         );
 
-        XLSX.writeFile(workbook, "contacts_bulk_upload_template.xlsx");
+        XLSX.writeFile(
+            workbook,
+            "contacts_bulk_upload_template.xlsx"
+        );
     };
 
-
+    // Excel bulk upload
     const handleBulkUpload = async (
         event: React.ChangeEvent<HTMLInputElement>
     ) => {
@@ -207,22 +272,25 @@ function Contact() {
                 type: "array",
             });
 
-            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const worksheet =
+                workbook.Sheets[workbook.SheetNames[0]];
 
             if (!worksheet) {
                 showToast("error", "Excel sheet is empty.");
                 return;
             }
 
-            const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-                worksheet,
-                {
-                    defval: "",
-                }
-            );
+            const rows = XLSX.utils.sheet_to_json<
+                Record<string, unknown>
+            >(worksheet, {
+                defval: "",
+            });
 
             if (rows.length === 0) {
-                showToast("error", "No contact records found in Excel.");
+                showToast(
+                    "error",
+                    "No contact records found in Excel."
+                );
                 return;
             }
 
@@ -245,12 +313,16 @@ function Contact() {
                 ).trim();
 
                 if (!name) {
-                    errors.push(`Row ${rowNumber}: Name is required.`);
+                    errors.push(
+                        `Row ${rowNumber}: Name is required.`
+                    );
                     return;
                 }
 
                 if (!phone) {
-                    errors.push(`Row ${rowNumber}: Phone is required.`);
+                    errors.push(
+                        `Row ${rowNumber}: Phone is required.`
+                    );
                     return;
                 }
 
@@ -280,9 +352,10 @@ function Contact() {
                     ...new Set(categoryIds),
                 ];
 
-                const invalidCategoryIds = uniqueCategoryIds.filter(
-                    (id) => !availableCategoryIds.has(id)
-                );
+                const invalidCategoryIds =
+                    uniqueCategoryIds.filter(
+                        (id) => !availableCategoryIds.has(id)
+                    );
 
                 if (invalidCategoryIds.length > 0) {
                     errors.push(
@@ -305,9 +378,13 @@ function Contact() {
                 await Swal.fire({
                     icon: "error",
                     title: "No valid contacts",
-                    html: errors.slice(0, 10).join("<br/>"),
+                    html: errors
+                        .slice(0, 10)
+                        .map((item) => `<div>${item}</div>`)
+                        .join(""),
                     confirmButtonColor: "#064e45",
                 });
+
                 return;
             }
 
@@ -363,24 +440,33 @@ function Contact() {
                     <div style="text-align:left">
                         <p><strong>Successfully uploaded:</strong> ${successCount}</p>
                         <p><strong>Failed:</strong> ${uploadErrors.length}</p>
-                        ${uploadErrors.length
-                        ? `<hr/><p><strong>Errors:</strong></p>
-                                   <div style="max-height:150px;overflow-y:auto;text-align:left">
-                                   ${uploadErrors
-                            .slice(0, 15)
-                            .map((item) => `<div>${item}</div>`)
-                            .join("")}
-                                   </div>`
-                        : ""
-                    }
+                        ${
+                            uploadErrors.length
+                                ? `
+                                    <hr/>
+                                    <p><strong>Errors:</strong></p>
+                                    <div style="max-height:150px;overflow-y:auto;text-align:left">
+                                        ${uploadErrors
+                                            .slice(0, 15)
+                                            .map(
+                                                (item) =>
+                                                    `<div>${item}</div>`
+                                            )
+                                            .join("")}
+                                    </div>
+                                `
+                                : ""
+                        }
                     </div>
                 `,
                 confirmButtonColor: "#064e45",
             });
-
         } catch (err) {
             console.error("Bulk upload error:", err);
-            showToast("error", "Unable to process Excel file.");
+            showToast(
+                "error",
+                "Unable to process Excel file."
+            );
         } finally {
             setBulkUploading(false);
 
@@ -392,306 +478,336 @@ function Contact() {
 
     return (
         <>
-        <section className="category-page">
+            <section className="category-page">
 
-
-            <div className="category-header">
-                <div>
-                    <h2>Contacts</h2>
-                    <p>Manage and organize your contacts</p>
-                </div>
-
-                <div className="category-header-actions">
-
-                    <div className="category-total-card">
-                        <span>Total Contacts</span>
-                        <h3>{contacts.length}</h3>
-                    </div>
-
-                    <button
-                        type="button"
-                        className="category-add-btn"
-                        onClick={() => router.push("/contacts/add")}
-                    >
-                        <i className="bi bi-plus-lg"></i>
-                        Add Contact
-                    </button>
-
-                </div>
-            </div>
-
-
-            <div className="category-table-card">
-
-                <div className="category-table-heading">
+                <div className="category-header">
                     <div>
-                        <h3>Contact List</h3>
-                        <p>View and manage all your contacts</p>
+                        <h2>Contacts</h2>
+                        <p>Manage and organize your contacts</p>
                     </div>
 
-                    <div className="contact-header-buttons">
+                    <div className="category-header-actions">
+                        <div className="category-total-card">
+                            <span>Total Contacts</span>
+                            <h3>{contacts.length}</h3>
+                        </div>
 
                         <button
                             type="button"
-                            className="contact-excel-template-btn"
-                            onClick={downloadExcelTemplate}
+                            className="category-add-btn"
+                            onClick={() => router.push("/contacts/add")}
                         >
-                            <i className="bi bi-download"></i>
-                            Excel Template
+                            <i className="bi bi-plus-lg"></i>
+                            Add Contact
                         </button>
-
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".xlsx,.xls"
-                            hidden
-                            onChange={handleBulkUpload}
-                        />
-
-                        <button
-                            type="button"
-                            className="contact-bulk-upload-btn"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={bulkUploading || categories.length === 0}
-                        >
-                            {bulkUploading ? (
-                                <>
-                                    <span className="spinner-border spinner-border-sm me-2"></span>
-                                    Uploading...
-                                </>
-                            ) : (
-                                <>
-                                    <i className="bi bi-file-earmark-spreadsheet"></i>
-                                    Bulk Upload
-                                </>
-                            )}
-                        </button>
-
-                        <button
-                            type="button"
-                            className="category-refresh-btn"
-                            onClick={fetchContacts}
-                            disabled={loading}
-                        >
-                            <i className="bi bi-arrow-clockwise"></i>
-                            Refresh
-                        </button>
-
                     </div>
                 </div>
 
-                <div className="category-table-wrapper">
-                    <table className="category-table">
+                <div className="category-table-card">
 
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Contact Name</th>
-                                <th>Phone</th>
-                                <th>Email</th>
-                                <th>Categories</th>
-                                <th>Created Date</th>
-                                <th>Updated Date</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
+                    <div className="category-table-heading">
+                        <div>
+                            <h3>Contact List</h3>
+                            <p>View and manage all your contacts</p>
+                        </div>
 
-                        <tbody>
-                            {loading ? (
+                        <div className="contact-header-buttons">
+
+                            <button
+                                type="button"
+                                className="contact-excel-template-btn"
+                                onClick={downloadExcelTemplate}
+                            >
+                                <i className="bi bi-download"></i>
+                                Excel Template
+                            </button>
+
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".xlsx,.xls"
+                                hidden
+                                onChange={handleBulkUpload}
+                            />
+
+                            <button
+                                type="button"
+                                className="contact-bulk-upload-btn"
+                                onClick={() =>
+                                    fileInputRef.current?.click()
+                                }
+                                disabled={
+                                    bulkUploading ||
+                                    categories.length === 0
+                                }
+                            >
+                                {bulkUploading ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-2"></span>
+                                        Uploading...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="bi bi-file-earmark-spreadsheet"></i>
+                                        Bulk Upload
+                                    </>
+                                )}
+                            </button>
+
+                            <button
+                                type="button"
+                                className="category-refresh-btn"
+                                onClick={fetchContacts}
+                                disabled={loading}
+                            >
+                                <i className="bi bi-arrow-clockwise"></i>
+                                Refresh
+                            </button>
+
+                        </div>
+                    </div>
+
+                    <div className="category-table-wrapper">
+                        <table className="category-table">
+
+                            <thead>
                                 <tr>
-                                    <td colSpan={8} className="category-message">
-                                        Loading contacts...
-                                    </td>
+                                    <th>#</th>
+                                    <th>Contact Name</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Categories</th>
+                                    <th>Created Date</th>
+                                    <th>Updated Date</th>
+                                    <th>Action</th>
                                 </tr>
-                            ) : error ? (
-                                <tr>
-                                    <td
-                                        colSpan={8}
-                                        className="category-message category-error"
-                                    >
-                                        {error}
-                                    </td>
-                                </tr>
-                            ) : currentContacts.length === 0 ? (
-                                <tr>
-                                    <td colSpan={8} className="category-message">
-                                        No contacts found.
-                                    </td>
-                                </tr>
-                            ) : (
-                                currentContacts.map((contact, index) => (
-                                    <tr key={contact.id}>
+                            </thead>
 
-                                        <td className="category-id">
-                                            {startIndex + index + 1}
+                            <tbody>
+                                {loading ? (
+                                    <tr>
+                                        <td
+                                            colSpan={8}
+                                            className="category-message"
+                                        >
+                                            Loading contacts...
                                         </td>
-
-                                        <td>
-                                            <div className="category-name-cell">
-                                                <div className="category-icon">
-                                                    <i className="bi bi-person"></i>
-                                                </div>
-                                                <span>{contact.name}</span>
-                                            </div>
-                                        </td>
-
-                                        <td>{contact.phone}</td>
-
-                                        <td>{contact.email || "-"}</td>
-
-                                        <td>
-                                            <div className="contact-category-list">
-                                                {contact.categoryNames?.length ? (
-                                                    contact.categoryNames.map(
-                                                        (category, index) => (
-                                                            <span
-                                                                className="contact-category-label"
-                                                                key={`${contact.id}-${index}`}
-                                                            >
-                                                                {category}
-                                                            </span>
-                                                        )
-                                                    )
-                                                ) : (
-                                                    "-"
-                                                )}
-                                            </div>
-                                        </td>
-
-                                        <td>
-                                            {formatDate(contact.createdAt)}
-                                        </td>
-
-                                        <td>
-                                            {formatDate(contact.updatedAt)}
-                                        </td>
-
-                                        <td>
-                                            <div className="category-actions">
-
-                                                <button
-                                                    type="button"
-                                                    title="Edit contact"
-                                                    className="category-edit-btn"
-                                                    onClick={() =>
-                                                        openEditPage(contact)
-                                                    }
-                                                >
-                                                    <i className="bi bi-pencil-square"></i>
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    title="Delete contact"
-                                                    className="category-delete-btn"
-                                                    onClick={() =>
-                                                        handleDelete(contact.id)
-                                                    }
-                                                >
-                                                    <i className="bi bi-trash3"></i>
-                                                </button>
-
-                                            </div>
-                                        </td>
-
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
+                                ) : error ? (
+                                    <tr>
+                                        <td
+                                            colSpan={8}
+                                            className="category-message category-error"
+                                        >
+                                            {error}
+                                        </td>
+                                    </tr>
+                                ) : currentContacts.length === 0 ? (
+                                    <tr>
+                                        <td
+                                            colSpan={8}
+                                            className="category-message"
+                                        >
+                                            No contacts found.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    currentContacts.map(
+                                        (contact, index) => (
+                                            <tr key={contact.id}>
 
-                    </table>
-                </div>
+                                                <td className="category-id">
+                                                    {startIndex + index + 1}
+                                                </td>
 
+                                                <td>
+                                                    <div className="category-name-cell">
+                                                        <div className="category-icon">
+                                                            <i className="bi bi-person"></i>
+                                                        </div>
+                                                        <span>
+                                                            {contact.name}
+                                                        </span>
+                                                    </div>
+                                                </td>
 
-                {!loading && !error && (
-                    <div className="category-pagination">
+                                                <td>{contact.phone}</td>
 
-                        <div className="category-pagination-left">
+                                                <td>
+                                                    {contact.email || "-"}
+                                                </td>
 
-                            <span>Rows per page</span>
+                                                <td>
+                                                    <div className="contact-category-list">
+                                                        {contact.categoryIds?.length ? (
+                                                            contact.categoryIds.map(
+                                                                (categoryId) => (
+                                                                    <span
+                                                                        className="contact-category-label"
+                                                                        key={`${contact.id}-${categoryId}`}
+                                                                    >
+                                                                        {categoryNameMap[
+                                                                            categoryId
+                                                                        ] ||
+                                                                            `Category ${categoryId}`}
+                                                                    </span>
+                                                                )
+                                                            )
+                                                        ) : (
+                                                            "-"
+                                                        )}
+                                                    </div>
+                                                </td>
 
-                            <select
-                                value={rowsPerPage}
-                                onChange={handleRowsChange}
-                                className="category-pagination-select"
-                            >
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                                <option value={100}>100</option>
-                                <option value={200}>200</option>
-                            </select>
+                                                <td>
+                                                    {formatDate(
+                                                        contact.createdAt
+                                                    )}
+                                                </td>
 
-                            <span className="category-pagination-info">
-                                {contacts.length === 0
-                                    ? "0 of 0"
-                                    : `${startIndex + 1}-${Math.min(
-                                        startIndex + rowsPerPage,
-                                        contacts.length
-                                    )} of ${contacts.length}`}
-                            </span>
+                                                <td>
+                                                    {formatDate(
+                                                        contact.updatedAt
+                                                    )}
+                                                </td>
 
-                        </div>
+                                                <td>
+                                                    <div className="category-actions">
 
-                        <div className="category-pagination-right">
+                                                        <button
+                                                            type="button"
+                                                            title="Edit contact"
+                                                            className="category-edit-btn"
+                                                            onClick={() =>
+                                                                openEditPage(
+                                                                    contact
+                                                                )
+                                                            }
+                                                        >
+                                                            <i className="bi bi-pencil-square"></i>
+                                                        </button>
 
-                            <button
-                                type="button"
-                                className="category-page-arrow"
-                                disabled={
-                                    currentPage === 1 || totalPages === 0
-                                }
-                                onClick={() =>
-                                    setCurrentPage((page) => page - 1)
-                                }
-                            >
-                                <i className="bi bi-chevron-left"></i>
-                            </button>
+                                                        <button
+                                                            type="button"
+                                                            title="Delete contact"
+                                                            className="category-delete-btn"
+                                                            onClick={() =>
+                                                                handleDelete(
+                                                                    contact.id
+                                                                )
+                                                            }
+                                                        >
+                                                            <i className="bi bi-trash3"></i>
+                                                        </button>
 
-                            {Array.from(
-                                { length: totalPages },
-                                (_, index) => index + 1
-                            ).map((page) => (
-                                <button
-                                    key={page}
-                                    type="button"
-                                    className={`category-page-number ${currentPage === page ? "active" : ""
-                                        }`}
-                                    onClick={() => setCurrentPage(page)}
-                                >
-                                    {page}
-                                </button>
-                            ))}
+                                                    </div>
+                                                </td>
 
-                            <button
-                                type="button"
-                                className="category-page-arrow"
-                                disabled={
-                                    currentPage === totalPages ||
-                                    totalPages === 0
-                                }
-                                onClick={() =>
-                                    setCurrentPage((page) => page + 1)
-                                }
-                            >
-                                <i className="bi bi-chevron-right"></i>
-                            </button>
+                                            </tr>
+                                        )
+                                    )
+                                )}
+                            </tbody>
 
-                        </div>
-
+                        </table>
                     </div>
-                )}
 
-            </div>
-           
-        </section>
-         {editingContactId !== null && (
+                    {!loading && !error && (
+                        <div className="category-pagination">
+
+                            <div className="category-pagination-left">
+                                <span>Rows per page</span>
+
+                                <select
+                                    value={rowsPerPage}
+                                    onChange={handleRowsChange}
+                                    className="category-pagination-select"
+                                >
+                                    <option value={20}>20</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                    <option value={200}>200</option>
+                                </select>
+
+                                <span className="category-pagination-info">
+                                    {contacts.length === 0
+                                        ? "0 of 0"
+                                        : `${startIndex + 1}-${Math.min(
+                                              startIndex + rowsPerPage,
+                                              contacts.length
+                                          )} of ${contacts.length}`}
+                                </span>
+                            </div>
+
+                            <div className="category-pagination-right">
+
+                                <button
+                                    type="button"
+                                    className="category-page-arrow"
+                                    disabled={
+                                        currentPage === 1 ||
+                                        totalPages === 0
+                                    }
+                                    onClick={() =>
+                                        setCurrentPage(
+                                            (page) => page - 1
+                                        )
+                                    }
+                                >
+                                    <i className="bi bi-chevron-left"></i>
+                                </button>
+
+                                {Array.from(
+                                    { length: totalPages },
+                                    (_, index) => index + 1
+                                ).map((page) => (
+                                    <button
+                                        key={page}
+                                        type="button"
+                                        className={`category-page-number ${
+                                            currentPage === page
+                                                ? "active"
+                                                : ""
+                                        }`}
+                                        onClick={() =>
+                                            setCurrentPage(page)
+                                        }
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+
+                                <button
+                                    type="button"
+                                    className="category-page-arrow"
+                                    disabled={
+                                        currentPage === totalPages ||
+                                        totalPages === 0
+                                    }
+                                    onClick={() =>
+                                        setCurrentPage(
+                                            (page) => page + 1
+                                        )
+                                    }
+                                >
+                                    <i className="bi bi-chevron-right"></i>
+                                </button>
+
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            </section>
+
+            {editingContactId !== null && (
                 <EditContact
                     contactId={editingContactId}
                     onClose={() => setEditingContactId(null)}
                     onUpdated={fetchContacts}
                 />
             )}
-</>
+        </>
     );
 }
 
