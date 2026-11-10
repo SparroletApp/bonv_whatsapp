@@ -1398,7 +1398,7 @@ export default function InboxPage() {
 
                                                 <div className="wa-conversation-heading">
                                                     <strong>
-                                                        {c.name || c.phone}
+                                                        {c.name}
                                                     </strong>
                                                 </div>
 
