@@ -21,6 +21,8 @@ import templateService, {
 } from "../apiservice/templateservice";
 
 import "./inbox.css";
+import contactService from "../apiservice/contactservice";
+import EditContact from "../contacts/edit/page";
 
 /* ==========================================
    HELPERS
@@ -271,7 +273,8 @@ export default function InboxPage() {
     const [recording, setRecording] = useState(false);
     const [recSecs, setRecSecs] = useState(0);
 
-    /* TEMPLATE STATES */
+    const [showEditContact, setShowEditContact] = useState(false);
+    const [editingContactId, setEditingContactId] = useState<number | null>(null);
 
     const [showTemplateModal, setShowTemplateModal] = useState(false);
 
@@ -288,7 +291,28 @@ export default function InboxPage() {
     const [sendingTemplate, setSendingTemplate] = useState(false);
     const [templateError, setTemplateError] = useState("");
 
-    /* REFS */
+    const openEditContact = async () => {
+        if (!active) return;
+
+        try {
+            const response = await contactService.getAllContacts();
+            const contacts = unwrapResponse<any[]>(response);
+
+            const contact = contacts.find(
+                (item) => item.phone === active.phone
+            );
+
+            if (!contact) {
+                setError("Contact details not found.");
+                return;
+            }
+
+            setEditingContactId(contact.id);
+            setShowEditContact(true);
+        } catch (error) {
+            setError(apiError(error));
+        }
+    };
 
     const fileInput = useRef<HTMLInputElement>(null);
     const recRef = useRef<MediaRecorder | null>(null);
@@ -920,756 +944,765 @@ export default function InboxPage() {
             c.phone?.toLowerCase().includes(search.toLowerCase())
     );
 
-    /* ==========================================
-       JSX
-    ========================================== */
-
     return (
-        <div className="wa-app">
+        <>
+            <div className="wa-app">
 
-            {/* SIDEBAR */}
+                <aside className="wa-sidebar">
 
-            <aside className="wa-sidebar">
+                    <div className="wa-sidebar-top">
+                        <div className="wa-profile">
 
-                <div className="wa-sidebar-top">
-                    <div className="wa-profile">
+                            <div className="wa-profile-avatar">
+                                <i className="bi bi-person-fill"></i>
+                            </div>
 
-                        <div className="wa-profile-avatar">
-                            <i className="bi bi-person-fill"></i>
+                            <div className="wa-profile-title">
+                                <strong>WhatsApp Inbox</strong>
+                                <span>Business conversations</span>
+                            </div>
+
+                            <div className="wa-top-actions">
+                                <button type="button" title="New chat">
+                                    <i className="bi bi-chat-square-plus"></i>
+                                </button>
+                            </div>
+
                         </div>
-
-                        <div className="wa-profile-title">
-                            <strong>WhatsApp Inbox</strong>
-                            <span>Business conversations</span>
-                        </div>
-
-                        <div className="wa-top-actions">
-                            <button type="button" title="New chat">
-                                <i className="bi bi-chat-square-plus"></i>
-                            </button>
-                        </div>
-
                     </div>
-                </div>
 
-                <div className="wa-search-area">
-                    <div className="wa-search-box">
-                        <i className="bi bi-search"></i>
+                    <div className="wa-search-area">
+                        <div className="wa-search-box">
+                            <i className="bi bi-search"></i>
 
-                        <input
-                            type="text"
-                            placeholder="Search or start a new chat"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
+                            <input
+                                type="text"
+                                placeholder="Search or start a new chat"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
 
-                        {search && (
-                            <button
-                                type="button"
-                                onClick={() => setSearch("")}
-                            >
-                                <i className="bi bi-x-lg"></i>
-                            </button>
-                        )}
+                            {search && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearch("")}
+                                >
+                                    <i className="bi bi-x-lg"></i>
+                                </button>
+                            )}
+                        </div>
                     </div>
-                </div>
 
-                <div className="wa-filter-area">
-                    <span className="wa-filter-active">All</span>
-                    <span>Unread</span>
-                    <span>Favorites</span>
-                </div>
+                    <div className="wa-filter-area">
+                        <span className="wa-filter-active">All</span>
+                        <span>Unread</span>
+                        <span>Favorites</span>
+                    </div>
 
-                <div className="wa-conversation-list">
+                    <div className="wa-conversation-list">
 
-                    {filteredConvs.map((c) => {
-                        const rem = remainingFor(c, now);
+                        {filteredConvs.map((c) => {
+                            const rem = remainingFor(c, now);
 
-                        return (
-                            <div
-                                key={c.phone}
-                                className={`wa-conversation ${active?.phone === c.phone
+                            return (
+                                <div
+                                    key={c.phone}
+                                    className={`wa-conversation ${active?.phone === c.phone
                                         ? "wa-conversation-active"
                                         : ""
-                                    }`}
-                                onClick={() => open(c)}
-                            >
-                                <div className="wa-contact-avatar">
-                                    {getInitials(c.name)}
-                                </div>
-
-                                <div className="wa-conversation-content">
-
-                                    <div className="wa-conversation-heading">
-                                        <strong>
-                                            {c.name || c.phone}
-                                        </strong>
+                                        }`}
+                                    onClick={() => open(c)}
+                                >
+                                    <div className="wa-contact-avatar">
+                                        {getInitials(c.name)}
                                     </div>
 
-                                    <div className="wa-conversation-preview">
-                                        <span>
-                                            {c.lastDirection === "OUTBOUND" && (
-                                                <i className="bi bi-check2-all wa-preview-tick"></i>
-                                            )}
+                                    <div className="wa-conversation-content">
 
-                                            {c.lastMessage || "No messages yet"}
-                                        </span>
+                                        <div className="wa-conversation-heading">
+                                            <strong>
+                                                {c.name || c.phone}
+                                            </strong>
+                                        </div>
 
-                                        {c.unreadCount > 0 && (
-                                            <span className="wa-unread-badge">
-                                                {c.unreadCount}
+                                        <div className="wa-conversation-preview">
+                                            <span>
+                                                {c.lastDirection === "OUTBOUND" && (
+                                                    <i className="bi bi-check2-all wa-preview-tick"></i>
+                                                )}
+
+                                                {c.lastMessage || "No messages yet"}
                                             </span>
-                                        )}
-                                    </div>
 
-                                    <div className="wa-conversation-phone">
-                                        +{c.phone}
+                                            {c.unreadCount > 0 && (
+                                                <span className="wa-unread-badge">
+                                                    {c.unreadCount}
+                                                </span>
+                                            )}
+                                        </div>
 
-                                        <span
-                                            className={`wa-window-tag ${rem > 0
+                                        <div className="wa-conversation-phone">
+                                            +{c.phone}
+
+                                            <span
+                                                className={`wa-window-tag ${rem > 0
                                                     ? "wa-window-tag-open"
                                                     : "wa-window-tag-closed"
-                                                }`}
-                                        >
-                                            <i className="bi bi-clock"></i>
+                                                    }`}
+                                            >
+                                                <i className="bi bi-clock"></i>
 
-                                            {rem > 0
-                                                ? `${formatRemaining(rem)} left`
-                                                : "Window closed"}
-                                        </span>
+                                                {rem > 0
+                                                    ? `${formatRemaining(rem)} left`
+                                                    : "Window closed"}
+                                            </span>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {filteredConvs.length === 0 && (
+                            <div className="wa-no-conversations">
+                                <div className="wa-no-chat-icon">
+                                    <i className="bi bi-chat-dots"></i>
+                                </div>
+
+                                <strong>No conversations found</strong>
+
+                                <span>
+                                    {search
+                                        ? "Try searching with another name or number."
+                                        : "Your conversations will appear here."}
+                                </span>
+                            </div>
+                        )}
+
+                    </div>
+
+                    <div className="wa-sidebar-footer">
+                        <i className="bi bi-lock-fill"></i>
+                        Your conversations are private
+                    </div>
+
+                </aside>
+
+                {/* CHAT PANEL */}
+
+                <section className="wa-chat-panel">
+
+                    {active ? (
+                        <>
+
+                            <header className="wa-chat-header">
+
+                                <div className="wa-chat-contact">
+                                    <div className="wa-contact-avatar wa-header-avatar">
+                                        {getInitials(active.name)}
                                     </div>
 
-                                </div>
-                            </div>
-                        );
-                    })}
+                                    <div className="wa-chat-contact-info">
+                                        <strong>
+                                            {active.name || active.phone}
+                                        </strong>
 
-                    {filteredConvs.length === 0 && (
-                        <div className="wa-no-conversations">
-                            <div className="wa-no-chat-icon">
-                                <i className="bi bi-chat-dots"></i>
-                            </div>
-
-                            <strong>No conversations found</strong>
-
-                            <span>
-                                {search
-                                    ? "Try searching with another name or number."
-                                    : "Your conversations will appear here."}
-                            </span>
-                        </div>
-                    )}
-
-                </div>
-
-                <div className="wa-sidebar-footer">
-                    <i className="bi bi-lock-fill"></i>
-                    Your conversations are private
-                </div>
-
-            </aside>
-
-            {/* CHAT PANEL */}
-
-            <section className="wa-chat-panel">
-
-                {active ? (
-                    <>
-
-                        <header className="wa-chat-header">
-
-                            <div className="wa-chat-contact">
-                                <div className="wa-contact-avatar wa-header-avatar">
-                                    {getInitials(active.name)}
+                                        <span>
+                                            +{active.phone}
+                                            {" · "}
+                                            {windowOpen
+                                                ? `${formatRemaining(remainingMs)} left to reply`
+                                                : "reply window closed"}
+                                        </span>
+                                    </div>
                                 </div>
 
-                                <div className="wa-chat-contact-info">
-                                    <strong>
-                                        {active.name || active.phone}
-                                    </strong>
-
-                                    <span>
-                                        +{active.phone}
-                                        {" · "}
-                                        {windowOpen
-                                            ? `${formatRemaining(remainingMs)} left to reply`
-                                            : "reply window closed"}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="wa-chat-header-actions">
-                                {/* <button
+                                <div className="wa-chat-header-actions">
+                                    {/* <button
                                     type="button"
                                     title="Search messages"
                                 >
                                     <i className="bi bi-search"></i>
                                 </button> */}
 
-                                <button
-                                    type="button"
-                                    title="More options"
-                                >
-                                    <i className="bi bi-pencil"></i>
-                                </button>
-                            </div>
+                                    <button
+                                        type="button"
+                                        title="Edit contact"
+                                        onClick={openEditContact}
+                                    >
+                                        <i className="bi bi-pencil"></i>
+                                    </button>
+                                </div>
 
-                        </header>
+                            </header>
 
-                        {/* CHAT MESSAGES */}
+                            {/* CHAT MESSAGES */}
 
-                        <div className="wa-chat-messages">
+                            <div className="wa-chat-messages">
 
-                            <div className="wa-encryption-notice">
-                                <i className="bi bi-lock-fill"></i>
-                                Messages are displayed in your WhatsApp Business inbox.
-                            </div>
+                                <div className="wa-encryption-notice">
+                                    <i className="bi bi-lock-fill"></i>
+                                    Messages are displayed in your WhatsApp Business inbox.
+                                </div>
 
-                            {msgs.map((m) => {
-                                const isTemplate =
-                                    m.messageType === "TEMPLATE";
+                                {msgs.map((m) => {
+                                    const isTemplate =
+                                        m.messageType === "TEMPLATE";
 
-                                const hasTemplateImage =
-                                    isTemplate &&
-                                    m.headerType?.toUpperCase() === "IMAGE" &&
-                                    !!m.headerMediaUrl;
+                                    const hasTemplateImage =
+                                        isTemplate &&
+                                        m.headerType?.toUpperCase() === "IMAGE" &&
+                                        !!m.headerMediaUrl;
 
-                                return (
-                                    <div
-                                        key={m.id}
-                                        className={`wa-message-row ${m.direction === "OUTBOUND"
+                                    return (
+                                        <div
+                                            key={m.id}
+                                            className={`wa-message-row ${m.direction === "OUTBOUND"
                                                 ? "wa-message-outgoing"
                                                 : "wa-message-incoming"
-                                            }`}
-                                    >
-
-                                        <div
-                                            className={`wa-message-bubble ${isTemplate
-                                                    ? "wa-template-message-bubble"
-                                                    : ""
                                                 }`}
                                         >
 
-                                            {/* TEMPLATE IMAGE HEADER */}
+                                            <div
+                                                className={`wa-message-bubble ${isTemplate
+                                                    ? "wa-template-message-bubble"
+                                                    : ""
+                                                    }`}
+                                            >
 
-                                            {hasTemplateImage && (
-                                                <TemplateHeaderMedia
-                                                    imageUrl={m.headerMediaUrl!}
-                                                />
-                                            )}
+                                                {/* TEMPLATE IMAGE HEADER */}
 
-                                            {/* NORMAL IMAGE / AUDIO / VIDEO */}
+                                                {hasTemplateImage && (
+                                                    <TemplateHeaderMedia
+                                                        imageUrl={m.headerMediaUrl!}
+                                                    />
+                                                )}
 
-                                            {m.mediaId && (
-                                                <MediaBubble m={m} />
-                                            )}
+                                                {/* NORMAL IMAGE / AUDIO / VIDEO */}
 
-                                            {/* ACTUAL MESSAGE BODY */}
+                                                {m.mediaId && (
+                                                    <MediaBubble m={m} />
+                                                )}
 
-                                            {m.text && (
-                                                <div className="wa-message-text">
-                                                    {m.text}
-                                                </div>
-                                            )}
+                                                {/* ACTUAL MESSAGE BODY */}
 
-                                            {m.errorMessage && (
-                                                <div className="wa-message-error">
-                                                    <i className="bi bi-exclamation-circle"></i>
-                                                    {m.errorMessage}
-                                                </div>
-                                            )}
+                                                {m.text && (
+                                                    <div className="wa-message-text">
+                                                        {m.text}
+                                                    </div>
+                                                )}
 
-                                            <div className="wa-message-meta">
-                                                <span>
-                                                    {formatMessageTime(m.createdAt)}
-                                                </span>
+                                                {m.errorMessage && (
+                                                    <div className="wa-message-error">
+                                                        <i className="bi bi-exclamation-circle"></i>
+                                                        {m.errorMessage}
+                                                    </div>
+                                                )}
 
-                                                {m.direction === "OUTBOUND" && (
-                                                    <span
-                                                        className={`wa-message-tick ${m.status === "READ"
+                                                <div className="wa-message-meta">
+                                                    <span>
+                                                        {formatMessageTime(m.createdAt)}
+                                                    </span>
+
+                                                    {m.direction === "OUTBOUND" && (
+                                                        <span
+                                                            className={`wa-message-tick ${m.status === "READ"
                                                                 ? "wa-tick-read"
                                                                 : m.status === "FAILED"
                                                                     ? "wa-tick-failed"
                                                                     : ""
-                                                            }`}
-                                                    >
-                                                        {tick(m)}
-                                                    </span>
-                                                )}
+                                                                }`}
+                                                        >
+                                                            {tick(m)}
+                                                        </span>
+                                                    )}
+                                                </div>
+
                                             </div>
 
                                         </div>
+                                    );
+                                })}
 
-                                    </div>
-                                );
-                            })}
+                                <div ref={bottom} />
 
-                            <div ref={bottom} />
-
-                        </div>
-
-                        {error && (
-                            <div className="wa-chat-error">
-                                <i className="bi bi-exclamation-circle-fill"></i>
-                                {error}
                             </div>
-                        )}
 
-                        {windowOpen ? (
-                            <div className="wa-window-info">
-                                <i className="bi bi-clock"></i>
-                                Reply window open: {formatRemaining(remainingMs)} left
-                            </div>
-                        ) : (
-                            <div className="wa-window-closed">
-                                <i className="bi bi-clock-history"></i>
-                                24-hour window closed. You can reply only after
-                                the customer messages you again, or send an
-                                approved template.
-                            </div>
-                        )}
+                            {error && (
+                                <div className="wa-chat-error">
+                                    <i className="bi bi-exclamation-circle-fill"></i>
+                                    {error}
+                                </div>
+                            )}
 
-                        {/* IMAGE PREVIEW */}
+                            {windowOpen ? (
+                                <div className="wa-window-info">
+                                    <i className="bi bi-clock"></i>
+                                    Reply window open: {formatRemaining(remainingMs)} left
+                                </div>
+                            ) : (
+                                <div className="wa-window-closed">
+                                    <i className="bi bi-clock-history"></i>
+                                    24-hour window closed. You can reply only after
+                                    the customer messages you again, or send an
+                                    approved template.
+                                </div>
+                            )}
 
-                        {pendingImage && (
-                            <div className="wa-image-preview">
-                                <img
-                                    src={previewUrl}
-                                    alt="Selected attachment"
+                            {/* IMAGE PREVIEW */}
+
+                            {pendingImage && (
+                                <div className="wa-image-preview">
+                                    <img
+                                        src={previewUrl}
+                                        alt="Selected attachment"
+                                    />
+
+                                    <span>{pendingImage.name}</span>
+
+                                    <button
+                                        type="button"
+                                        onClick={clearImage}
+                                        title="Remove image"
+                                    >
+                                        <i className="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* COMPOSER */}
+
+                            <footer className="wa-composer">
+
+                                <input
+                                    ref={fileInput}
+                                    type="file"
+                                    accept="image/jpeg,image/png"
+                                    hidden
+                                    onChange={pickImage}
                                 />
 
-                                <span>{pendingImage.name}</span>
+                                {recording ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className="wa-composer-icon"
+                                            title="Cancel recording"
+                                            onClick={() => stopRecording(true)}
+                                        >
+                                            <i className="bi bi-trash"></i>
+                                        </button>
+
+                                        <div className="wa-recording">
+                                            <span className="wa-rec-dot" />
+                                            Recording {fmtSecs(recSecs)}
+                                        </div>
+
+                                        <button
+                                            className="wa-send-button"
+                                            title="Send voice message"
+                                            onClick={() => stopRecording(false)}
+                                        >
+                                            <i className="bi bi-send-fill"></i>
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="wa-composer-actions">
+
+
+
+                                            {windowOpen && (
+                                                <button
+                                                    type="button"
+                                                    title="Attach image"
+                                                    className="wa-composer-icon"
+                                                    onClick={() => fileInput.current?.click()}
+                                                >
+                                                    <i className="bi bi-plus-lg"></i>
+                                                </button>
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                className="wa-template-bottom-button"
+                                                title="Send approved WhatsApp template"
+                                                onClick={openTemplateModal}
+                                            >
+                                                <i className="bi bi-file-earmark-text"></i>
+                                                <span>Template</span>
+                                                <i className="bi bi-chevron-down wa-template-bottom-arrow"></i>
+                                            </button>
+
+                                        </div>
+
+                                        <div className="wa-input-wrapper">
+                                            <input
+                                                value={text}
+                                                disabled={!windowOpen}
+                                                onChange={(e) => setText(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter" && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        send();
+                                                    }
+                                                }}
+                                                placeholder={
+                                                    windowOpen
+                                                        ? pendingImage
+                                                            ? "Add a caption"
+                                                            : "Type a message"
+                                                        : "Window closed - template only"
+                                                }
+                                            />
+                                        </div>
+
+                                        {text.trim() || pendingImage ? (
+                                            <button
+                                                className="wa-send-button"
+                                                onClick={send}
+                                                disabled={!windowOpen}
+                                                title="Send message"
+                                            >
+                                                <i className="bi bi-send-fill"></i>
+                                            </button>
+                                        ) : (
+                                            <button
+                                                className="wa-send-button"
+                                                onClick={startRecording}
+                                                disabled={!windowOpen}
+                                                title="Record voice message"
+                                            >
+                                                <i className="bi bi-mic-fill"></i>
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+
+                            </footer>
+
+                        </>
+                    ) : (
+
+                        <div className="wa-welcome-screen">
+                            <div className="wa-welcome-content">
+
+                                <div className="wa-welcome-icon">
+                                    <i className="bi bi-whatsapp"></i>
+                                </div>
+
+                                <h2>WhatsApp Business Inbox</h2>
+
+                                <p>
+                                    Send and receive messages with your customers
+                                    directly from your business inbox.
+                                </p>
+
+                                <div className="wa-welcome-divider"></div>
+
+                                <span>
+                                    <i className="bi bi-lock-fill"></i>
+                                    Your conversations are securely managed.
+                                </span>
+
+                            </div>
+
+                            <div className="wa-welcome-bottom">
+                                <i className="bi bi-laptop"></i>
+                                Stay connected with your customers
+                            </div>
+                        </div>
+
+                    )}
+
+                </section>
+
+                {/* SEND TEMPLATE MODAL */}
+
+                {showTemplateModal && active && (
+                    <div
+                        className="wa-template-overlay"
+                        onClick={() => {
+                            if (!sendingTemplate) {
+                                setShowTemplateModal(false);
+                            }
+                        }}
+                    >
+
+                        <div
+                            className="wa-template-modal"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+
+                            <div className="wa-template-modal-header">
+                                <div>
+                                    <h3>
+                                        <i className="bi bi-file-earmark-text"></i>
+                                        Send WhatsApp Template
+                                    </h3>
+
+                                    <p>
+                                        Send an approved template to this customer.
+                                    </p>
+                                </div>
 
                                 <button
                                     type="button"
-                                    onClick={clearImage}
-                                    title="Remove image"
+                                    disabled={sendingTemplate}
+                                    onClick={() => setShowTemplateModal(false)}
                                 >
                                     <i className="bi bi-x-lg"></i>
                                 </button>
                             </div>
-                        )}
 
-                        {/* COMPOSER */}
+                            <div className="wa-template-modal-body">
 
-                        <footer className="wa-composer">
+                                <div className="wa-template-recipient">
+                                    <i className="bi bi-person-circle"></i>
 
-                            <input
-                                ref={fileInput}
-                                type="file"
-                                accept="image/jpeg,image/png"
-                                hidden
-                                onChange={pickImage}
-                            />
+                                    <div>
+                                        <strong>
+                                            {active.name || "Customer"}
+                                        </strong>
 
-                            {recording ? (
-                                <>
-                                    <button
-                                        type="button"
-                                        className="wa-composer-icon"
-                                        title="Cancel recording"
-                                        onClick={() => stopRecording(true)}
-                                    >
-                                        <i className="bi bi-trash"></i>
-                                    </button>
-
-                                    <div className="wa-recording">
-                                        <span className="wa-rec-dot" />
-                                        Recording {fmtSecs(recSecs)}
+                                        <span>+{active.phone}</span>
                                     </div>
-
-                                    <button
-                                        className="wa-send-button"
-                                        title="Send voice message"
-                                        onClick={() => stopRecording(false)}
-                                    >
-                                        <i className="bi bi-send-fill"></i>
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="wa-composer-actions">
-
-
-
-                                        {windowOpen && (
-                                            <button
-                                                type="button"
-                                                title="Attach image"
-                                                className="wa-composer-icon"
-                                                onClick={() => fileInput.current?.click()}
-                                            >
-                                                <i className="bi bi-plus-lg"></i>
-                                            </button>
-                                        )}
-
-                                        <button
-                                            type="button"
-                                            className="wa-template-bottom-button"
-                                            title="Send approved WhatsApp template"
-                                            onClick={openTemplateModal}
-                                        >
-                                            <i className="bi bi-file-earmark-text"></i>
-                                            <span>Template</span>
-                                            <i className="bi bi-chevron-down wa-template-bottom-arrow"></i>
-                                        </button>
-
-                                    </div>
-
-                                    <div className="wa-input-wrapper">
-                                        <input
-                                            value={text}
-                                            disabled={!windowOpen}
-                                            onChange={(e) => setText(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter" && !e.shiftKey) {
-                                                    e.preventDefault();
-                                                    send();
-                                                }
-                                            }}
-                                            placeholder={
-                                                windowOpen
-                                                    ? pendingImage
-                                                        ? "Add a caption"
-                                                        : "Type a message"
-                                                    : "Window closed - template only"
-                                            }
-                                        />
-                                    </div>
-
-                                    {text.trim() || pendingImage ? (
-                                        <button
-                                            className="wa-send-button"
-                                            onClick={send}
-                                            disabled={!windowOpen}
-                                            title="Send message"
-                                        >
-                                            <i className="bi bi-send-fill"></i>
-                                        </button>
-                                    ) : (
-                                        <button
-                                            className="wa-send-button"
-                                            onClick={startRecording}
-                                            disabled={!windowOpen}
-                                            title="Record voice message"
-                                        >
-                                            <i className="bi bi-mic-fill"></i>
-                                        </button>
-                                    )}
-                                </>
-                            )}
-
-                        </footer>
-
-                    </>
-                ) : (
-
-                    <div className="wa-welcome-screen">
-                        <div className="wa-welcome-content">
-
-                            <div className="wa-welcome-icon">
-                                <i className="bi bi-whatsapp"></i>
-                            </div>
-
-                            <h2>WhatsApp Business Inbox</h2>
-
-                            <p>
-                                Send and receive messages with your customers
-                                directly from your business inbox.
-                            </p>
-
-                            <div className="wa-welcome-divider"></div>
-
-                            <span>
-                                <i className="bi bi-lock-fill"></i>
-                                Your conversations are securely managed.
-                            </span>
-
-                        </div>
-
-                        <div className="wa-welcome-bottom">
-                            <i className="bi bi-laptop"></i>
-                            Stay connected with your customers
-                        </div>
-                    </div>
-
-                )}
-
-            </section>
-
-            {/* SEND TEMPLATE MODAL */}
-
-            {showTemplateModal && active && (
-                <div
-                    className="wa-template-overlay"
-                    onClick={() => {
-                        if (!sendingTemplate) {
-                            setShowTemplateModal(false);
-                        }
-                    }}
-                >
-
-                    <div
-                        className="wa-template-modal"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-
-                        <div className="wa-template-modal-header">
-                            <div>
-                                <h3>
-                                    <i className="bi bi-file-earmark-text"></i>
-                                    Send WhatsApp Template
-                                </h3>
-
-                                <p>
-                                    Send an approved template to this customer.
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                disabled={sendingTemplate}
-                                onClick={() => setShowTemplateModal(false)}
-                            >
-                                <i className="bi bi-x-lg"></i>
-                            </button>
-                        </div>
-
-                        <div className="wa-template-modal-body">
-
-                            <div className="wa-template-recipient">
-                                <i className="bi bi-person-circle"></i>
-
-                                <div>
-                                    <strong>
-                                        {active.name || "Customer"}
-                                    </strong>
-
-                                    <span>+{active.phone}</span>
                                 </div>
-                            </div>
 
-                            <div className="wa-template-field">
-                                <label>Select approved template</label>
+                                <div className="wa-template-field">
+                                    <label>Select approved template</label>
 
-                                <select
-                                    value={selectedTemplateId}
-                                    onChange={(e) => selectTemplate(e.target.value)}
-                                    disabled={loadingTemplates || sendingTemplate}
-                                >
-                                    <option value="">
-                                        {loadingTemplates
-                                            ? "Loading templates..."
-                                            : "Choose a template"}
-                                    </option>
-
-                                    {approvedTemplates.map((template) => (
-                                        <option
-                                            key={template.id}
-                                            value={template.id}
-                                        >
-                                            {template.name} ({template.language})
+                                    <select
+                                        value={selectedTemplateId}
+                                        onChange={(e) => selectTemplate(e.target.value)}
+                                        disabled={loadingTemplates || sendingTemplate}
+                                    >
+                                        <option value="">
+                                            {loadingTemplates
+                                                ? "Loading templates..."
+                                                : "Choose a template"}
                                         </option>
-                                    ))}
-                                </select>
 
-                                {!loadingTemplates &&
-                                    approvedTemplates.length === 0 && (
-                                        <small className="wa-template-help">
-                                            No approved templates found.
-                                            Create and approve a template first.
-                                        </small>
-                                    )}
-                            </div>
+                                        {approvedTemplates.map((template) => (
+                                            <option
+                                                key={template.id}
+                                                value={template.id}
+                                            >
+                                                {template.name} ({template.language})
+                                            </option>
+                                        ))}
+                                    </select>
 
-                            {selectedTemplate && (
-                                <>
-                                    <div className="wa-template-details">
-                                        <div>
-                                            <span>Template</span>
-                                            <strong>{selectedTemplate.name}</strong>
-                                        </div>
-
-                                        <div>
-                                            <span>Language</span>
-                                            <strong>{selectedTemplate.language}</strong>
-                                        </div>
-
-                                        <div>
-                                            <span>Category</span>
-                                            <strong>{selectedTemplate.category}</strong>
-                                        </div>
-                                    </div>
-
-                                    {/* TEXT HEADER */}
-
-                                    {selectedTemplate.headerType?.toUpperCase() === "TEXT" &&
-                                        selectedTemplate.headerText && (
-                                            <div className="wa-template-preview">
-                                                <span>HEADER</span>
-                                                <strong>
-                                                    {selectedTemplate.headerText}
-                                                </strong>
-                                            </div>
+                                    {!loadingTemplates &&
+                                        approvedTemplates.length === 0 && (
+                                            <small className="wa-template-help">
+                                                No approved templates found.
+                                                Create and approve a template first.
+                                            </small>
                                         )}
+                                </div>
 
-                                    {/* IMAGE HEADER */}
-
-                                    {selectedTemplate.headerType?.toUpperCase() === "IMAGE" &&
-                                        selectedTemplate.headerMediaUrl && (
-                                            <div className="wa-template-preview">
-                                                <span>IMAGE HEADER</span>
-
-                                                <img
-                                                    src={selectedTemplate.headerMediaUrl}
-                                                    alt="Template header preview"
-                                                    className="wa-media-image"
-                                                />
+                                {selectedTemplate && (
+                                    <>
+                                        <div className="wa-template-details">
+                                            <div>
+                                                <span>Template</span>
+                                                <strong>{selectedTemplate.name}</strong>
                                             </div>
-                                        )}
 
-                                    {/* VIDEO HEADER */}
-
-                                    {selectedTemplate.headerType?.toUpperCase() === "VIDEO" &&
-                                        selectedTemplate.headerMediaUrl && (
-                                            <div className="wa-template-preview">
-                                                <span>VIDEO HEADER</span>
-
-                                                <video
-                                                    src={selectedTemplate.headerMediaUrl}
-                                                    controls
-                                                    className="wa-media-video"
-                                                />
+                                            <div>
+                                                <span>Language</span>
+                                                <strong>{selectedTemplate.language}</strong>
                                             </div>
-                                        )}
 
-                                    {/* DOCUMENT HEADER */}
-
-                                    {selectedTemplate.headerType?.toUpperCase() === "DOCUMENT" && (
-                                        <div className="wa-template-preview">
-                                            <span>DOCUMENT HEADER</span>
-
-                                            <div className="wa-document-link">
-                                                <i className="bi bi-file-earmark-pdf" />
-                                                {selectedTemplate.headerMediaUrl
-                                                    ? "Document attached"
-                                                    : "Document header"}
+                                            <div>
+                                                <span>Category</span>
+                                                <strong>{selectedTemplate.category}</strong>
                                             </div>
                                         </div>
-                                    )}
 
-                                    {/* BODY PREVIEW */}
+                                        {/* TEXT HEADER */}
 
-                                    <div className="wa-template-preview">
-                                        <span>MESSAGE PREVIEW</span>
+                                        {selectedTemplate.headerType?.toUpperCase() === "TEXT" &&
+                                            selectedTemplate.headerText && (
+                                                <div className="wa-template-preview">
+                                                    <span>HEADER</span>
+                                                    <strong>
+                                                        {selectedTemplate.headerText}
+                                                    </strong>
+                                                </div>
+                                            )}
 
-                                        <p>{templatePreview}</p>
+                                        {/* IMAGE HEADER */}
 
-                                        {selectedTemplate.footerText && (
-                                            <small>{selectedTemplate.footerText}</small>
-                                        )}
-                                    </div>
+                                        {selectedTemplate.headerType?.toUpperCase() === "IMAGE" &&
+                                            selectedTemplate.headerMediaUrl && (
+                                                <div className="wa-template-preview">
+                                                    <span>IMAGE HEADER</span>
 
-                                    {/* BODY VARIABLES */}
-
-                                    {bodyVariableNumbers.length > 0 && (
-                                        <div className="wa-template-variables">
-                                            <h4>
-                                                <i className="bi bi-braces"></i>
-                                                Template variables
-                                            </h4>
-
-                                            <p>
-                                                Enter the values to replace
-                                                each variable in the message.
-                                            </p>
-
-                                            {bodyVariableNumbers.map((number, index) => (
-                                                <div
-                                                    className="wa-template-field"
-                                                    key={number}
-                                                >
-                                                    <label>
-                                                        Variable {"{{"}{number}{"}}"}
-                                                    </label>
-
-                                                    <input
-                                                        type="text"
-                                                        value={templateParameters[index] || ""}
-                                                        onChange={(e) =>
-                                                            updateTemplateParameter(
-                                                                index,
-                                                                e.target.value
-                                                            )
-                                                        }
-                                                        placeholder={`Enter value for {{${number}}}`}
-                                                        disabled={sendingTemplate}
+                                                    <img
+                                                        src={selectedTemplate.headerMediaUrl}
+                                                        alt="Template header preview"
+                                                        className="wa-media-image"
                                                     />
                                                 </div>
-                                            ))}
+                                            )}
+
+                                        {/* VIDEO HEADER */}
+
+                                        {selectedTemplate.headerType?.toUpperCase() === "VIDEO" &&
+                                            selectedTemplate.headerMediaUrl && (
+                                                <div className="wa-template-preview">
+                                                    <span>VIDEO HEADER</span>
+
+                                                    <video
+                                                        src={selectedTemplate.headerMediaUrl}
+                                                        controls
+                                                        className="wa-media-video"
+                                                    />
+                                                </div>
+                                            )}
+
+                                        {/* DOCUMENT HEADER */}
+
+                                        {selectedTemplate.headerType?.toUpperCase() === "DOCUMENT" && (
+                                            <div className="wa-template-preview">
+                                                <span>DOCUMENT HEADER</span>
+
+                                                <div className="wa-document-link">
+                                                    <i className="bi bi-file-earmark-pdf" />
+                                                    {selectedTemplate.headerMediaUrl
+                                                        ? "Document attached"
+                                                        : "Document header"}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* BODY PREVIEW */}
+
+                                        <div className="wa-template-preview">
+                                            <span>MESSAGE PREVIEW</span>
+
+                                            <p>{templatePreview}</p>
+
+                                            {selectedTemplate.footerText && (
+                                                <small>{selectedTemplate.footerText}</small>
+                                            )}
                                         </div>
-                                    )}
 
-                                    {unsupportedTemplateReason && (
-                                        <div className="wa-template-warning">
-                                            <i className="bi bi-exclamation-triangle"></i>
-                                            {unsupportedTemplateReason}
-                                        </div>
-                                    )}
-                                </>
-                            )}
+                                        {/* BODY VARIABLES */}
 
-                            {templateError && (
-                                <div className="wa-template-error">
-                                    <i className="bi bi-exclamation-circle"></i>
-                                    {templateError}
-                                </div>
-                            )}
+                                        {bodyVariableNumbers.length > 0 && (
+                                            <div className="wa-template-variables">
+                                                <h4>
+                                                    <i className="bi bi-braces"></i>
+                                                    Template variables
+                                                </h4>
 
-                        </div>
+                                                <p>
+                                                    Enter the values to replace
+                                                    each variable in the message.
+                                                </p>
 
-                        <div className="wa-template-modal-footer">
-                            <button
-                                type="button"
-                                className="wa-template-cancel"
-                                disabled={sendingTemplate}
-                                onClick={() => setShowTemplateModal(false)}
-                            >
-                                Cancel
-                            </button>
+                                                {bodyVariableNumbers.map((number, index) => (
+                                                    <div
+                                                        className="wa-template-field"
+                                                        key={number}
+                                                    >
+                                                        <label>
+                                                            Variable {"{{"}{number}{"}}"}
+                                                        </label>
 
-                            <button
-                                type="button"
-                                className="wa-template-send"
-                                disabled={
-                                    sendingTemplate ||
-                                    loadingTemplates ||
-                                    !selectedTemplate ||
-                                    !!unsupportedTemplateReason ||
-                                    templateParameters.some(
-                                        (parameter) => !parameter.trim()
-                                    )
-                                }
-                                onClick={sendTemplate}
-                            >
-                                {sendingTemplate ? (
-                                    <>
-                                        <span className="wa-template-spinner"></span>
-                                        Sending...
-                                    </>
-                                ) : (
-                                    <>
-                                        <i className="bi bi-send-fill"></i>
-                                        Send Template
+                                                        <input
+                                                            type="text"
+                                                            value={templateParameters[index] || ""}
+                                                            onChange={(e) =>
+                                                                updateTemplateParameter(
+                                                                    index,
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                            placeholder={`Enter value for {{${number}}}`}
+                                                            disabled={sendingTemplate}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {unsupportedTemplateReason && (
+                                            <div className="wa-template-warning">
+                                                <i className="bi bi-exclamation-triangle"></i>
+                                                {unsupportedTemplateReason}
+                                            </div>
+                                        )}
                                     </>
                                 )}
-                            </button>
+
+                                {templateError && (
+                                    <div className="wa-template-error">
+                                        <i className="bi bi-exclamation-circle"></i>
+                                        {templateError}
+                                    </div>
+                                )}
+
+                            </div>
+
+                            <div className="wa-template-modal-footer">
+                                <button
+                                    type="button"
+                                    className="wa-template-cancel"
+                                    disabled={sendingTemplate}
+                                    onClick={() => setShowTemplateModal(false)}
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="wa-template-send"
+                                    disabled={
+                                        sendingTemplate ||
+                                        loadingTemplates ||
+                                        !selectedTemplate ||
+                                        !!unsupportedTemplateReason ||
+                                        templateParameters.some(
+                                            (parameter) => !parameter.trim()
+                                        )
+                                    }
+                                    onClick={sendTemplate}
+                                >
+                                    {sendingTemplate ? (
+                                        <>
+                                            <span className="wa-template-spinner"></span>
+                                            Sending...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="bi bi-send-fill"></i>
+                                            Send Template
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
                         </div>
-
                     </div>
-                </div>
-            )}
+                )}
 
-        </div>
+            </div>
+            {showEditContact && editingContactId !== null && (
+                <EditContact
+                    contactId={editingContactId}
+                    onClose={() => {
+                        setShowEditContact(false);
+                        setEditingContactId(null);
+                    }}
+                    onUpdated={async () => {
+                        await loadConvs();
+                    }}
+                />
+            )}
+        </>
     );
 }
