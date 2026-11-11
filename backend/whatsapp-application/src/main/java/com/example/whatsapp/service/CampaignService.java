@@ -88,14 +88,21 @@ public class CampaignService {
 
         int varCount = tpl.getVariableCount();
 
-        List<String> mapping = req.variableMapping() == null
-                ? List.of()
-                : req.variableMapping();
+        List<String> mapping;
 
-        if (mapping.size() < varCount) {
-            throw new IllegalArgumentException(
-                    "Map all " + varCount + " template variables"
-            );
+        if (varCount == 1) {
+            // One variable: {{1}} is always the contact's name
+            mapping = new ArrayList<>(List.of("NAME"));
+        } else {
+            mapping = req.variableMapping() == null
+                    ? new ArrayList<>()
+                    : new ArrayList<>(req.variableMapping());
+
+            if (mapping.size() < varCount) {
+                throw new IllegalArgumentException(
+                        "Map all " + varCount + " template variables"
+                );
+            }
         }
 
         // Find unique contacts from selected categories
