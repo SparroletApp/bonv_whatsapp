@@ -1,4 +1,3 @@
-
 "use client";
 
 import campaignService from "@/app/apiservice/campaignservice";
@@ -92,9 +91,37 @@ export default function CampaignCreatePage() {
     const mediaReady =
         !!template && (!needsMedia || !!savedMediaUrl);
 
+    /*
+     * A template with exactly one variable always uses the contact's
+     * name for {{1}}. The user is never asked to configure it.
+     */
+    const autoName = template?.variableCount === 1;
+
+    /*
+     * The mapping that is actually used for preview, validation and
+     * launch. It is always derived from the selected template, so it can
+     * never be out of sync with the template's variable count.
+     */
+    const effectiveMapping: VarMap[] = useMemo(() => {
+        if (!template) return [];
+
+        const count = template.variableCount;
+
+        if (count === 1) {
+            return [{ kind: "NAME", text: "" }];
+        }
+
+        return Array.from({ length: count }, (_, i) =>
+            mapping[i] ?? {
+                kind: (i === 0 ? "NAME" : "TEXT") as Kind,
+                text: "",
+            }
+        );
+    }, [template, mapping]);
+
     const variablesReady =
         !!template &&
-        !mapping.some(
+        !effectiveMapping.some(
             (m) => m.kind === "TEXT" && !m.text.trim()
         );
 
@@ -178,7 +205,7 @@ export default function CampaignCreatePage() {
                     length: selectedTemplate?.variableCount ?? 0,
                 },
                 (_, i) => ({
-                    kind: i === 0 ? "NAME" : "TEXT",
+                    kind: (i === 0 ? "NAME" : "TEXT") as Kind,
                     text: "",
                 })
             )
@@ -189,8 +216,8 @@ export default function CampaignCreatePage() {
         index: number,
         patch: Partial<VarMap>
     ) => {
-        setMapping((current) =>
-            current.map((item, i) =>
+        setMapping(
+            effectiveMapping.map((item, i) =>
                 i === index
                     ? { ...item, ...patch }
                     : item
@@ -198,7 +225,7 @@ export default function CampaignCreatePage() {
         );
     };
 
-    const previewValues = mapping.map((item) =>
+    const previewValues = effectiveMapping.map((item) =>
         item.kind === "TEXT"
             ? item.text
             : SAMPLE[item.kind]
@@ -226,16 +253,7 @@ export default function CampaignCreatePage() {
         }
 
         if (
-            mapping.length !== template.variableCount
-        ) {
-            setError(
-                "Please configure all template variables."
-            );
-            return;
-        }
-
-        if (
-            mapping.some(
+            effectiveMapping.some(
                 (m) =>
                     m.kind === "TEXT" &&
                     !m.text.trim()
@@ -261,7 +279,7 @@ export default function CampaignCreatePage() {
                 name: name.trim(),
                 templateId: template.id,
                 categoryIds: selected,
-                variableMapping: mapping.map((m) =>
+                variableMapping: effectiveMapping.map((m) =>
                     m.kind === "TEXT"
                         ? `TEXT:${m.text.trim()}`
                         : m.kind
@@ -851,7 +869,51 @@ export default function CampaignCreatePage() {
                                     </div>
                                 )}
 
-                                {template.variableCount > 0 && (
+                                {/* ONE VARIABLE: automatically the contact's name */}
+
+                                {autoName && (
+                                    <div className="cc-variable-section">
+
+                                        <div className="cc-variable-heading">
+                                            <div>
+                                                <h3>Personalize your message</h3>
+
+                                                <p>
+                                                    This template has one
+                                                    variable, filled in
+                                                    automatically.
+                                                </p>
+                                            </div>
+
+                                            <span>1 variable</span>
+                                        </div>
+
+                                        <div className="cc-variable-list">
+                                            <div className="cc-variable-row">
+
+                                                <div className="cc-variable-number">
+                                                    {"{{1}}"}
+                                                </div>
+
+                                                <div className="cc-variable-preview">
+                                                    <small>
+                                                        Automatically uses each contact&apos;s name · example
+                                                    </small>
+
+                                                    <strong>
+                                                        {SAMPLE.NAME}
+                                                    </strong>
+                                                </div>
+
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                )}
+
+                                {/* MORE THAN ONE VARIABLE: user configures each */}
+
+                                {template.variableCount > 1 && (
                                     <div className="cc-variable-section">
 
                                         <div className="cc-variable-heading">
@@ -866,13 +928,13 @@ export default function CampaignCreatePage() {
                                             </div>
 
                                             <span>
-                                                {mapping.length} variables
+                                                {effectiveMapping.length} variables
                                             </span>
                                         </div>
 
                                         <div className="cc-variable-list">
 
-                                            {mapping.map((item, index) => (
+                                            {effectiveMapping.map((item, index) => (
                                                 <div
                                                     className="cc-variable-row"
                                                     key={index}
@@ -1100,7 +1162,7 @@ export default function CampaignCreatePage() {
                                     Variables
                                 </span>
 
-                                <strong>{mapping.length}</strong>
+                                <strong>{effectiveMapping.length}</strong>
                             </div>
 
                         </div>
