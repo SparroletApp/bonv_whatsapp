@@ -91,7 +91,6 @@ public class CampaignService {
         List<String> mapping;
 
         if (varCount == 1) {
-            // One variable: {{1}} is always the contact's name
             mapping = new ArrayList<>(List.of("NAME"));
         } else {
             mapping = req.variableMapping() == null

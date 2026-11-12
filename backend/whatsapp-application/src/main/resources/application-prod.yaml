@@ -41,7 +41,7 @@ spring:
 
 
 jwt:
-  secret: "V7qN2xK9mR4tY8pL6sW3cF1hJ5zD9bG7uA2eX6nP4vQ8"
+  secret: ${JWT_SECRET}
 
 
 file:
