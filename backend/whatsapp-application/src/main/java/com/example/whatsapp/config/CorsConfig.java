@@ -17,12 +17,15 @@ public class CorsConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
+        // Allowed frontend and Swagger origins
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
                 "https://bonv-frontend.onrender.com",
-                "https://connect.rayloop.com"
+                "https://connect.rayloop.com",
+                "https://connectapi.rayloop.com"
         ));
 
+        // Allowed HTTP methods
         configuration.setAllowedMethods(Arrays.asList(
                 "GET",
                 "POST",
@@ -32,6 +35,7 @@ public class CorsConfig {
                 "OPTIONS"
         ));
 
+        // Allowed headers
         configuration.setAllowedHeaders(Arrays.asList(
                 "Authorization",
                 "Content-Type",
@@ -41,6 +45,7 @@ public class CorsConfig {
 
         configuration.setAllowCredentials(true);
 
+        // Register CORS configuration globally
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
 
