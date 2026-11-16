@@ -476,9 +476,7 @@ export default function TemplateForm({
                             <option value="NONE">No header</option>
                             <option value="TEXT">Text</option>
                             <option value="IMAGE">Image</option>
-                            <option value="VIDEO">Video</option>
-                            <option value="DOCUMENT">Document</option>
-                            <option value="LOCATION">Location</option>
+                        
                         </select>
                     </div>
 
