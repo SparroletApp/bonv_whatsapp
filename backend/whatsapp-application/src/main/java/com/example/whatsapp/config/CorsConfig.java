@@ -21,7 +21,8 @@ public class CorsConfig {
         configuration.setAllowedOrigins(
                 Arrays.asList(
                         "http://localhost:3000/",
-                        "https://bonv-frontend.onrender.com/"
+                        "https://bonv-frontend.onrender.com/",
+                        "https://connect.rayloop.com"
                 )
         );
 
