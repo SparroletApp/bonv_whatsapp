@@ -1,13 +1,13 @@
 
 package com.example.whatsapp.config;
 
+import java.util.Arrays;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.Arrays;
 
 @Configuration
 public class CorsConfig {
@@ -17,30 +17,27 @@ public class CorsConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Allow frontend origin
-        configuration.setAllowedOrigins(
-                Arrays.asList(
-                        "http://localhost:3000/",
-                        "https://bonv-frontend.onrender.com/",
-                        "https://connect.rayloop.com"
-                )
-        );
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:3000",
+                "https://bonv-frontend.onrender.com",
+                "https://connect.rayloop.com"
+        ));
 
-        configuration.setAllowedMethods(
-                Arrays.asList(
-                        "GET", "POST", "PUT",
-                        "PATCH", "DELETE", "OPTIONS"
-                )
-        );
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "OPTIONS"
+        ));
 
-        configuration.setAllowedHeaders(
-                Arrays.asList(
-                        "Authorization",
-                        "Content-Type",
-                        "Accept",
-                        "Origin"
-                )
-        );
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "Origin"
+        ));
 
         configuration.setAllowCredentials(true);
 
