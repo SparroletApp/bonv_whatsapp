@@ -16,6 +16,10 @@ public class SwaggerConfig {
     @Bean
     public OpenAPI customOpenAPI() {
 
+        Server productionServer = new Server()
+                .url("https://connectapi.rayloop.com/")
+                .description("Production HTTPS Server");
+
         return new OpenAPI()
                 .info(new Info()
                         .title("WhatsApp Integration API")
