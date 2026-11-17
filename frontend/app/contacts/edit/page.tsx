@@ -178,63 +178,69 @@ function EditContact({
         onClose();
     };
 
+
     const handleSubmit = async (
-    event: React.FormEvent<HTMLFormElement>
-) => {
-    event.preventDefault();
+        event: React.FormEvent<HTMLFormElement>
+    ) => {
+        event.preventDefault();
 
-    if (!contactId) {
-        showToast("error", "Contact ID is missing.");
-        return;
-    }
+        if (!contactId) {
+            showToast("error", "Contact ID is missing.");
+            return;
+        }
 
-    if (!formData.name.trim()) {
-        showToast("warning", "Please enter contact name.");
-        return;
-    }
+        const name = (formData.name ?? "").trim();
+        const phone = (formData.phone ?? "").trim();
+        const email = (formData.email ?? "").trim();
 
-    if (!formData.phone.trim()) {
-        showToast("warning", "Please enter phone number.");
-        return;
-    }
+        // Name is optional
 
-    if (formData.categoryIds.length === 0) {
-        showToast("warning", "Please select at least one category.");
-        return;
-    }
+        // Phone is mandatory
+        if (!phone) {
+            showToast("warning", "Please enter phone number.");
+            return;
+        }
 
-    try {
-        setSaving(true);
+        // Email is optional
 
-        await contactService.updateContact({
-            id: contactId,
-            name: formData.name.trim(),
-            phone: formData.phone.trim(),
-            email: formData.email.trim(),
-            categoryIds: formData.categoryIds,
-        });
+        // Categories are mandatory
+        if (formData.categoryIds.length === 0) {
+            showToast("warning", "Please select at least one category.");
+            return;
+        }
 
-        setSaving(false);
+        try {
+            setSaving(true);
 
-        onClose();
+            await contactService.updateContact({
+                id: contactId,
+                name,
+                phone,
+                email,
+                categoryIds: formData.categoryIds,
+            });
 
-        showToast("success", "Contact updated successfully!");
+            setSaving(false);
 
-        onUpdated().catch((error) => {
-            console.error("Contact refresh error:", error);
-        });
+            onClose();
 
-    } catch (error: unknown) {
-        console.error("Contact update error:", error);
+            showToast("success", "Contact updated successfully!");
 
-        setSaving(false);
+            onUpdated().catch((error) => {
+                console.error("Contact refresh error:", error);
+            });
 
-        showToast(
-            "error",
-            errorService.getErrorMessage(error)
-        );
-    }
-};
+        } catch (error: unknown) {
+            console.error("Contact update error:", error);
+
+            setSaving(false);
+
+            showToast(
+                "error",
+                errorService.getErrorMessage(error)
+            );
+        }
+    };
 
 
     if (loading) {
@@ -323,9 +329,8 @@ function EditContact({
                                         type="text"
                                         name="name"
                                         placeholder="Enter full name"
-                                        value={formData.name}
+                                        value={formData.name ?? ""}
                                         onChange={handleChange}
-                                        required
                                     />
                                 </div>
 
