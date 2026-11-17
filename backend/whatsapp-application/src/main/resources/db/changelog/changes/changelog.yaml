@@ -129,3 +129,13 @@ databaseChangeLog:
             relativeToChangelogFile: true
 
 
+  - changeSet:
+      id: alter_contact_name_null
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/ alter_contact_name_null.sql
+            relativeToChangelogFile: true
+
+
+

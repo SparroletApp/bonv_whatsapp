@@ -24,13 +24,13 @@ function Sidebar() {
         };
     }, [collapsed]);
 
-       const menuItems = [
-    { name: "Overview", icon: "bi-grid-1x2", path: "/dashboard" },
-    { name: "Tags", icon: "bi-tags", path: "/tags" },
-    { name: "Contacts", icon: "bi-people", path: "/contacts" },
-    { name: "Campaigns", icon: "bi-megaphone", path: "/campaign" },
-    { name: "Templates", icon: "bi-file-earmark-text", path: "/templates" },
-    { name: "Inbox", icon: "bi-inbox", path: "/inbox" },
+    const menuItems = [
+        { name: "Overview", icon: "bi-grid-1x2", path: "/dashboard" },
+        { name: "Tags", icon: "bi-tags", path: "/tags" },
+        { name: "Contacts", icon: "bi-people", path: "/contacts" },
+        { name: "Campaigns", icon: "bi-megaphone", path: "/campaign" },
+        { name: "Templates", icon: "bi-file-earmark-text", path: "/templates" },
+        { name: "Inbox", icon: "bi-inbox", path: "/inbox" },
 
     ];
 
@@ -75,29 +75,35 @@ function Sidebar() {
 
 
 
-           <div className={`sidebar-logo ${collapsed ? "logo-collapsed" : "logo-expanded"}`}>
+            <div className={`sidebar-logo ${collapsed ? "logo-collapsed" : "logo-expanded"}`}>
 
-    <div className="bonv-brand">
-        <div className="bonv-icon">
-            B
-        </div>
+                <div className="bonv-brand">
+                    {collapsed ? (
+                        <img
+                            src="/logo-bonv.png"
+                            alt="Bonv Logo"
+                            className="bonv-icon-image"
+                        />
+                    ) : (
+                        <img
+                            src="/logo-02.png"
+                            alt="Bonv"
+                            className="bonv-full-image"
+                        />
+                    )}
+                </div>
 
-        {!collapsed && (
-            <span className="bonv-text">bonv</span>
-        )}
-    </div>
+                <button
+                    type="button"
+                    className="sidebar-toggle"
+                    onClick={() => setCollapsed((prev) => !prev)}
+                    aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                >
+                    <i className={`bi ${collapsed ? "bi-chevron-right" : "bi-chevron-left"}`} />
+                </button>
 
-    <button
-        type="button"
-        className="sidebar-toggle"
-        onClick={() => setCollapsed((prev) => !prev)}
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-    >
-        <i className={`bi ${collapsed ? "bi-chevron-right" : "bi-chevron-left"}`} />
-    </button>
-
-</div>
+            </div>
 
 
             <div className="sidebar-menu">

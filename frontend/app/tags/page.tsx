@@ -99,7 +99,7 @@ function Category() {
                 toast: true,
                 position: "top-end",
                 icon: "success",
-                title: "Broadcast deleted successfully!",
+                title: "Tag deleted successfully!",
                 showConfirmButton: false,
                 timer: 2500,
                 timerProgressBar: true,

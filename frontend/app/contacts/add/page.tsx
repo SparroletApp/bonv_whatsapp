@@ -18,9 +18,9 @@ import categoryService, {
 import { useRouter } from "next/navigation";
 
 type ExcelContact = {
-    name: string;
+    name?: string | null;
     phone: string;
-    email?: string;
+    email?: string | null;
     categoryIds: number[];
 };
 
@@ -243,9 +243,45 @@ function AddContact() {
                     .map((id) => Number(id.trim()))
                     .filter((id) => Number.isInteger(id) && id > 0);
 
-                if (!name || !phone || categoryIds.length === 0) {
+                // Phone is mandatory
+                if (!phone) {
                     errors.push(
-                        `Row ${rowNumber}: Name, phone and categoryIds are required.`
+                        `Row ${rowNumber}: Phone number is required.`
+                    );
+                    return;
+                }
+
+                // Validate name only when provided
+                if (name && !/^[a-zA-Z\s.'-]+$/.test(name)) {
+                    errors.push(
+                        `Row ${rowNumber}: Invalid name. Only letters, spaces, dots, apostrophes and hyphens are allowed.`
+                    );
+                    return;
+                }
+
+                // Validate email only when provided
+                if (
+                    email &&
+                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+                ) {
+                    errors.push(
+                        `Row ${rowNumber}: Invalid email address.`
+                    );
+                    return;
+                }
+
+                // Validate phone number
+                if (!/^\+?[0-9]{7,15}$/.test(phone)) {
+                    errors.push(
+                        `Row ${rowNumber}: Invalid phone number.`
+                    );
+                    return;
+                }
+
+                // Categories are mandatory
+                if (categoryIds.length === 0) {
+                    errors.push(
+                        `Row ${rowNumber}: Please provide at least one valid category ID.`
                     );
                     return;
                 }
@@ -268,17 +304,10 @@ function AddContact() {
                     return;
                 }
 
-                if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                    errors.push(
-                        `Row ${rowNumber}: Invalid email address.`
-                    );
-                    return;
-                }
-
                 parsedContacts.push({
-                    name,
+                    name: name || null,
                     phone,
-                    email: email || undefined,
+                    email: email || null,
                     categoryIds,
                 });
             });
@@ -421,15 +450,14 @@ function AddContact() {
                     <div className="add-contact-form-grid">
 
                         <div className="add-contact-form-group">
-                            <label>Full Name <span>*</span></label>
+                            <label>Full Name</label>
 
                             <input
                                 type="text"
                                 name="name"
                                 placeholder="Enter full name"
-                                value={formData.name}
+                                value={formData.name || ""}
                                 onChange={handleChange}
-                                required
                             />
                         </div>
 
@@ -465,13 +493,12 @@ function AddContact() {
                             ref={categoryDropdownRef}
                         >
                             <label>
-                               Tags <span>*</span>
+                                Tags <span>*</span>
                             </label>
 
                             <div
-                                className={`category-multi-select ${
-                                    showCategoryDropdown ? "active" : ""
-                                }`}
+                                className={`category-multi-select ${showCategoryDropdown ? "active" : ""
+                                    }`}
                                 onClick={() =>
                                     setShowCategoryDropdown((previous) => !previous)
                                 }
@@ -511,9 +538,8 @@ function AddContact() {
                                 </div>
 
                                 <i
-                                    className={`bi bi-chevron-down category-dropdown-arrow ${
-                                        showCategoryDropdown ? "rotated" : ""
-                                    }`}
+                                    className={`bi bi-chevron-down category-dropdown-arrow ${showCategoryDropdown ? "rotated" : ""
+                                        }`}
                                 ></i>
                             </div>
 
@@ -532,9 +558,8 @@ function AddContact() {
                                             return (
                                                 <div
                                                     key={category.id}
-                                                    className={`category-option ${
-                                                        selected ? "selected" : ""
-                                                    }`}
+                                                    className={`category-option ${selected ? "selected" : ""
+                                                        }`}
                                                     onClick={() =>
                                                         toggleCategory(category.id)
                                                     }

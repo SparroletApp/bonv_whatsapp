@@ -190,6 +190,18 @@
     gap: 9px;
 }
 
+.bonv-full-image{
+    width: 170px;
+    object-fit: contain;
+    height: 50px;
+}
+
+.bonv-icon-image{
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+}
+
 .sidebar-menu {
     flex: 1;
     min-height: 0;

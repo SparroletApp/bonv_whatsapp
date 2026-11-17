@@ -15,7 +15,7 @@ import java.util.List;
 @Setter
 public class ContactEntity extends BaseEntity {
 
-    @Column(nullable = false, length = 150)
+    @Column(length = 150)
     private String name;
 
     @Column(nullable = false, length = 20, unique = true)

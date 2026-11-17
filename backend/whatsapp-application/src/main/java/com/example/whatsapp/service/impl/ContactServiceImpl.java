@@ -52,9 +52,19 @@ public class ContactServiceImpl implements ContactService {
 
         ContactEntity contact = new ContactEntity();
 
-        contact.setName(dto.getName().trim());
+        contact.setName(
+                dto.getName() == null || dto.getName().isBlank()
+                        ? null
+                        : dto.getName().trim()
+        );
+
         contact.setPhone(phone);
-        contact.setEmail(dto.getEmail());
+
+        contact.setEmail(
+                dto.getEmail() == null || dto.getEmail().isBlank()
+                        ? null
+                        : dto.getEmail().trim()
+        );
         contact.setCategoryIds(categoryIds);
 
         ContactEntity savedContact = contactRepository.save(contact);
@@ -105,9 +115,19 @@ public class ContactServiceImpl implements ContactService {
 
         Long[] categoryIds = validateCategoryIds(dto.getCategoryIds());
 
-        contact.setName(dto.getName().trim());
+        contact.setName(
+                dto.getName() == null || dto.getName().isBlank()
+                        ? null
+                        : dto.getName().trim()
+        );
+
         contact.setPhone(phone);
-        contact.setEmail(dto.getEmail());
+
+        contact.setEmail(
+                dto.getEmail() == null || dto.getEmail().isBlank()
+                        ? null
+                        : dto.getEmail().trim()
+        );
         contact.setCategoryIds(categoryIds);
 
         ContactEntity updatedContact = contactRepository.save(contact);

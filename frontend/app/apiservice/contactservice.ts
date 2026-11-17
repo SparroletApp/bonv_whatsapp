@@ -1,15 +1,16 @@
 
 import api from "./apiservice";
+
 export interface ContactCreateDto {
-    name: string;
+    name?: string | null;
     phone: string;
-    email?: string;
+    email?: string | null;
     categoryIds: number[];
 }
 
 export interface ContactResponseDto {
     id: number;
-    name: string;
+    name: string | null;
     phone: string;
     email: string | null;
     categoryIds: number[];
@@ -17,12 +18,11 @@ export interface ContactResponseDto {
     updatedAt: string | null;
 }
 
-
 export interface ContactUpdateDto {
     id: number;
-    name: string;
+    name?: string | null;
     phone: string;
-    email: string;
+    email?: string | null;
     categoryIds: number[];
 }
 
@@ -59,14 +59,12 @@ const contactService = {
         );
     },
 
-
     getAllContacts: async (): Promise<ContactResponseDto[]> => {
         return await api.post<ContactResponseDto[]>(
             "/contacts/get-all",
             {}
         );
     },
-
 
     getContactById: async (
         data: ContactIdDto
@@ -98,13 +96,13 @@ const contactService = {
     assignContactsToBroadcast: async (
         data: BroadcastAssignContactsDto
     ): Promise<string> => {
-        return api.post<string>(
+        return await api.post<string>(
             "/contacts/assign-broadcast",
             data
         );
     },
 
-        getContactsByCategoryId: async (
+    getContactsByCategoryId: async (
         data: CategoryIdDto
     ): Promise<ContactResponseDto[]> => {
         return await api.post<ContactResponseDto[]>(
@@ -113,17 +111,14 @@ const contactService = {
         );
     },
 
-getContactsByBroadcastId: async (
-    data: BroadcastIdDto
-): Promise<ContactResponseDto[]> => {
-    return await api.post<ContactResponseDto[]>(
-        "/contacts/get-by-broadcast",
-        data
-    );
-},
+    getContactsByBroadcastId: async (
+        data: BroadcastIdDto
+    ): Promise<ContactResponseDto[]> => {
+        return await api.post<ContactResponseDto[]>(
+            "/contacts/get-by-broadcast",
+            data
+        );
+    },
 };
-
-
-
 
 export default contactService;
