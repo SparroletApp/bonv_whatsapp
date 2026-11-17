@@ -10,10 +10,8 @@ import java.util.List;
 @Setter
 public class ContactCreateDto {
 
-    @NotBlank(message = "Contact name is required")
     @Size(max = 150, message = "Name cannot exceed 150 characters")
     private String name;
-
     @NotBlank(message = "Phone number is required")
     @Size(max = 20, message = "Phone number cannot exceed 20 characters")
     private String phone;

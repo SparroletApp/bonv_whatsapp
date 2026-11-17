@@ -14,7 +14,6 @@ public class ContactUpdateDto {
     @Positive(message = "Contact ID must be positive")
     private Long id;
 
-    @NotBlank(message = "Contact name is required")
     @Size(max = 150, message = "Name cannot exceed 150 characters")
     private String name;
 
