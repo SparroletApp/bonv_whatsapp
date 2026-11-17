@@ -23,19 +23,29 @@ import java.util.Map;
 public class TemplateController {
 
     private final TemplateService service;
-
-    // ==========================================
-    // GET ALL TEMPLATES
-    // ==========================================
+    
 
     @GetMapping
     public ResponseEntity<List<TemplateResponse>> list(
-            @RequestParam(required = false) String status
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "false") boolean refresh
     ) {
 
-        return ResponseEntity.ok(
-                service.list(status)
-        );
+        if (refresh) {
+            List<TemplateResponse> all = service.sync();
+
+            if (status == null || status.isBlank()) {
+                return ResponseEntity.ok(all);
+            }
+
+            return ResponseEntity.ok(
+                    all.stream()
+                            .filter(t -> status.equalsIgnoreCase(t.status()))
+                            .toList()
+            );
+        }
+
+        return ResponseEntity.ok(service.list(status));
     }
 
     // ==========================================
