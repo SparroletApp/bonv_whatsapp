@@ -12,7 +12,7 @@ import categoryInsightService, { CategorySummary } from "@/app/apiservice/catego
 const ROUTES = {
     campaigns: "/campaign",
     createCampaign: "/campaign/create",
-    templates: "/templatepage",
+    templates: "/templates",
     inbox: "/inbox",
     contacts: "/contacts",
 };
