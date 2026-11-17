@@ -17,9 +17,9 @@ import categoryService, {
 import EditContact from "./edit/page";
 
 type ExcelContact = {
-    name: string;
+    name?: string | null;
     phone: string;
-    email: string;
+    email?: string | null;
     categoryIds: number[];
 };
 
@@ -315,72 +315,74 @@ function Contact() {
                 const phone = String(row.phone || "").trim();
                 const email = String(row.email || "").trim();
 
-                const rawCategoryIds = String(
-                    row.categoryIds ?? row.categoryids ?? ""
-                ).trim();
+                const categoryIds = String(
+                    row.categoryIds || ""
+                )
+                    .split(",")
+                    .map((id) => Number(id.trim()))
+                    .filter((id) => Number.isInteger(id) && id > 0);
 
-                if (!name) {
-                    errors.push(
-                        `Row ${rowNumber}: Name is required.`
-                    );
-                    return;
-                }
-
+                // Phone is mandatory
                 if (!phone) {
                     errors.push(
-                        `Row ${rowNumber}: Phone is required.`
+                        `Row ${rowNumber}: Phone number is required.`
                     );
                     return;
                 }
-
-                if (!rawCategoryIds) {
+                if (name && !/^[a-zA-Z\s.'-]+$/.test(name)) {
                     errors.push(
-                        `Row ${rowNumber}: Category IDs are required.`
+                        `Row ${rowNumber}: Invalid name. Only letters, spaces, dots, apostrophes and hyphens are allowed.`
                     );
                     return;
                 }
-
-                const categoryIds = rawCategoryIds
-                    .split(",")
-                    .map((id) => Number(id.trim()));
-
                 if (
-                    categoryIds.some(
-                        (id) => !Number.isInteger(id) || id <= 0
-                    )
+                    email &&
+                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
                 ) {
                     errors.push(
-                        `Row ${rowNumber}: Invalid category IDs.`
+                        `Row ${rowNumber}: Invalid email address.`
                     );
                     return;
                 }
-
-                const uniqueCategoryIds = [
-                    ...new Set(categoryIds),
-                ];
-
-                const invalidCategoryIds =
-                    uniqueCategoryIds.filter(
-                        (id) => !availableCategoryIds.has(id)
+                if (!/^\+?[0-9]{7,15}$/.test(phone)) {
+                    errors.push(
+                        `Row ${rowNumber}: Invalid phone number.`
                     );
+                    return;
+                }
+                if (categoryIds.length === 0) {
+                    errors.push(
+                        `Row ${rowNumber}: Please provide at least one valid category ID.`
+                    );
+                    return;
+                }
+                if (new Set(categoryIds).size !== categoryIds.length) {
+                    errors.push(
+                        `Row ${rowNumber}: Duplicate category IDs found.`
+                    );
+                    return;
+                }
+                const invalidCategoryIds = categoryIds.filter(
+                    (id) =>
+                        !categories.some(
+                            (category) => Number(category.id) === id
+                        )
+                );
 
                 if (invalidCategoryIds.length > 0) {
                     errors.push(
-                        `Row ${rowNumber}: Category ID ${invalidCategoryIds.join(
-                            ", "
-                        )} does not exist.`
+                        `Row ${rowNumber}: Invalid category IDs: ${invalidCategoryIds.join(", ")}.`
                     );
                     return;
                 }
 
                 validContacts.push({
-                    name,
+                    name: name || null,
                     phone,
-                    email,
-                    categoryIds: uniqueCategoryIds,
+                    email: email || null,
+                    categoryIds,
                 });
             });
-
             if (validContacts.length === 0) {
                 await Swal.fire({
                     icon: "error",
@@ -419,9 +421,9 @@ function Contact() {
             for (const contact of validContacts) {
                 try {
                     await contactService.createContact({
-                        name: contact.name,
+                        name: contact.name || "",
                         phone: contact.phone,
-                        email: contact.email,
+                        email: contact.email || "",
                         categoryIds: contact.categoryIds,
                     });
 
