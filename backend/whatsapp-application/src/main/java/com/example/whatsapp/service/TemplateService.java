@@ -75,19 +75,10 @@ public class TemplateService {
     private final ObjectMapper mapper;
     private final MediaStorageService mediaStorage;
 
-    /*
-     * Meta upload handle -> public URL.
-     *
-     * The handle is returned by Meta during sample upload.
-     * The public URL is used later when the campaign sends
-     * messages using this template.
-     */
+
     private final Map<String, String> sampleUrls =
             new ConcurrentHashMap<>();
 
-    // ==========================================
-    // UPLOAD TEMPLATE SAMPLE MEDIA
-    // ==========================================
 
     public String uploadMediaSample(
             String type,
@@ -205,14 +196,6 @@ public class TemplateService {
             );
         }
 
-        /*
-         * Save a public copy of the same file.
-         *
-         * This URL is stored in the template database and
-         * reused by campaigns when sending messages.
-         *
-         * Do not silently ignore a storage failure.
-         */
         String publicUrl;
 
         try {
@@ -253,10 +236,6 @@ public class TemplateService {
 
         return handle;
     }
-
-    // ==========================================
-    // CREATE TEMPLATE
-    // ==========================================
 
     public TemplateResponse create(TemplateCreateRequestDto r) {
 
@@ -347,9 +326,6 @@ public class TemplateService {
             );
         }
 
-        // ==========================================
-        // VALIDATE HEADER
-        // ==========================================
 
         String mediaHandle = null;
         String savedMediaUrl = null;
@@ -381,10 +357,7 @@ public class TemplateService {
 
             mediaHandle = r.headerMediaHandle().trim();
 
-            /*
-             * Find the public URL associated with the Meta handle.
-             * This is the media URL that campaigns will reuse.
-             */
+
             savedMediaUrl = sampleUrls.get(mediaHandle);
 
             if (savedMediaUrl == null || savedMediaUrl.isBlank()) {
@@ -454,9 +427,6 @@ public class TemplateService {
             );
         }
 
-        // ==========================================
-        // BUTTONS
-        // ==========================================
 
         List<TemplateButtonDto> buttons =
                 r.buttons() == null ? List.of() : r.buttons();
@@ -605,9 +575,6 @@ public class TemplateService {
             header.put("format", "LOCATION");
         }
 
-        // ==========================================
-        // BODY
-        // ==========================================
 
         ObjectNode bodyNode = components.addObject();
 
@@ -962,10 +929,6 @@ public class TemplateService {
         return list(null);
     }
 
-    // ==========================================
-    // LIST TEMPLATES
-    // ==========================================
-
     @Transactional(readOnly = true)
     public List<TemplateResponse> list(String status) {
 
@@ -977,13 +940,13 @@ public class TemplateService {
                 );
 
         return items.stream()
+                .filter(t -> t.getMetaTemplateId() != null
+                        && !t.getMetaTemplateId().isBlank())
                 .map(this::map)
                 .toList();
     }
 
-    // ==========================================
-    // WEBHOOK STATUS UPDATE
-    // ==========================================
+
 
     @Transactional
     public void applyWebhookStatus(

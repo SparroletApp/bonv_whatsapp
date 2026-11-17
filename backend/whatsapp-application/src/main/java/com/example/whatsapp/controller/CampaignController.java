@@ -27,7 +27,6 @@ public class CampaignController {
     private final MediaStorageService mediaStorage;
 
 
-    /** Uploads the header image/video/document and returns its public HTTPS URL. */
     @PostMapping(value = "/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, String> uploadMedia(@RequestParam("file") MultipartFile file)
             throws IOException {
