@@ -3,6 +3,7 @@
 
 import { usePathname } from "next/navigation";
 import Sidebar from "../sidebar/page";
+import ProtectedRoute from "../component/ProtectedRoute";
 
 export default function LayoutWrapper({
     children,
@@ -14,12 +15,14 @@ export default function LayoutWrapper({
     const hideSidebar = pathname === "/";
 
     return (
-        <div className={`app-layout ${hideSidebar ? "no-sidebar" : ""}`}>
-            {!hideSidebar && <Sidebar />}
+        <ProtectedRoute>
+            <div className={`app-layout ${hideSidebar ? "no-sidebar" : ""}`}>
+                {!hideSidebar && <Sidebar />}
 
-            <main className="main-content">
-                {children}
-            </main>
-        </div>
+                <main className="main-content">
+                    {children}
+                </main>
+            </div>
+        </ProtectedRoute>
     );
 }
