@@ -7,7 +7,8 @@ import "./template-form.css";
 import templateService, {
     TemplateButton,
     TemplateResponse,
-    TemplateHeaderType,
+    TemplateCreateHeaderType,
+
 } from "@/app/apiservice/templateservice";
 import { apiError } from "@/app/utils/apiError";
 import TemplatePreview from "@/app/component/TemplatePreview";
@@ -24,26 +25,10 @@ const NAME_VARIABLE = "{{1}}";
 const NAME_EXAMPLE = "Rahul";
 
 type UploadableHeaderType = "IMAGE" | "VIDEO" | "DOCUMENT";
-
-const MEDIA_RULES: Record<
-    UploadableHeaderType,
-    { accept: string; maxSize: number; label: string }
-> = {
-    IMAGE: {
-        accept: "image/jpeg,image/png",
-        maxSize: 5 * 1024 * 1024,
-        label: "JPEG or PNG, maximum 5 MB",
-    },
-    VIDEO: {
-        accept: "video/mp4",
-        maxSize: 16 * 1024 * 1024,
-        label: "MP4, maximum 16 MB",
-    },
-    DOCUMENT: {
-        accept: "application/pdf",
-        maxSize: 100 * 1024 * 1024,
-        label: "PDF, maximum 100 MB",
-    },
+const IMAGE_RULE = {
+    accept: "image/jpeg,image/png",
+    maxSize: 5 * 1024 * 1024,
+    label: "JPEG or PNG, maximum 5 MB",
 };
 
 export default function TemplateForm({
@@ -58,7 +43,7 @@ export default function TemplateForm({
     );
 
     const [headerType, setHeaderType] =
-        useState<TemplateHeaderType>("NONE");
+        useState<TemplateCreateHeaderType>("NONE");
     const [headerText, setHeaderText] = useState("");
     const [headerFile, setHeaderFile] = useState<File | null>(null);
     const [headerMediaHandle, setHeaderMediaHandle] = useState("");
@@ -112,7 +97,7 @@ export default function TemplateForm({
         setError("");
     };
 
-    const changeHeaderType = (type: TemplateHeaderType) => {
+    const changeHeaderType = (type: TemplateCreateHeaderType) => {
         setHeaderType(type);
         setHeaderText("");
         setHeaderFile(null);
@@ -121,30 +106,15 @@ export default function TemplateForm({
     };
 
     const uploadHeaderMedia = async (file: File) => {
-        if (
-            headerType !== "IMAGE" &&
-            headerType !== "VIDEO" &&
-            headerType !== "DOCUMENT"
-        ) {
+        if (headerType !== "IMAGE") return;
+
+        if (file.size > IMAGE_RULE.maxSize) {
+            setError(`Image is too large. ${IMAGE_RULE.label}.`);
             return;
         }
 
-        const currentHeaderType = headerType;
-        const rule = MEDIA_RULES[currentHeaderType];
-
-        if (file.size > rule.maxSize) {
-            setError(
-                `${currentHeaderType} file is too large. ${rule.label}.`
-            );
-            return;
-        }
-
-        const validMimeTypes = rule.accept.split(",");
-
-        if (!validMimeTypes.includes(file.type)) {
-            setError(
-                `Invalid ${currentHeaderType} file. ${rule.label}.`
-            );
+        if (!IMAGE_RULE.accept.split(",").includes(file.type)) {
+            setError(`Invalid image file. ${IMAGE_RULE.label}.`);
             return;
         }
 
@@ -155,7 +125,7 @@ export default function TemplateForm({
 
         try {
             const response = await templateService.uploadMediaSample(
-                currentHeaderType,
+                "IMAGE",
                 file
             );
 
@@ -172,7 +142,6 @@ export default function TemplateForm({
             setUploadingMedia(false);
         }
     };
-
     const addButton = () => {
         if (buttons.length >= 3) return;
 
@@ -468,15 +437,13 @@ export default function TemplateForm({
                         <select
                             value={headerType}
                             onChange={(e) =>
-                                changeHeaderType(
-                                    e.target.value as TemplateHeaderType
-                                )
+                                changeHeaderType(e.target.value as TemplateCreateHeaderType)
                             }
                         >
                             <option value="NONE">No header</option>
                             <option value="TEXT">Text</option>
                             <option value="IMAGE">Image</option>
-                        
+
                         </select>
                     </div>
 
@@ -499,119 +466,68 @@ export default function TemplateForm({
                         </div>
                     )}
 
-                    {(
-                        ["IMAGE", "VIDEO", "DOCUMENT"] as UploadableHeaderType[]
-                    ).includes(headerType as UploadableHeaderType) && (
-                        <div className="tf-media-upload">
-                            <div className="tf-media-upload-heading">
-                                <i className="bi bi-cloud-arrow-up" />
-                                <div>
-                                    <strong>
-                                        Upload {headerType.toLowerCase()} sample
-                                    </strong>
-                                    <small>
-                                        {
-                                            MEDIA_RULES[
-                                                headerType as UploadableHeaderType
-                                            ].label
+                
+                        { headerType === "IMAGE" && (
+                            <div className="tf-media-upload">
+                                <div className="tf-media-upload-heading">
+                                    <i className="bi bi-cloud-arrow-up" />
+                                    <div>
+                                        <strong>Upload image sample</strong>
+                                        <small>{IMAGE_RULE.label}</small>
+                                    </div>
+                                </div>
+
+                                <input
+                                    type="file"
+                                    accept={IMAGE_RULE.accept}
+                                    disabled={uploadingMedia || saving}
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+
+                                        if (file) {
+                                            void uploadHeaderMedia(file);
                                         }
-                                    </small>
-                                </div>
-                            </div>
 
-                            <input
-                                type="file"
-                                accept={
-                                    MEDIA_RULES[
-                                        headerType as UploadableHeaderType
-                                    ].accept
-                                }
-                                disabled={uploadingMedia || saving}
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0];
+                                        e.currentTarget.value = "";
+                                    }}
+                                />
 
-                                    if (file) {
-                                        void uploadHeaderMedia(file);
-                                    }
+                                {headerFile && (
+                                    <div className="tf-media-file">
+                                        <i className="bi bi-image" />
+                                        <span>{headerFile.name}</span>
 
-                                    e.currentTarget.value = "";
-                                }}
-                            />
+                                        {uploadingMedia ? (
+                                            <span>Uploading...</span>
+                                        ) : headerMediaHandle ? (
+                                            <span className="tf-media-success">
+                                                <i className="bi bi-check-circle-fill" />
+                                                Uploaded
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                )}
 
-                            {headerFile && (
-                                <div className="tf-media-file">
-                                    <i
-                                        className={`bi ${
-                                            headerType === "IMAGE"
-                                                ? "bi-image"
-                                                : headerType === "VIDEO"
-                                                ? "bi-camera-video"
-                                                : "bi-file-earmark-pdf"
-                                        }`}
-                                    />
-                                    <span>{headerFile.name}</span>
+                                {uploadingMedia && (
+                                    <div className="tf-media-progress">
+                                        Uploading image sample...
+                                    </div>
+                                )}
 
-                                    {uploadingMedia ? (
-                                        <span>Uploading...</span>
-                                    ) : headerMediaHandle ? (
-                                        <span className="tf-media-success">
-                                            <i className="bi bi-check-circle-fill" />
-                                            Uploaded
-                                        </span>
-                                    ) : null}
-                                </div>
-                            )}
-
-                            {uploadingMedia && (
-                                <div className="tf-media-progress">
-                                    Uploading media sample to Meta...
-                                </div>
-                            )}
-
-                            {previewMediaUrl && (
-                                <div className="tf-upload-preview">
-                                    <strong>
-                                        <i className="bi bi-eye" /> Media preview
-                                    </strong>
-
-                                    {headerType === "IMAGE" && (
+                                {previewMediaUrl && (
+                                    <div className="tf-upload-preview">
+                                        <strong>
+                                            <i className="bi bi-eye" /> Image preview
+                                        </strong>
                                         <img
                                             src={previewMediaUrl}
                                             alt="Uploaded template header"
                                             className="tf-upload-preview-image"
                                         />
-                                    )}
-
-                                    {headerType === "VIDEO" && (
-                                        <video
-                                            src={previewMediaUrl}
-                                            controls
-                                            className="tf-upload-preview-video"
-                                        />
-                                    )}
-
-                                    {headerType === "DOCUMENT" && (
-                                        <div className="tf-upload-preview-document">
-                                            <i className="bi bi-file-earmark-pdf-fill" />
-                                            <div>
-                                                <span>{headerFile?.name}</span>
-                                                <small>PDF document selected</small>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {headerType === "LOCATION" && (
-                        <div className="tf-button-info">
-                            <i className="bi bi-info-circle-fill" />
-                            Location headers do not use a media file upload.
-                            Confirm that your WhatsApp account and API version
-                            support this header format before submitting.
-                        </div>
-                    )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                     <div className="tf-field">
                         <div className="tf-label-row">
@@ -874,8 +790,7 @@ export default function TemplateForm({
                                 headerType={headerType}
                                 headerText={headerText}
                                 headerMediaUrl={
-                                    headerType === "IMAGE" ||
-                                    headerType === "VIDEO"
+                                    headerType === "IMAGE" 
                                         ? previewMediaUrl
                                         : null
                                 }

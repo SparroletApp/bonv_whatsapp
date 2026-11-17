@@ -32,9 +32,6 @@ public class TemplateController {
         return ResponseEntity.ok(service.listFromMeta(status));
     }
 
-    // ==========================================
-    // CREATE WHATSAPP TEMPLATE
-    // ==========================================
 
     @PostMapping
     public ResponseEntity<TemplateResponse> create(
