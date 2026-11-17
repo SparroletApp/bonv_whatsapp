@@ -929,6 +929,40 @@ public class TemplateService {
         return list(null);
     }
 
+    @Transactional
+    public List<TemplateResponse> listFromMeta(String status) {
+
+        ArrayNode templates = client.listTemplates();
+
+        if (templates == null) {
+            throw new RuntimeException("Meta returned an empty template response");
+        }
+
+        Set<String> metaIds = new java.util.HashSet<>();
+
+        for (JsonNode t : templates) {
+            String id = t.path("id").asText(null);
+            if (id != null && !id.isBlank()) {
+                metaIds.add(id);
+            }
+        }
+
+        // Safety: never wipe the table if Meta returned nothing
+        if (!metaIds.isEmpty()) {
+            List<TemplateEntity> stale = repo.findAll().stream()
+                    .filter(t -> t.getMetaTemplateId() == null
+                            || !metaIds.contains(t.getMetaTemplateId()))
+                    .toList();
+
+            repo.deleteAll(stale);
+        }
+
+        // Refresh the remaining rows from Meta
+        sync();
+
+        return list(status);
+    }
+
     @Transactional(readOnly = true)
     public List<TemplateResponse> list(String status) {
 
