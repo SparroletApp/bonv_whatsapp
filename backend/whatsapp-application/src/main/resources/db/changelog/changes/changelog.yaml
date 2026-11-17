@@ -134,7 +134,7 @@ databaseChangeLog:
       author: amrutha
       changes:
         - sqlFile:
-            path: sql/ alter_contact_name_null.sql
+            path: sql/alter_contact_name_null.sql
             relativeToChangelogFile: true
 
 
