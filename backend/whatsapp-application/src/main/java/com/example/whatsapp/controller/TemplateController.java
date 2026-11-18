@@ -37,7 +37,6 @@ public class TemplateController {
     public ResponseEntity<TemplateResponse> create(
             @Valid @RequestBody TemplateCreateRequestDto req
     ) {
-
         return ResponseEntity.ok(
                 service.create(req)
         );
