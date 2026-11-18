@@ -137,6 +137,13 @@ databaseChangeLog:
             path: sql/alter_contact_name_null.sql
             relativeToChangelogFile: true
 
+  - changeSet:
+      id: alter_templates_add_image
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_templates_add_image.sql
+            relativeToChangelogFile: true
 
   - changeSet:
       id: create_template_media_sample
@@ -144,14 +151,6 @@ databaseChangeLog:
       changes:
         - sqlFile:
             path: sql/create_template_media_sample.sql
-            relativeToChangelogFile: true
-
-  - changeSet:
-      id: alter_template_add_header_media_object_key
-      author: amrutha
-      changes:
-        - sqlFile:
-            path: sql/alter_template_add_header_media_object_key.sql
             relativeToChangelogFile: true
 
 
