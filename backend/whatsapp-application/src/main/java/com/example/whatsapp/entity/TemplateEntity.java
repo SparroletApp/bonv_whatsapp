@@ -18,9 +18,13 @@ public class TemplateEntity {
 
     @Column(nullable = false, length = 150)
     private String name;
+    @Column(length = 500)
+    private String headerMediaObjectKey;
 
     @Column(nullable = false, length = 20)
     private String language;
+
+
 
     @Column(nullable = false, length = 30)
     private String category;

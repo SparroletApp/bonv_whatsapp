@@ -64,7 +64,5 @@ whatsapp:
     base-url: https://graph.facebook.com
 
 app:
-  media:
-    dir: ${APP_MEDIA_DIR:/var/data/campaign-media}
-    public-base-url: ${APP_MEDIA_PUBLIC_BASE_URL:https://bonv-whatsapp-1.onrender.com}
+  base-url: ${APP_BASE_URL}
 

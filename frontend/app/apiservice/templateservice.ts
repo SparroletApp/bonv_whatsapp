@@ -31,7 +31,7 @@ export interface TemplateResponse {
     category: string;
 
     headerText: string | null;
-     headerType?: TemplateCreateHeaderType;
+    headerType?: TemplateCreateHeaderType;
     headerMediaHandle: string | null;
     headerMediaUrl: string | null;
 
@@ -58,23 +58,15 @@ const templateService = {
     create: (req: TemplateCreateRequest) =>
         api.post<TemplateResponse>("/templates", req),
 
-    uploadMediaSample: (
-        type: "IMAGE" | "VIDEO" | "DOCUMENT",
-        file: File
-    ) => {
+    uploadMediaSample: (type: "IMAGE", file: File) => {
         const formData = new FormData();
-
         formData.append("type", type);
         formData.append("file", file);
 
         return api.post<TemplateMediaUploadResponse>(
             "/templates/media-sample",
             formData,
-            {
-                headers: {
-                    "Content-Type": undefined,
-                },
-            }
+            { headers: { "Content-Type": undefined }, timeout: 120000 }
         );
     },
 

@@ -5,6 +5,8 @@ import com.example.whatsapp.dto.whatsappdto.TemplateButtonDto;
 import com.example.whatsapp.dto.whatsappdto.TemplateCreateRequestDto;
 import com.example.whatsapp.dto.whatsappdto.TemplateResponse;
 import com.example.whatsapp.entity.TemplateEntity;
+import com.example.whatsapp.entity.TemplateMediaSampleEntity;
+import com.example.whatsapp.repository.TemplateMediaSampleRepository;
 import com.example.whatsapp.repository.TemplateRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,11 +24,12 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -68,96 +71,83 @@ public class TemplateService {
     private static final long MAX_IMAGE_SIZE = 5L * 1024 * 1024;
 
     private final TemplateRepository repo;
+    private final TemplateMediaSampleRepository sampleRepo;
     private final WhatsappClient client;
     private final ObjectMapper mapper;
     private final GarageStorageService garageStorage;
-
-    private final Map<String, String> sampleUrls =
-            new ConcurrentHashMap<>();
-
-
 
     public String uploadMediaSample(
             String type,
             MultipartFile file
     ) throws IOException {
-
         if (type == null || !"IMAGE".equalsIgnoreCase(type.trim())) {
             throw new IllegalArgumentException(
                     "Only IMAGE uploads are supported"
             );
         }
-
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException(
                     "Please select an image file"
             );
         }
-
         String mimeType = file.getContentType();
-
         if (mimeType == null || !IMAGE_MIME_TYPES.contains(mimeType)) {
             throw new IllegalArgumentException(
                     "Image must be JPG or PNG"
             );
         }
-
         if (file.getSize() > MAX_IMAGE_SIZE) {
             throw new IllegalArgumentException(
                     "Image exceeds the maximum size of 5 MB"
             );
         }
-
         String filename = file.getOriginalFilename();
-
         filename = (filename == null || filename.isBlank())
                 ? "template-sample.jpg"
                 : filename.replaceAll("[^a-zA-Z0-9._-]", "_");
 
-        log.info(
-                "Uploading template image sample. Filename: {}, Size: {}",
-                filename,
-                file.getSize()
+        String objectKey = garageStorage.uploadImage(
+                file,
+                "template-media"
         );
-        String handle = client.uploadTemplateSample(
-                file.getBytes(),
-                mimeType,
-                filename
-        );
+        log.info("Image successfully saved in Garage: {}", objectKey);
 
-        if (handle == null || handle.isBlank()) {
-            throw new IllegalStateException(
-                    "Meta did not return a valid media handle"
-            );
-        }
+        String publicUrl = garageStorage.getPublicUrl(objectKey);
 
+        String handle;
         try {
-
-            String objectKey =
-                    garageStorage.uploadImage(file, "template-media");
-
-            String publicUrl = garageStorage.getPublicUrl(objectKey);
-
             validatePublicMediaUrl(publicUrl);
 
-            if (sampleUrls.size() > 500) {
-                sampleUrls.clear();
-            }
-
-            sampleUrls.put(handle, publicUrl);
-
-        } catch (Exception ex) {
-
-            log.error("Could not save template image to Garage", ex);
-
-            throw new IllegalStateException(
-                    "Image was uploaded to Meta, but could not be saved "
-                            + "for campaign reuse: " + ex.getMessage(),
-                    ex
+            handle = client.uploadTemplateSample(
+                    file.getBytes(),
+                    mimeType,
+                    filename
             );
+
+            if (handle == null || handle.isBlank()) {
+                throw new IllegalStateException(
+                        "Meta did not return a valid media handle"
+                );
+            }
+        } catch (RuntimeException | IOException ex) {
+            try {
+                garageStorage.deleteImage(objectKey);
+            } catch (Exception cleanupEx) {
+                log.warn("Could not clean up Garage object {}", objectKey, cleanupEx);
+            }
+            throw ex;
         }
 
-        log.info("Template image uploaded. Garage URL saved.");
+        TemplateMediaSampleEntity sample = new TemplateMediaSampleEntity();
+        sample.setMetaHandle(handle);
+        sample.setObjectKey(objectKey);
+        sample.setPublicUrl(publicUrl);
+        sampleRepo.save(sample);
+
+        log.info(
+                "Template image uploaded. Garage key: {}, Meta handle received",
+                objectKey
+        );
 
         return handle;
     }
@@ -281,14 +271,12 @@ public class TemplateService {
 
             mediaHandle = r.headerMediaHandle().trim();
 
-            savedMediaUrl = sampleUrls.get(mediaHandle);
-
-            if (savedMediaUrl == null || savedMediaUrl.isBlank()) {
-                throw new IllegalArgumentException(
-                        "The uploaded image could not be found. "
-                                + "Please upload the template image again."
-                );
-            }
+            savedMediaUrl = sampleRepo.findById(mediaHandle)
+                    .map(TemplateMediaSampleEntity::getPublicUrl)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "The uploaded image could not be found. "
+                                    + "Please upload the template image again."
+                    ));
 
             validatePublicMediaUrl(savedMediaUrl);
 
@@ -587,6 +575,8 @@ public class TemplateService {
                         .toUpperCase()
         );
 
+        TemplateResponse response;
+
         try {
 
             TemplateEntity saved = repo.saveAndFlush(entity);
@@ -598,11 +588,7 @@ public class TemplateService {
                     saved.getHeaderMediaUrl() != null
             );
 
-            if (mediaHeader) {
-                sampleUrls.remove(mediaHandle);
-            }
-
-            return map(saved);
+            response = map(saved);
 
         } catch (Exception ex) {
 
@@ -617,6 +603,18 @@ public class TemplateService {
                     ex
             );
         }
+
+        if (mediaHeader) {
+            // The Garage object stays: the template's headerMediaUrl points to it.
+            // Only the temporary handle -> URL mapping is removed.
+            try {
+                sampleRepo.deleteById(mediaHandle);
+            } catch (Exception ex) {
+                log.warn("Could not remove media sample mapping {}", mediaHandle, ex);
+            }
+        }
+
+        return response;
     }
 
 
@@ -628,24 +626,24 @@ public class TemplateService {
             );
         }
 
+        URI uri;
+
         try {
-
-            URI uri = URI.create(mediaUrl);
-
-            if (!"https".equalsIgnoreCase(uri.getScheme())
-                    || uri.getHost() == null
-                    || uri.getHost().isBlank()) {
-
-                throw new IllegalArgumentException(
-                        "Template media URL must be a valid public HTTPS URL"
-                );
-            }
-
+            uri = URI.create(mediaUrl);
         } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException(
+                    "Invalid template media URL. Check APP_BASE_URL.",
+                    ex
+            );
+        }
+
+        if (!"https".equalsIgnoreCase(uri.getScheme())
+                || uri.getHost() == null
+                || uri.getHost().isBlank()) {
 
             throw new IllegalArgumentException(
-                    "Invalid template media URL. Check GARAGE_PUBLIC_BASE_URL.",
-                    ex
+                    "Template media URL must be a valid public HTTPS URL. "
+                            + "Check APP_BASE_URL."
             );
         }
     }
@@ -810,7 +808,7 @@ public class TemplateService {
             throw new RuntimeException("Meta returned an empty template response");
         }
 
-        Set<String> metaIds = new java.util.HashSet<>();
+        Set<String> metaIds = new HashSet<>();
 
         for (JsonNode t : templates) {
             String id = t.path("id").asText(null);
