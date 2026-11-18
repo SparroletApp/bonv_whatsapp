@@ -1,4 +1,3 @@
-
 package com.example.whatsapp.service;
 
 import com.example.whatsapp.client.WhatsappClient;
@@ -58,26 +57,24 @@ public class TemplateService {
             Set.of("QUICK_REPLY", "URL", "PHONE_NUMBER");
 
     private static final Set<String> HEADER_TYPES =
-            Set.of(
-                    "NONE",
-                    "TEXT",
-                    "IMAGE",
-                    "VIDEO",
-                    "DOCUMENT",
-                    "LOCATION"
-            );
+            Set.of("NONE", "TEXT", "IMAGE");
 
     private static final Set<String> MEDIA_TYPES =
-            Set.of("IMAGE", "VIDEO", "DOCUMENT");
+            Set.of("IMAGE");
+
+    private static final Set<String> IMAGE_MIME_TYPES =
+            Set.of("image/jpeg", "image/png");
+
+    private static final long MAX_IMAGE_SIZE = 5L * 1024 * 1024;
 
     private final TemplateRepository repo;
     private final WhatsappClient client;
     private final ObjectMapper mapper;
-    private final MediaStorageService mediaStorage;
-
+    private final GarageStorageService garageStorage;
 
     private final Map<String, String> sampleUrls =
             new ConcurrentHashMap<>();
+
 
 
     public String uploadMediaSample(
@@ -85,105 +82,43 @@ public class TemplateService {
             MultipartFile file
     ) throws IOException {
 
-        if (type == null || type.isBlank()) {
+        if (type == null || !"IMAGE".equalsIgnoreCase(type.trim())) {
             throw new IllegalArgumentException(
-                    "Media type is required"
+                    "Only IMAGE uploads are supported"
             );
         }
 
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException(
-                    "Please select a media file"
-            );
-        }
-
-        String headerType = type.trim().toUpperCase();
-
-        if (!MEDIA_TYPES.contains(headerType)) {
-            throw new IllegalArgumentException(
-                    "Supported upload types are IMAGE, VIDEO and DOCUMENT"
+                    "Please select an image file"
             );
         }
 
         String mimeType = file.getContentType();
 
-        if (mimeType == null) {
+        if (mimeType == null || !IMAGE_MIME_TYPES.contains(mimeType)) {
             throw new IllegalArgumentException(
-                    "Unable to identify file type"
+                    "Image must be JPG or PNG"
             );
         }
 
-        boolean valid = switch (headerType) {
-
-            case "IMAGE" ->
-                    Set.of(
-                            "image/jpeg",
-                            "image/png"
-                    ).contains(mimeType);
-
-            case "VIDEO" ->
-                    "video/mp4".equals(mimeType);
-
-            case "DOCUMENT" ->
-                    "application/pdf".equals(mimeType);
-
-            default -> false;
-        };
-
-        if (!valid) {
+        if (file.getSize() > MAX_IMAGE_SIZE) {
             throw new IllegalArgumentException(
-                    "Invalid file format for " + headerType
-            );
-        }
-
-        long maxSize = switch (headerType) {
-
-            case "IMAGE" ->
-                    5L * 1024 * 1024;
-
-            case "VIDEO" ->
-                    16L * 1024 * 1024;
-
-            case "DOCUMENT" ->
-                    100L * 1024 * 1024;
-
-            default -> 0;
-        };
-
-        if (file.getSize() > maxSize) {
-            throw new IllegalArgumentException(
-                    "File exceeds the maximum allowed size for "
-                            + headerType
+                    "Image exceeds the maximum size of 5 MB"
             );
         }
 
         String filename = file.getOriginalFilename();
 
-        if (filename == null || filename.isBlank()) {
-
-            filename = switch (headerType) {
-                case "IMAGE" -> "template-sample.jpg";
-                case "VIDEO" -> "template-sample.mp4";
-                case "DOCUMENT" -> "template-sample.pdf";
-                default -> "template-sample";
-            };
-
-        } else {
-
-            filename = filename.replaceAll(
-                    "[^a-zA-Z0-9._-]",
-                    "_"
-            );
-        }
+        filename = (filename == null || filename.isBlank())
+                ? "template-sample.jpg"
+                : filename.replaceAll("[^a-zA-Z0-9._-]", "_");
 
         log.info(
-                "Uploading template sample. Type: {}, Filename: {}, Size: {}",
-                headerType,
+                "Uploading template image sample. Filename: {}, Size: {}",
                 filename,
                 file.getSize()
         );
-
-        // Upload sample media to Meta
         String handle = client.uploadTemplateSample(
                 file.getBytes(),
                 mimeType,
@@ -196,17 +131,12 @@ public class TemplateService {
             );
         }
 
-        String publicUrl;
-
         try {
 
-            publicUrl = mediaStorage.save(file);
+            String objectKey =
+                    garageStorage.uploadImage(file, "template-media");
 
-            if (publicUrl == null || publicUrl.isBlank()) {
-                throw new IllegalStateException(
-                        "Media storage did not return a public URL"
-                );
-            }
+            String publicUrl = garageStorage.getPublicUrl(objectKey);
 
             validatePublicMediaUrl(publicUrl);
 
@@ -218,21 +148,16 @@ public class TemplateService {
 
         } catch (Exception ex) {
 
-            log.error(
-                    "Could not save public template media",
-                    ex
-            );
+            log.error("Could not save template image to Garage", ex);
 
             throw new IllegalStateException(
-                    "Media was uploaded to Meta, but could not be saved "
+                    "Image was uploaded to Meta, but could not be saved "
                             + "for campaign reuse: " + ex.getMessage(),
                     ex
             );
         }
 
-        log.info(
-                "Template sample uploaded successfully. Public URL saved."
-        );
+        log.info("Template image uploaded. Garage URL saved.");
 
         return handle;
     }
@@ -305,6 +230,7 @@ public class TemplateService {
         if (!HEADER_TYPES.contains(headerType)) {
             throw new IllegalArgumentException(
                     "Unsupported header type: " + headerType
+                            + ". Use NONE, TEXT or IMAGE"
             );
         }
 
@@ -325,7 +251,6 @@ public class TemplateService {
                     "Footer is too long (max 60 characters)"
             );
         }
-
 
         String mediaHandle = null;
         String savedMediaUrl = null;
@@ -350,20 +275,18 @@ public class TemplateService {
             if (r.headerMediaHandle() == null
                     || r.headerMediaHandle().isBlank()) {
                 throw new IllegalArgumentException(
-                        "Upload a sample " + headerType.toLowerCase()
-                                + " before creating the template"
+                        "Upload a sample image before creating the template"
                 );
             }
 
             mediaHandle = r.headerMediaHandle().trim();
 
-
             savedMediaUrl = sampleUrls.get(mediaHandle);
 
             if (savedMediaUrl == null || savedMediaUrl.isBlank()) {
                 throw new IllegalArgumentException(
-                        "The uploaded media could not be found. "
-                                + "Please upload the template media again."
+                        "The uploaded image could not be found. "
+                                + "Please upload the template image again."
                 );
             }
 
@@ -378,7 +301,7 @@ public class TemplateService {
             if (r.headerMediaHandle() != null
                     && !r.headerMediaHandle().isBlank()) {
                 throw new IllegalArgumentException(
-                        "Media handle is not required for this header type"
+                        "Media handle is not required when there is no header"
                 );
             }
         }
@@ -401,10 +324,6 @@ public class TemplateService {
             );
         }
 
-        // ==========================================
-        // VARIABLES
-        // ==========================================
-
         validateBodyVariables(body);
 
         int vars = countVariables(body);
@@ -426,7 +345,6 @@ public class TemplateService {
                     "Provide an example value for each variable"
             );
         }
-
 
         List<TemplateButtonDto> buttons =
                 r.buttons() == null ? List.of() : r.buttons();
@@ -530,10 +448,6 @@ public class TemplateService {
             }
         }
 
-        // ==========================================
-        // BUILD META PAYLOAD
-        // ==========================================
-
         ObjectNode payload = mapper.createObjectNode();
 
         payload.put("name", name);
@@ -541,10 +455,6 @@ public class TemplateService {
         payload.put("category", category);
 
         ArrayNode components = payload.putArray("components");
-
-        // ==========================================
-        // HEADER
-        // ==========================================
 
         if (headerType.equals("TEXT")) {
 
@@ -554,27 +464,19 @@ public class TemplateService {
             header.put("format", "TEXT");
             header.put("text", headerText);
 
-        } else if (MEDIA_TYPES.contains(headerType)) {
+        } else if (headerType.equals("IMAGE")) {
 
             ObjectNode header = components.addObject();
 
             header.put("type", "HEADER");
-            header.put("format", headerType);
+            header.put("format", "IMAGE");
 
             ObjectNode example = header.putObject("example");
 
             ArrayNode handles = example.putArray("header_handle");
 
             handles.add(mediaHandle);
-
-        } else if (headerType.equals("LOCATION")) {
-
-            ObjectNode header = components.addObject();
-
-            header.put("type", "HEADER");
-            header.put("format", "LOCATION");
         }
-
 
         ObjectNode bodyNode = components.addObject();
 
@@ -593,10 +495,6 @@ public class TemplateService {
             }
         }
 
-        // ==========================================
-        // FOOTER
-        // ==========================================
-
         if (footerText != null) {
 
             ObjectNode footer = components.addObject();
@@ -604,10 +502,6 @@ public class TemplateService {
             footer.put("type", "FOOTER");
             footer.put("text", footerText);
         }
-
-        // ==========================================
-        // BUTTONS
-        // ==========================================
 
         if (!buttonArray.isEmpty()) {
 
@@ -623,9 +517,6 @@ public class TemplateService {
                 headerType
         );
 
-        // ==========================================
-        // SEND TO META
-        // ==========================================
 
         JsonNode metaResponse;
 
@@ -655,9 +546,6 @@ public class TemplateService {
             );
         }
 
-        // ==========================================
-        // SAVE DATABASE
-        // ==========================================
 
         TemplateEntity entity = new TemplateEntity();
 
@@ -674,7 +562,6 @@ public class TemplateService {
                 mediaHeader ? mediaHandle : null
         );
 
-        // Save the public media URL for future campaigns
         entity.setHeaderMediaUrl(
                 mediaHeader ? savedMediaUrl : null
         );
@@ -711,7 +598,6 @@ public class TemplateService {
                     saved.getHeaderMediaUrl() != null
             );
 
-            // Remove the temporary mapping after successful persistence
             if (mediaHeader) {
                 sampleUrls.remove(mediaHandle);
             }
@@ -733,9 +619,6 @@ public class TemplateService {
         }
     }
 
-    // ==========================================
-    // VALIDATE PUBLIC MEDIA URL
-    // ==========================================
 
     private void validatePublicMediaUrl(String mediaUrl) {
 
@@ -761,15 +644,12 @@ public class TemplateService {
         } catch (IllegalArgumentException ex) {
 
             throw new IllegalArgumentException(
-                    "Invalid template media URL. Please check your media storage configuration.",
+                    "Invalid template media URL. Check GARAGE_PUBLIC_BASE_URL.",
                     ex
             );
         }
     }
 
-    // ==========================================
-    // SYNC TEMPLATES FROM META
-    // ==========================================
 
     @Transactional
     public List<TemplateResponse> sync() {
@@ -830,15 +710,8 @@ public class TemplateService {
                         template.path("rejected_reason").asText(null)
                 );
 
-                /*
-                 * Preserve local media information.
-                 * Meta's template listing does not return the original
-                 * uploaded sample media URL.
-                 */
                 String keepHandle = entity.getHeaderMediaHandle();
                 String keepUrl = entity.getHeaderMediaUrl();
-
-                // Reset existing component fields
                 entity.setHeaderType("NONE");
                 entity.setHeaderText(null);
                 entity.setHeaderMediaHandle(null);
@@ -876,7 +749,6 @@ public class TemplateService {
                                 entity.setHeaderText(null);
                             }
 
-                            // Restore saved media for media headers
                             if (MEDIA_TYPES.contains(format)) {
 
                                 entity.setHeaderMediaHandle(keepHandle);
@@ -947,7 +819,6 @@ public class TemplateService {
             }
         }
 
-        // Safety: never wipe the table if Meta returned nothing
         if (!metaIds.isEmpty()) {
             List<TemplateEntity> stale = repo.findAll().stream()
                     .filter(t -> t.getMetaTemplateId() == null
@@ -957,7 +828,6 @@ public class TemplateService {
             repo.deleteAll(stale);
         }
 
-        // Refresh the remaining rows from Meta
         sync();
 
         return list(status);
@@ -979,8 +849,6 @@ public class TemplateService {
                 .map(this::map)
                 .toList();
     }
-
-
 
     @Transactional
     public void applyWebhookStatus(
@@ -1029,10 +897,6 @@ public class TemplateService {
             );
         }
     }
-
-    // ==========================================
-    // VARIABLE HELPERS
-    // ==========================================
 
     public static int countVariables(String body) {
 
@@ -1116,9 +980,6 @@ public class TemplateService {
         }
     }
 
-    // ==========================================
-    // CLEAN
-    // ==========================================
 
     private static String clean(String value) {
 
@@ -1127,9 +988,6 @@ public class TemplateService {
                 : value.trim();
     }
 
-    // ==========================================
-    // ENTITY TO RESPONSE
-    // ==========================================
 
     private TemplateResponse map(TemplateEntity entity) {
 

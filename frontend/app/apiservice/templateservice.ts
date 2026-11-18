@@ -7,21 +7,14 @@ export interface TemplateButton {
     url?: string;
     phoneNumber?: string;
 }
-
-export type TemplateHeaderType =
-    | "NONE"
-    | "TEXT"
-    | "IMAGE"
-    | "VIDEO"
-    | "DOCUMENT"
-    | "LOCATION";
+export type TemplateCreateHeaderType = "NONE" | "TEXT" | "IMAGE";
 
 export interface TemplateCreateRequest {
     name: string;
     language: string;
     category: "MARKETING" | "UTILITY";
 
-    headerType?: TemplateHeaderType;
+    headerType?: TemplateCreateHeaderType;
     headerText?: string;
     headerMediaHandle?: string;
 
@@ -38,7 +31,7 @@ export interface TemplateResponse {
     category: string;
 
     headerText: string | null;
-    headerType: TemplateHeaderType;
+     headerType?: TemplateCreateHeaderType;
     headerMediaHandle: string | null;
     headerMediaUrl: string | null;
 
