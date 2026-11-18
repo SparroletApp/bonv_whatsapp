@@ -1,4 +1,3 @@
-
 package com.example.whatsapp.service;
 
 import java.io.IOException;
@@ -12,8 +11,9 @@ import lombok.RequiredArgsConstructor;
 
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -24,8 +24,8 @@ public class GarageStorageService {
     @Value("${garage.bucket}")
     private String bucket;
 
-    @Value("${garage.public-base-url}")
-    private String publicBaseUrl;
+    @Value("${app.base-url}")
+    private String appBaseUrl;
 
     public String uploadImage(MultipartFile file, String folder) {
 
@@ -40,18 +40,9 @@ public class GarageStorageService {
                 throw new IllegalArgumentException("Only image files are allowed");
             }
 
-            String originalName = file.getOriginalFilename();
-            String extension = "";
+            String extension = resolveExtension(contentType, file.getOriginalFilename());
 
-            if (originalName != null && originalName.contains(".")) {
-                extension = originalName.substring(
-                        originalName.lastIndexOf(".")
-                ).toLowerCase();
-            }
-
-            String fileName = UUID.randomUUID() + extension;
-
-            String objectKey = folder + "/" + fileName;
+            String objectKey = folder + "/" + UUID.randomUUID() + extension;
 
             PutObjectRequest request = PutObjectRequest.builder()
                     .bucket(bucket)
@@ -77,14 +68,25 @@ public class GarageStorageService {
         }
     }
 
+
     public String getPublicUrl(String objectKey) {
 
         if (objectKey == null || objectKey.isBlank()) {
             return null;
         }
 
-        return publicBaseUrl.replaceAll("/+$", "")
-                + "/" + bucket + "/" + objectKey;
+        return appBaseUrl.replaceAll("/+$", "")
+                + "/media/" + objectKey;
+    }
+
+    public byte[] getObjectBytes(String objectKey) {
+
+        return s3Client.getObjectAsBytes(
+                GetObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(objectKey)
+                        .build()
+        ).asByteArray();
     }
 
     public void deleteImage(String objectKey) {
@@ -99,5 +101,28 @@ public class GarageStorageService {
                 .build();
 
         s3Client.deleteObject(request);
+    }
+
+    private static String resolveExtension(String contentType, String originalName) {
+
+        switch (contentType.toLowerCase()) {
+            case "image/jpeg":
+                return ".jpg";
+            case "image/png":
+                return ".png";
+            default:
+                break;
+        }
+
+        if (originalName != null && originalName.contains(".")) {
+            String ext = originalName
+                    .substring(originalName.lastIndexOf("."))
+                    .toLowerCase();
+            if (ext.matches("\\.[a-z0-9]{1,5}")) {
+                return ext;
+            }
+        }
+
+        return "";
     }
 }
