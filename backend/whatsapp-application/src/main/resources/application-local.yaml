@@ -42,6 +42,14 @@ spring:
 jwt:
   secret: "V7qN2xK9mR4tY8pL6sW3cF1hJ5zD9bG7uA2eX6nP4vQ8"
 
+garage:
+  endpoint: ${GARAGE_ENDPOINT}
+  bucket: ${GARAGE_BUCKET}
+  access-key: ${GARAGE_ACCESS_KEY}
+  secret-key: ${GARAGE_SECRET_KEY}
+  region: garage
+  public-base-url: ${GARAGE_PUBLIC_BASE_URL}
+
 
 file:
   upload-dir: C:/upload
