@@ -1,3 +1,4 @@
+
 package com.example.whatsapp.service;
 
 import java.io.IOException;
@@ -24,8 +25,8 @@ public class GarageStorageService {
     @Value("${garage.bucket}")
     private String bucket;
 
-    @Value("${app.base-url}")
-    private String appBaseUrl;
+    @Value("${garage.public-base-url}")
+    private String publicBaseUrl;
 
     public String uploadImage(MultipartFile file, String folder) {
 
@@ -40,7 +41,10 @@ public class GarageStorageService {
                 throw new IllegalArgumentException("Only image files are allowed");
             }
 
-            String extension = resolveExtension(contentType, file.getOriginalFilename());
+            String extension = resolveExtension(
+                    contentType,
+                    file.getOriginalFilename()
+            );
 
             String objectKey = folder + "/" + UUID.randomUUID() + extension;
 
@@ -68,15 +72,14 @@ public class GarageStorageService {
         }
     }
 
-
     public String getPublicUrl(String objectKey) {
 
         if (objectKey == null || objectKey.isBlank()) {
             return null;
         }
 
-        return appBaseUrl.replaceAll("/+$", "")
-                + "/media/" + objectKey;
+        return publicBaseUrl.replaceAll("/+$", "")
+                + "/" + bucket + "/" + objectKey;
     }
 
     public byte[] getObjectBytes(String objectKey) {
@@ -103,13 +106,20 @@ public class GarageStorageService {
         s3Client.deleteObject(request);
     }
 
-    private static String resolveExtension(String contentType, String originalName) {
+    private static String resolveExtension(
+            String contentType,
+            String originalName
+    ) {
 
         switch (contentType.toLowerCase()) {
             case "image/jpeg":
                 return ".jpg";
             case "image/png":
                 return ".png";
+            case "image/webp":
+                return ".webp";
+            case "image/gif":
+                return ".gif";
             default:
                 break;
         }
@@ -118,6 +128,7 @@ public class GarageStorageService {
             String ext = originalName
                     .substring(originalName.lastIndexOf("."))
                     .toLowerCase();
+
             if (ext.matches("\\.[a-z0-9]{1,5}")) {
                 return ext;
             }
