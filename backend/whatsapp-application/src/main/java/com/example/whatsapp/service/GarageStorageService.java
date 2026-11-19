@@ -1,4 +1,3 @@
-
 package com.example.whatsapp.service;
 
 import java.io.IOException;
@@ -25,8 +24,8 @@ public class GarageStorageService {
     @Value("${garage.bucket}")
     private String bucket;
 
-    @Value("${garage.public-base-url}")
-    private String publicBaseUrl;
+    @Value("${app.base-url}")
+    private String appBaseUrl;
 
     public String uploadImage(MultipartFile file, String folder) {
 
@@ -72,14 +71,17 @@ public class GarageStorageService {
         }
     }
 
+    /** Public URL served by this backend (TemplateMediaController). */
     public String getPublicUrl(String objectKey) {
 
         if (objectKey == null || objectKey.isBlank()) {
             return null;
         }
 
-        return publicBaseUrl.replaceAll("/+$", "")
-                + "/" + bucket + "/" + objectKey;
+        String filename = objectKey.substring(objectKey.lastIndexOf('/') + 1);
+
+        return appBaseUrl.replaceAll("/+$", "")
+                + "/public/template-media/" + filename;
     }
 
     public byte[] getObjectBytes(String objectKey) {
@@ -98,12 +100,12 @@ public class GarageStorageService {
             return;
         }
 
-        DeleteObjectRequest request = DeleteObjectRequest.builder()
-                .bucket(bucket)
-                .key(objectKey)
-                .build();
-
-        s3Client.deleteObject(request);
+        s3Client.deleteObject(
+                DeleteObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(objectKey)
+                        .build()
+        );
     }
 
     private static String resolveExtension(
