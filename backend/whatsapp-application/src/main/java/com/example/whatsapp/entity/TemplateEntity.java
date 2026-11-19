@@ -35,7 +35,7 @@ public class TemplateEntity {
     @Column(nullable = false, length = 20)
     private String headerType = "NONE";
 
-    @Column(length = 512)
+    @Column(columnDefinition = "TEXT")
     private String headerMediaHandle;
 
     @Column(columnDefinition = "TEXT")
