@@ -29,23 +29,40 @@ public class WebhookService {
     public void handle(String rawBody) {
         try {
             JsonNode root = mapper.readTree(rawBody);
+
             for (JsonNode entry : root.path("entry")) {
+
+                // Meta WhatsApp Business Account ID
+                String wabaId = entry.path("id").asText(null);
+
                 for (JsonNode change : entry.path("changes")) {
+
                     JsonNode value = change.path("value");
+
                     switch (change.path("field").asText()) {
+
                         case "messages" -> {
                             handleStatuses(value.path("statuses"));
                             handleInbound(value);
                         }
-                        case "message_template_status_update" -> templateService.applyWebhookStatus(
-                                value.path("message_template_id").asText(null),
-                                value.path("message_template_name").asText(null),
-                                value.path("event").asText(null),
-                                value.path("reason").asText(null));
-                        default -> log.debug("Ignored webhook field {}", change.path("field").asText());
+
+                        case "message_template_status_update" ->
+                                templateService.applyWebhookStatus(
+                                        wabaId,
+                                        value.path("message_template_id").asText(null),
+                                        value.path("message_template_name").asText(null),
+                                        value.path("event").asText(null),
+                                        value.path("reason").asText(null)
+                                );
+
+                        default -> log.debug(
+                                "Ignored webhook field {}",
+                                change.path("field").asText()
+                        );
                     }
                 }
             }
+
         } catch (Exception e) {
             log.error("Webhook processing failed", e);
         }

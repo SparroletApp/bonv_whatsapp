@@ -17,7 +17,8 @@ public interface ContactRepository extends JpaRepository<ContactEntity, Long> {
 
     boolean existsByPhoneAndIdNot(String phone, Long id);
 
-    // Find contacts matching any one of the supplied category IDs
+    List<ContactEntity> findAllByCompany_Id(Long companyId);
+
     @Query(
             value = """
             SELECT *

@@ -11,16 +11,11 @@ import java.util.List;
 public class ContactResponseDto {
 
     private Long id;
-
     private String name;
-
     private String phone;
-
     private String email;
-
     private List<Long> categoryIds;
-
+    private Long companyId;
     private LocalDateTime createdAt;
-
     private LocalDateTime updatedAt;
 }

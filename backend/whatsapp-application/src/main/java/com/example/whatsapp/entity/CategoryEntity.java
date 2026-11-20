@@ -12,5 +12,7 @@ public class CategoryEntity extends BaseEntity {
 
     @Column(name = "category_name", nullable = false, unique = true, length = 150)
     private String categoryName;
-
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
 }

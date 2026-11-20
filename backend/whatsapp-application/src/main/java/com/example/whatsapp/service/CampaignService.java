@@ -25,182 +25,130 @@ public class CampaignService {
     private final ContactRepository contactRepo;
     private final WhatsappRepository messageRepo;
     private final ObjectMapper mapper;
+    private final CompanyRepository companyRepo;
 
     @Transactional
     public CampaignResponse create(CampaignCreateRequest req) {
-
-        // Validate campaign request
         if (req == null) {
             throw new IllegalArgumentException("Campaign request is required");
         }
-
         if (req.name() == null || req.name().isBlank()) {
             throw new IllegalArgumentException("Campaign name is required");
         }
-
         if (req.templateId() == null) {
             throw new IllegalArgumentException("Please select a template");
         }
-
         if (req.categoryIds() == null || req.categoryIds().isEmpty()) {
             throw new IllegalArgumentException("Select at least one category");
         }
+        if (req.companyId() == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
 
-        // Validate schedule (null = send immediately)
+        Company company = companyRepo.findById(req.companyId())
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Company not found"));
         LocalDateTime scheduledAt = req.scheduledAt();
-
         if (scheduledAt != null
                 && scheduledAt.isBefore(AppTime.now().plusMinutes(1))) {
             throw new IllegalArgumentException(
                     "Schedule time must be at least 1 minute in the future"
             );
         }
-
-        // Load selected template
         TemplateEntity tpl = templateRepo.findById(req.templateId())
                 .orElseThrow(() ->
                         new IllegalArgumentException("Template not found"));
-
         if (!"APPROVED".equalsIgnoreCase(tpl.getStatus())) {
             throw new IllegalArgumentException(
                     "Template is not approved yet. Current status: "
                             + tpl.getStatus()
             );
         }
-
-        /*
-         * IMPORTANT:
-         * Get the media URL from the saved template.
-         * The campaign frontend does not need to upload or select media again.
-         */
         String headerMediaUrl = tpl.getHeaderMediaUrl();
-
         if (headerMediaUrl != null) {
             headerMediaUrl = headerMediaUrl.trim();
-
             if (headerMediaUrl.isBlank()) {
                 headerMediaUrl = null;
             }
         }
-
-        // Validate template header and saved media
         validateTemplateHeader(tpl, headerMediaUrl);
-
         int varCount = tpl.getVariableCount();
-
         List<String> mapping;
-
         if (varCount == 1) {
             mapping = new ArrayList<>(List.of("NAME"));
         } else {
             mapping = req.variableMapping() == null
                     ? new ArrayList<>()
                     : new ArrayList<>(req.variableMapping());
-
             if (mapping.size() < varCount) {
                 throw new IllegalArgumentException(
                         "Map all " + varCount + " template variables"
                 );
             }
         }
-
-        // Find unique contacts from selected categories
         Set<String> seen = new HashSet<>();
-
         List<ContactEntity> contacts = new ArrayList<>();
         List<String> phones = new ArrayList<>();
-
         for (ContactEntity ct :
                 contactRepo.findByCategoryIdIn(req.categoryIds())) {
-
             String phone = PhoneUtil.normalize(ct.getPhone());
-
             if (phone == null || phone.isBlank()) {
                 continue;
             }
-
             if (!seen.add(phone)) {
                 continue;
             }
-
             contacts.add(ct);
             phones.add(phone);
         }
-
         if (contacts.isEmpty()) {
             throw new IllegalArgumentException(
                     "Selected categories have no contacts with valid phone numbers"
             );
         }
-
-        // Create campaign
         CampaignEntity campaign = new CampaignEntity();
-
         campaign.setName(req.name().trim());
         campaign.setTemplateId(tpl.getId());
         campaign.setTemplateName(tpl.getName());
-
+        campaign.setCompany(company);
         campaign.setCategoryIds(
                 req.categoryIds()
                         .stream()
                         .map(String::valueOf)
                         .collect(Collectors.joining(","))
         );
-
         campaign.setVariableMapping(toJson(mapping));
         campaign.setTotalCount(contacts.size());
-
         campaign.setScheduledAt(scheduledAt);
-
         if (scheduledAt == null) {
             campaign.setStatus("RUNNING");
             campaign.setStartedAt(AppTime.now());
         } else {
             campaign.setStatus("SCHEDULED");
         }
-
         campaign = campaignRepo.save(campaign);
-
-        // Create individual WhatsApp messages
         List<WhatsappEntity> messages = new ArrayList<>();
-
         for (int idx = 0; idx < contacts.size(); idx++) {
-
             ContactEntity contact = contacts.get(idx);
-
             List<String> params = new ArrayList<>();
-
             for (int i = 0; i < varCount; i++) {
                 params.add(resolve(mapping.get(i), contact));
             }
-
             WhatsappEntity message = new WhatsappEntity();
-
             message.setRecipientName(contact.getName());
             message.setRecipientPhone(phones.get(idx));
-
             message.setTemplateName(tpl.getName());
             message.setLanguageCode(tpl.getLanguage());
-
             message.setMessageType("TEMPLATE");
-
             message.setMessage(
                     render(tpl.getBody(), params)
             );
-
             message.setTemplateParams(toJson(params));
-
-            // Save the template's header information with each message
             message.setHeaderType(tpl.getHeaderType());
             message.setHeaderMediaUrl(headerMediaUrl);
-
             message.setCampaignId(campaign.getId());
-
             message.setDirection("OUTBOUND");
-            // Scheduled messages stay out of PENDING so nothing can send them early.
-            // CampaignScheduler releases them (SCHEDULED -> PENDING) at the scheduled time.
             message.setStatus(scheduledAt == null ? "PENDING" : "SCHEDULED");
-
             messages.add(message);
         }
 
@@ -209,10 +157,6 @@ public class CampaignService {
         return toResponse(campaign);
     }
 
-    /**
-     * Cancels a campaign that has not started yet.
-     * Its SCHEDULED/PENDING messages are marked CANCELLED so they can never be sent.
-     */
     @Transactional
     public CampaignResponse cancel(Long id) {
 
@@ -235,11 +179,6 @@ public class CampaignService {
         return toResponse(campaign);
     }
 
-    /**
-     * Validates the selected template's header.
-     * For IMAGE, VIDEO and DOCUMENT templates, the media URL
-     * must already be saved against the template.
-     */
     private void validateTemplateHeader(
             TemplateEntity tpl,
             String mediaUrl
@@ -337,6 +276,24 @@ public class CampaignService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<CampaignResponse> getByCompanyId(Long companyId) {
+
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+
+        if (!companyRepo.existsById(companyId)) {
+            throw new IllegalArgumentException("Company not found");
+        }
+
+        return campaignRepo
+                .findAllByCompany_IdOrderByCreatedAtDesc(companyId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     private CampaignResponse toResponse(CampaignEntity campaign) {
 
         Map<String, Long> counts = new HashMap<>();
@@ -362,8 +319,6 @@ public class CampaignService {
                 delivered + counts.getOrDefault("SENT", 0L);
 
         long failed = counts.getOrDefault("FAILED", 0L);
-
-        // Replies only count once sending has started
         LocalDateTime repliesSince = campaign.getStartedAt() != null
                 ? campaign.getStartedAt()
                 : campaign.getCreatedAt();
@@ -389,7 +344,8 @@ public class CampaignService {
                 replied,
                 campaign.getCreatedAt(),
                 campaign.getCompletedAt(),
-                campaign.getScheduledAt()
+                campaign.getScheduledAt(),
+                campaign.getCompany().getId()
         );
     }
 

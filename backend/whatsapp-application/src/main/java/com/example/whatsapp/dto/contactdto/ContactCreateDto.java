@@ -22,4 +22,7 @@ public class ContactCreateDto {
 
     @NotEmpty(message = "At least one category ID is required")
     private List<@Positive(message = "Category IDs must be positive") Long> categoryIds;
+
+    @Positive(message = "Company ID must be positive")
+    private Long companyId;
 }

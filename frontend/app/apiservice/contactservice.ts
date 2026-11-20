@@ -6,6 +6,7 @@ export interface ContactCreateDto {
     phone: string;
     email?: string | null;
     categoryIds: number[];
+    companyId: number;
 }
 
 export interface ContactResponseDto {
@@ -24,6 +25,7 @@ export interface ContactUpdateDto {
     phone: string;
     email?: string | null;
     categoryIds: number[];
+    companyId: number;
 }
 
 export interface CategoryIdDto {
@@ -44,12 +46,15 @@ export interface ApiErrorResponse {
     message: string;
 }
 
+export interface ContactCompanyIdDto {
+    companyId: number;
+}
+
 export interface BroadcastIdDto {
     id: number;
 }
 
 const contactService = {
-
     createContact: async (
         data: ContactCreateDto
     ): Promise<ContactResponseDto> => {
@@ -116,6 +121,15 @@ const contactService = {
     ): Promise<ContactResponseDto[]> => {
         return await api.post<ContactResponseDto[]>(
             "/contacts/get-by-broadcast",
+            data
+        );
+    },
+
+    getContactsByCompanyId: async (
+        data: ContactCompanyIdDto
+    ): Promise<ContactResponseDto[]> => {
+        return await api.post<ContactResponseDto[]>(
+            "/contacts/get-by-company",
             data
         );
     },

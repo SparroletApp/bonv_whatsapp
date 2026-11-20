@@ -320,10 +320,7 @@ public class UserServiceImpl implements UserService {
             );
         }
 
-        user.setPassword(
-                passwordEncoder.encode(dto.getNewPassword())
-        );
-
+        user.setPassword(dto.getNewPassword());
         // Clear OTP after successful reset
         user.setOtp(null);
         user.setOtpVerified(false);
@@ -358,7 +355,7 @@ public class UserServiceImpl implements UserService {
         dto.setStatus(user.getStatus());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());
-
+        dto.setPassword(user.getPassword());
         if (user.getCompany() != null) {
             dto.setCompanyId(user.getCompany().getId());
             dto.setCompanyName(user.getCompany().getCompanyName());

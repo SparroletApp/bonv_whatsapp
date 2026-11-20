@@ -4,8 +4,10 @@ import com.example.whatsapp.client.WhatsappClient;
 import com.example.whatsapp.dto.whatsappdto.TemplateButtonDto;
 import com.example.whatsapp.dto.whatsappdto.TemplateCreateRequestDto;
 import com.example.whatsapp.dto.whatsappdto.TemplateResponse;
+import com.example.whatsapp.entity.Company;
 import com.example.whatsapp.entity.TemplateEntity;
 import com.example.whatsapp.entity.TemplateMediaSampleEntity;
+import com.example.whatsapp.repository.CompanyRepository;
 import com.example.whatsapp.repository.TemplateMediaSampleRepository;
 import com.example.whatsapp.repository.TemplateRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -75,11 +77,19 @@ public class TemplateService {
     private final WhatsappClient client;
     private final ObjectMapper mapper;
     private final GarageStorageService garageStorage;
+    private final CompanyRepository companyRepository;
 
     public String uploadMediaSample(
+            Long companyId,
             String type,
             MultipartFile file
     ) throws IOException {
+
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Company not found"));
+
+        // Keep the remaining existing upload code here.
         if (type == null || !"IMAGE".equalsIgnoreCase(type.trim())) {
             throw new IllegalArgumentException(
                     "Only IMAGE uploads are supported"
@@ -152,7 +162,7 @@ public class TemplateService {
         return handle;
     }
 
-    public TemplateResponse create(TemplateCreateRequestDto r) {
+    public TemplateResponse create(Long companyId, TemplateCreateRequestDto r) {
 
         log.info("Starting WhatsApp template creation");
 
@@ -306,7 +316,11 @@ public class TemplateService {
             );
         }
 
-        if (repo.existsByNameAndLanguage(name, language)) {
+        if (repo.existsByNameAndLanguageAndCompany_Id(
+                name,
+                language,
+                companyId
+        )) {
             throw new IllegalArgumentException(
                     "A template with this name and language already exists"
             );
@@ -535,7 +549,13 @@ public class TemplateService {
         }
 
 
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() ->
+                        new RuntimeException("Company not found"));
+
         TemplateEntity entity = new TemplateEntity();
+
+        entity.setCompany(company);
 
         entity.setName(name);
         entity.setLanguage(language);
@@ -650,9 +670,13 @@ public class TemplateService {
 
 
     @Transactional
-    public List<TemplateResponse> sync() {
+    public List<TemplateResponse> sync(Long companyId) {
 
-        log.info("Starting template synchronization from Meta");
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Company not found"));
+
+        log.info("Starting template synchronization for company: {}", companyId);
 
         ArrayNode templates = client.listTemplates();
 
@@ -671,22 +695,21 @@ public class TemplateService {
             String language = template.path("language").asText("");
 
             if (name.isBlank() || language.isBlank()) {
-
-                log.warn(
-                        "Skipping template with missing name or language: {}",
-                        template
-                );
-
+                log.warn("Skipping template with missing name or language: {}", template);
                 skipped++;
                 continue;
             }
 
             try {
 
-                TemplateEntity entity = repo
-                        .findByNameAndLanguage(name, language)
-                        .orElseGet(TemplateEntity::new);
+                TemplateEntity entity =
+                        repo.findByNameAndLanguageAndCompany_Id(
+                                name,
+                                language,
+                                companyId
+                        ).orElseGet(TemplateEntity::new);
 
+                entity.setCompany(company);
                 entity.setName(name);
                 entity.setLanguage(language);
 
@@ -710,6 +733,7 @@ public class TemplateService {
 
                 String keepHandle = entity.getHeaderMediaHandle();
                 String keepUrl = entity.getHeaderMediaUrl();
+
                 entity.setHeaderType("NONE");
                 entity.setHeaderText(null);
                 entity.setHeaderMediaHandle(null);
@@ -735,20 +759,15 @@ public class TemplateService {
 
                             entity.setHeaderType(format);
 
-                            if (format.equals("TEXT")) {
-
+                            if ("TEXT".equals(format)) {
                                 entity.setHeaderText(
-                                        component.path("text")
-                                                .asText(null)
+                                        component.path("text").asText(null)
                                 );
-
                             } else {
-
                                 entity.setHeaderText(null);
                             }
 
                             if (MEDIA_TYPES.contains(format)) {
-
                                 entity.setHeaderMediaHandle(keepHandle);
                                 entity.setHeaderMediaUrl(keepUrl);
                             }
@@ -774,7 +793,6 @@ public class TemplateService {
                 );
 
                 repo.save(entity);
-
                 synced++;
 
             } catch (Exception ex) {
@@ -791,53 +809,73 @@ public class TemplateService {
         }
 
         log.info(
-                "Template synchronization completed. Synced: {}, skipped: {}",
+                "Template synchronization completed. Company: {}, Synced: {}, Skipped: {}",
+                companyId,
                 synced,
                 skipped
         );
 
-        return list(null);
+        return list(companyId, null);
     }
 
     @Transactional
-    public List<TemplateResponse> listFromMeta(String status) {
+    public List<TemplateResponse> listFromMeta(
+            Long companyId,
+            String status
+    ) {
+
+        companyRepository.findById(companyId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Company not found"));
 
         ArrayNode templates = client.listTemplates();
 
         if (templates == null) {
-            throw new RuntimeException("Meta returned an empty template response");
+            throw new RuntimeException(
+                    "Meta returned an empty template response"
+            );
         }
 
         Set<String> metaIds = new HashSet<>();
 
-        for (JsonNode t : templates) {
-            String id = t.path("id").asText(null);
+        for (JsonNode template : templates) {
+
+            String id = template.path("id").asText(null);
+
             if (id != null && !id.isBlank()) {
                 metaIds.add(id);
             }
         }
 
         if (!metaIds.isEmpty()) {
-            List<TemplateEntity> stale = repo.findAll().stream()
-                    .filter(t -> t.getMetaTemplateId() == null
-                            || !metaIds.contains(t.getMetaTemplateId()))
-                    .toList();
+
+            List<TemplateEntity> stale =
+                    repo.findAllByCompany_IdOrderByCreatedAtDesc(companyId)
+                            .stream()
+                            .filter(template ->
+                                    template.getMetaTemplateId() == null
+                                            || !metaIds.contains(
+                                            template.getMetaTemplateId()
+                                    )
+                            )
+                            .toList();
 
             repo.deleteAll(stale);
         }
 
-        sync();
+        sync(companyId);
 
-        return list(status);
+        return list(companyId, status);
     }
 
     @Transactional(readOnly = true)
-    public List<TemplateResponse> list(String status) {
+    public List<TemplateResponse> list(Long companyId, String status) {
 
         List<TemplateEntity> items =
-                (status == null || status.isBlank())
-                        ? repo.findAllByOrderByCreatedAtDesc()
-                        : repo.findByStatusOrderByCreatedAtDesc(
+                status == null || status.isBlank()
+                        ? repo.findAllByCompany_IdOrderByCreatedAtDesc(companyId)
+                        : repo.findByCompany_IdAndStatusOrderByCreatedAtDesc(
+                        companyId,
                         status.toUpperCase()
                 );
 
@@ -850,29 +888,55 @@ public class TemplateService {
 
     @Transactional
     public void applyWebhookStatus(
+            String wabaId,
             String metaId,
             String name,
             String event,
             String reason
     ) {
 
+        if (wabaId == null || wabaId.isBlank()) {
+            log.warn("WABA ID is missing in template webhook");
+            return;
+        }
+        Company company = companyRepository
+                .findByWhatsappBusinessAccountId(wabaId)
+                .orElse(null);
+
+        if (company == null) {
+            log.warn("Company not found for WABA ID: {}", wabaId);
+            return;
+        }
+
+        Long companyId = company.getId();
+
         log.info(
-                "Updating template status. Meta ID: {}, Name: {}, Event: {}",
+                "Updating template status. Company ID: {}, Meta ID: {}, Name: {}, Event: {}",
+                companyId,
                 metaId,
                 name,
                 event
         );
 
-        TemplateEntity entity = metaId == null
-                ? null
-                : repo.findByMetaTemplateId(metaId).orElse(null);
+        List<TemplateEntity> targets;
 
-        List<TemplateEntity> targets =
-                entity != null
-                        ? List.of(entity)
-                        : (name == null
-                        ? List.of()
-                        : repo.findByName(name));
+        if (metaId != null && !metaId.isBlank()) {
+
+            TemplateEntity entity = repo
+                    .findByMetaTemplateIdAndCompany_Id(metaId, companyId)
+                    .orElse(null);
+
+            targets = entity != null
+                    ? List.of(entity)
+                    : List.of();
+
+        } else if (name != null && !name.isBlank()) {
+
+            targets = repo.findByNameAndCompany_Id(name, companyId);
+
+        } else {
+            targets = List.of();
+        }
 
         for (TemplateEntity template : targets) {
 

@@ -1,3 +1,4 @@
+
 package com.example.whatsapp.dto.companydto;
 
 import lombok.Getter;
@@ -7,4 +8,14 @@ import lombok.Setter;
 @Setter
 public class CompanyRequestDto {
     private String companyName;
+    private String mailUsername;
+    private String mailPassword;
+    private String whatsappAccessToken;
+    private String whatsappApiVersion;
+    private String whatsappAppId;
+    private String whatsappBusinessAccountId;
+    private String whatsappPhoneNumberId;
+    private String whatsappVerifyToken;
+    private String whatsappAppSecret;
 }
+

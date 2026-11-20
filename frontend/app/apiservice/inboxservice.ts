@@ -1,6 +1,16 @@
 
 import api from "./apiservice";
 
+function getCompanyId(): number {
+    const companyId = Number(sessionStorage.getItem("companyId"));
+
+    if (!companyId || !Number.isInteger(companyId) || companyId <= 0) {
+        throw new Error("Company ID not found. Please select a company.");
+    }
+
+    return companyId;
+}
+
 export interface Conversation {
     phone: string;
     name: string;
@@ -37,25 +47,38 @@ export interface InboxTemplateRequest {
 
 const inboxService = {
 
-
     conversations: () =>
-        api.get<Conversation[]>("/inbox/conversations"),
+        api.get<Conversation[]>(
+            "/inbox/conversations",
+            {
+                params: { companyId: getCompanyId() },
+            }
+        ),
 
     messages: (phone: string) =>
         api.get<InboxMessage[]>(
-            `/inbox/conversations/${encodeURIComponent(phone)}/messages`
+            `/inbox/conversations/${encodeURIComponent(phone)}/messages`,
+            {
+                params: { companyId: getCompanyId() },
+            }
         ),
 
     markRead: (phone: string) =>
         api.post<void>(
             `/inbox/conversations/${encodeURIComponent(phone)}/read`,
-            {}
+            {},
+            {
+                params: { companyId: getCompanyId() },
+            }
         ),
 
     reply: (phone: string, message: string) =>
         api.post<InboxMessage>(
             `/inbox/conversations/${encodeURIComponent(phone)}/reply`,
-            { message }
+            { message },
+            {
+                params: { companyId: getCompanyId() },
+            }
         ),
 
     replyMedia: (
@@ -76,6 +99,7 @@ const inboxService = {
             `/inbox/conversations/${encodeURIComponent(phone)}/reply-media`,
             fd,
             {
+                params: { companyId: getCompanyId() },
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
@@ -89,13 +113,19 @@ const inboxService = {
     ) =>
         api.post<InboxMessage>(
             `/inbox/conversations/${encodeURIComponent(phone)}/send-template`,
-            request
+            request,
+            {
+                params: { companyId: getCompanyId() },
+            }
         ),
 
     media: (mediaId: string) =>
         api.get<Blob>(
             `/inbox/media/${encodeURIComponent(mediaId)}`,
-            { responseType: "blob" }
+            {
+                params: { companyId: getCompanyId() },
+                responseType: "blob",
+            }
         ),
 };
 

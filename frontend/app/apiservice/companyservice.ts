@@ -1,7 +1,21 @@
+
 import api from "./apiservice";
 
 export interface CompanyRequestDto {
     companyName: string;
+
+    // Email Configuration
+    mailUsername: string;
+    mailPassword: string;
+
+    // WhatsApp Configuration
+    whatsappAccessToken: string;
+    whatsappApiVersion: string;
+    whatsappAppId: string;
+    whatsappBusinessAccountId: string;
+    whatsappPhoneNumberId: string;
+    whatsappVerifyToken: string;
+    whatsappAppSecret: string;
 }
 
 export interface CompanyIdDto {
@@ -11,11 +25,38 @@ export interface CompanyIdDto {
 export interface CompanyUpdateDto {
     id: number;
     companyName: string;
+
+    // Email Configuration
+    mailUsername: string;
+    mailPassword: string;
+
+    // WhatsApp Configuration
+    whatsappAccessToken: string;
+    whatsappApiVersion: string;
+    whatsappAppId: string;
+    whatsappBusinessAccountId: string;
+    whatsappPhoneNumberId: string;
+    whatsappVerifyToken: string;
+    whatsappAppSecret: string;
 }
 
 export interface CompanyResponseDto {
     id: number;
     companyName: string;
+
+    // Email Configuration
+    mailUsername: string;
+    mailPassword: string;
+
+    // WhatsApp Configuration
+    whatsappAccessToken: string;
+    whatsappApiVersion: string;
+    whatsappAppId: string;
+    whatsappBusinessAccountId: string;
+    whatsappPhoneNumberId: string;
+    whatsappVerifyToken: string;
+    whatsappAppSecret: string;
+
     createdAt: string;
     updatedAt: string;
 }

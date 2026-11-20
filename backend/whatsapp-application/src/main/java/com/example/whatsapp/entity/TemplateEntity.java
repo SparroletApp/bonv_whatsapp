@@ -62,6 +62,11 @@ public class TemplateEntity {
     @Column(columnDefinition = "TEXT")
     private String rejectionReason;
 
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

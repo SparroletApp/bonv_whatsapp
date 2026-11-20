@@ -30,20 +30,45 @@ function Category() {
         fetchCategories();
     }, []);
 
+
     const fetchCategories = async () => {
         try {
             setLoading(true);
             setError("");
 
-            const response = await categoryService.getAllCategories();
+            const storedCompanyId = sessionStorage.getItem("companyId");
+
+            if (!storedCompanyId) {
+                throw new Error("Company ID not found. Please login again.");
+            }
+
+            const companyId = Number(storedCompanyId);
+
+            if (!Number.isInteger(companyId) || companyId <= 0) {
+                throw new Error("Invalid Company ID. Please login again.");
+            }
+
+            const response =
+                await categoryService.getCategoriesByCompanyId({
+                    companyId,
+                });
+
             setCategories(response);
-        } catch (err) {
+            setCurrentPage(1);
+
+        } catch (err: unknown) {
             console.error("Category fetch error:", err);
-            setError("Unable to load categories.");
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Unable to load categories."
+            );
         } finally {
             setLoading(false);
         }
     };
+
 
     const totalPages = Math.ceil(categories.length / rowsPerPage);
 

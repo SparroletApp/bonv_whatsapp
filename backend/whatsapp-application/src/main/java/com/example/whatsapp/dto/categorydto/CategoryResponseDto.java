@@ -13,4 +13,5 @@ public class CategoryResponseDto {
     private String categoryName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long companyId;
 }

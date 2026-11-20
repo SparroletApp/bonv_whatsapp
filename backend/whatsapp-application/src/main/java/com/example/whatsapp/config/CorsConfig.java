@@ -40,17 +40,22 @@ public class CorsConfig {
                 "Authorization",
                 "Content-Type",
                 "Accept",
-                "Origin"
+                "Origin",
+                "X-Requested-With",
+                "x-company-id"
+        ));
+
+        // Exposed headers
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization"
         ));
 
         configuration.setAllowCredentials(true);
 
-        // Register CORS configuration globally
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
 
         source.registerCorsConfiguration("/**", configuration);
-
         return source;
     }
 }

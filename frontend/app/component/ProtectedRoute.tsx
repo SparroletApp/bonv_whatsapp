@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
@@ -14,23 +15,44 @@ export default function ProtectedRoute({
     const [isChecking, setIsChecking] = useState(true);
 
     useEffect(() => {
+
         const token = sessionStorage.getItem("access_token");
-        const role = sessionStorage.getItem("role")?.toUpperCase();
+        const role = (
+            sessionStorage.getItem("role") || ""
+        ).toUpperCase();
 
-        // Public routes
-        const publicRoutes = [
-            "/",
-            "/super-admin/login",
-            "/forget-password",
-        ];
+        const isAdmin = role === "ADMIN";
+        const isManager = role === "MANAGER";
+        const isStaff = role === "STAFF";
 
-        if (publicRoutes.includes(pathname)) {
-            if (token && role === "ADMIN") {
-                router.replace("/super-admin/dashboard");
+        const isValidRole = isAdmin || isManager || isStaff;
+
+        const isSuperAdminRoute =
+            pathname === "/super-admin" ||
+            pathname.startsWith("/super-admin/");
+
+        if (pathname === "/forget-password") {
+            setIsChecking(false);
+            return;
+        }
+
+        if (
+            pathname === "/" ||
+            pathname === "/super-admin/login"
+        ) {
+
+            if (token && isValidRole) {
+
+                if (isAdmin) {
+                    router.replace("/super-admin/dashboard");
+                } else {
+                    router.replace("/dashboard");
+                }
+
                 return;
             }
 
-            if (token && role !== "ADMIN") {
+            if (token && !isValidRole) {
                 sessionStorage.clear();
             }
 
@@ -38,24 +60,58 @@ export default function ProtectedRoute({
             return;
         }
 
-        // Protected routes
         if (!token) {
-            router.replace("/");
-            return;
-        }
 
-        if (role !== "ADMIN") {
             sessionStorage.clear();
-            router.replace("/super-admin/login");
+
+            router.replace(
+                isSuperAdminRoute
+                    ? "/super-admin/login"
+                    : "/"
+            );
+
             return;
         }
 
-        setIsChecking(false);
+        if (!isValidRole) {
+
+            sessionStorage.clear();
+            router.replace("/");
+
+            return;
+        }
+
+        if (isAdmin) {
+
+            if (!isSuperAdminRoute) {
+                router.replace("/super-admin/dashboard");
+                return;
+            }
+
+            setIsChecking(false);
+            return;
+        }
+
+        if (isManager || isStaff) {
+
+            if (isSuperAdminRoute) {
+                router.replace("/dashboard");
+                return;
+            }
+
+            setIsChecking(false);
+            return;
+        }
 
     }, [pathname, router]);
 
     if (isChecking) {
-        return null;
+        return (
+            <div className="route-loader">
+                <div className="users-loader"></div>
+                <p>Checking authentication...</p>
+            </div>
+        );
     }
 
     return <>{children}</>;

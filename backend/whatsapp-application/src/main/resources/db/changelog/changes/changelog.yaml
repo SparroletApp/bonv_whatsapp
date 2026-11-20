@@ -186,5 +186,55 @@ databaseChangeLog:
             path: sql/alter_user_add_otp.sql
             relativeToChangelogFile: true
 
+  - changeSet:
+      id: alter_category_add_company_id
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_category_add_company_id.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_contact_add_company_id
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_contact_add_company_id.sql
+            relativeToChangelogFile: true
+
+
+  - changeSet:
+      id: alter_campaign_add_company_id
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_campaign_add_company_id.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_company_add_whatsapp
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_company_add_whatsapp.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_whatsapp_add_company_id
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_whatsapp_add_company_id.sql
+            relativeToChangelogFile: true
+
+
+  - changeSet:
+      id: alter_templates_add_company_id
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_templates_add_company_id.sql
+            relativeToChangelogFile: true
+
 
 

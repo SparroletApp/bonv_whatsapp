@@ -351,85 +351,118 @@ export default function InboxPage() {
     const bottom = useRef<HTMLDivElement>(null);
     const activePhoneRef = useRef<string | null>(null);
 
-    const loadCategoriesAndContacts = async () => {
-        try {
-            setLoadingFilters(true);
+    
+const loadCategoriesAndContacts = async () => {
+    try {
+        setLoadingFilters(true);
 
-            const [categoryResponse, contactResponse] = await Promise.all([
-                categoryService.getAllCategories(),
-                contactService.getAllContacts(),
-            ]);
+        const companyId = Number(
+            sessionStorage.getItem("companyId")
+        );
 
-            const categoryData =
-                unwrapResponse<CategoryResponseDto[]>(categoryResponse);
+        if (!companyId || !Number.isFinite(companyId)) {
+            setCategories([]);
+            setContactCategoryMap({});
+            console.error("Company ID not found in sessionStorage");
+            return;
+        }
 
-            const contactData =
-                unwrapResponse<any[]>(contactResponse);
+        const [categoryResponse, contactResponse] = await Promise.all([
+            categoryService.getCategoriesByCompanyId({
+                companyId: companyId,
+            }),
 
-            setCategories(
-                Array.isArray(categoryData) ? categoryData : []
-            );
+            contactService.getContactsByCompanyId({
+                companyId: companyId,
+            }),
+        ]);
 
-            const categoryMap: Record<string, number[]> = {};
+        const categoryData =
+            unwrapResponse<CategoryResponseDto[]>(categoryResponse);
 
-            if (Array.isArray(contactData)) {
-                contactData.forEach((contact) => {
-                    if (!contact.phone) return;
+        const contactData =
+            unwrapResponse<any[]>(contactResponse);
 
-                    const rawCategoryIds = [
-                        contact.categoryId,
-                        contact.category?.id,
-                        ...(Array.isArray(contact.categories)
-                            ? contact.categories.map((item: any) =>
-                                typeof item === "object" ? item.id : item
+        // Set company-specific categories
+        setCategories(
+            Array.isArray(categoryData) ? categoryData : []
+        );
+
+        // Store company-specific contacts
+        setAllContacts(
+            Array.isArray(contactData) ? contactData : []
+        );
+
+        // Build contact category mapping
+        const categoryMap: Record<string, number[]> = {};
+
+        if (Array.isArray(contactData)) {
+            contactData.forEach((contact) => {
+                if (!contact.phone) return;
+
+                const rawCategoryIds = [
+                    ...(Array.isArray(contact.categoryIds)
+                        ? contact.categoryIds
+                        : []),
+
+                    contact.categoryId,
+                    contact.category?.id,
+
+                    ...(Array.isArray(contact.categories)
+                        ? contact.categories.map((item: any) =>
+                            typeof item === "object"
+                                ? item.id
+                                : item
+                        )
+                        : []),
+                ];
+
+                const categoryIds = [
+                    ...new Set(
+                        rawCategoryIds
+                            .map(Number)
+                            .filter(
+                                (id) =>
+                                    Number.isFinite(id) && id > 0
                             )
-                            : []),
-                        ...(Array.isArray(contact.categoryIds)
-                            ? contact.categoryIds
-                            : []),
-                    ];
+                    ),
+                ];
 
-                    const categoryIds = [
-                        ...new Set(
-                            rawCategoryIds
-                                .map(Number)
-                                .filter(
-                                    (id) => Number.isFinite(id) && id > 0
-                                )
-                        ),
-                    ];
+                if (categoryIds.length === 0) return;
 
-                    if (categoryIds.length === 0) return;
+                getPhoneKeys(contact.phone).forEach((phoneKey) => {
+                    if (!categoryMap[phoneKey]) {
+                        categoryMap[phoneKey] = [];
+                    }
 
-                    getPhoneKeys(contact.phone).forEach((phoneKey) => {
-                        if (!categoryMap[phoneKey]) {
-                            categoryMap[phoneKey] = [];
+                    categoryIds.forEach((categoryId) => {
+                        if (
+                            !categoryMap[phoneKey].includes(categoryId)
+                        ) {
+                            categoryMap[phoneKey].push(categoryId);
                         }
-
-                        categoryIds.forEach((categoryId) => {
-                            if (!categoryMap[phoneKey].includes(categoryId)) {
-                                categoryMap[phoneKey].push(categoryId);
-                            }
-                        });
                     });
                 });
-            }
-
-            setContactCategoryMap(categoryMap);
-
-            console.log("Inbox categories:", categoryData);
-            console.log("Inbox contacts:", contactData);
-            console.log("Inbox category map:", categoryMap);
-
-        } catch (error) {
-            console.error(
-                "Unable to load Inbox categories and contacts:",
-                error
-            );
-        } finally {
-            setLoadingFilters(false);
+            });
         }
-    };
+
+        setContactCategoryMap(categoryMap);
+
+        console.log("Company ID:", companyId);
+        console.log("Company categories:", categoryData);
+        console.log("Company contacts:", contactData);
+        console.log("Contact category map:", categoryMap);
+
+    } catch (error) {
+        console.error(
+            "Unable to load company categories and contacts:",
+            error
+        );
+    } finally {
+        setLoadingFilters(false);
+    }
+};
+
 
     
 const openEditContact = async () => {
@@ -751,7 +784,6 @@ const openEditContact = async () => {
         templateParameters,
     ]);
 
-    // Contacts grouped A-Z for the New Chat panel (like WhatsApp Web)
     const contactGroups = useMemo(() => {
         const query = contactSearch.toLowerCase().trim();
 
@@ -1037,72 +1069,81 @@ const openEditContact = async () => {
 
     const tick = (m: InboxMessage) => {
         if (m.direction !== "OUTBOUND") return "";
-
         const statusMap: Record<string, string> = {
             SENT: "✓",
             DELIVERED: "✓✓",
             READ: "✓✓",
             FAILED: "⚠",
         };
-
         return statusMap[m.status] || "…";
     };
-
+    
     const filteredConvs = convs.filter((conversation) => {
         const searchValue = search.trim().toLowerCase();
-
         const matchesSearch =
             (conversation.name || "").toLowerCase().includes(searchValue) ||
             (conversation.phone || "").toLowerCase().includes(searchValue);
-
         if (!matchesSearch) return false;
-
         if (
             activeFilter === "UNREAD" &&
             conversation.unreadCount <= 0
         ) {
             return false;
         }
-
         if (
             activeFilter === "CLOSED" &&
             remainingFor(conversation, now) > 0
         ) {
             return false;
         }
-
         if (selectedCategoryId !== null) {
             const phoneKeys = getPhoneKeys(conversation.phone);
-
             const contactCategories = phoneKeys.flatMap(
                 (key) => contactCategoryMap[key] || []
             );
-
             if (!contactCategories.includes(selectedCategoryId)) {
                 return false;
             }
         }
-
         return true;
     });
 
-    const openNewChat = async () => {
-        setShowContactList(true);
-        setContactSearch("");
-        setLoadingContacts(true);
+    
+const openNewChat = async () => {
+    setShowContactList(true);
+    setContactSearch("");
+    setLoadingContacts(true);
+    setAllContacts([]);
 
-        try {
-            const response = await contactService.getAllContacts();
+    try {
+        const companyId = Number(
+            sessionStorage.getItem("companyId")
+        );
 
-            const data = unwrapResponse<any[]>(response);
-
-            setAllContacts(Array.isArray(data) ? data : []);
-        } catch (error) {
-            setError(apiError(error));
-        } finally {
-            setLoadingContacts(false);
+        if (!companyId || !Number.isFinite(companyId)) {
+            setError("Company ID not found in session storage.");
+            return;
         }
-    };
+
+        const response =
+            await contactService.getContactsByCompanyId({
+                companyId,
+            });
+
+        const data = unwrapResponse<any[]>(response);
+
+        setAllContacts(
+            Array.isArray(data) ? data : []
+        );
+
+    } catch (error) {
+        console.error("Unable to load company contacts:", error);
+        setError(apiError(error));
+    } finally {
+        setLoadingContacts(false);
+    }
+};
+
 
     const openContactChat = async (contact: any) => {
         const phone = normalizePhone(contact.phone);

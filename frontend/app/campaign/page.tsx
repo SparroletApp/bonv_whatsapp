@@ -35,9 +35,29 @@ export default function CampaignsPage() {
     const [msgFilter, setMsgFilter] = useState("ALL");
     const [resuming, setResuming] = useState(false);
 
+    const getCompanyId = (): number | null => {
+        const storedCompanyId = sessionStorage.getItem("companyId");
+
+        if (!storedCompanyId) return null;
+
+        const id = Number(storedCompanyId);
+
+        return Number.isInteger(id) && id > 0 ? id : null;
+    };
+
     const loadList = async () => {
         try {
-            setItems(await campaignService.list());
+            const companyId = getCompanyId();
+
+            if (!companyId) {
+                setItems([]);
+                setError("Company ID not found. Please login again.");
+                return;
+            }
+
+            const response = await campaignService.getByCompanyId(companyId);
+
+            setItems(response);
             setError("");
         } catch (e) {
             setError(apiError(e));
@@ -104,9 +124,7 @@ export default function CampaignsPage() {
     };
 
     const stats = useMemo(() => {
-        const sum = (
-            fn: (c: CampaignResponse) => number
-        ) =>
+        const sum = (fn: (c: CampaignResponse) => number) =>
             items.reduce(
                 (total, c) => total + (fn(c) || 0),
                 0
@@ -196,10 +214,7 @@ export default function CampaignsPage() {
             <div className="cmp-top">
                 <h1 style={{ margin: 0 }}>Campaigns</h1>
 
-                <Link
-                    href="/campaign/create"
-                    className="cmp-btn"
-                >
+                <Link href="/campaign/create" className="cmp-btn">
                     + Create campaign
                 </Link>
             </div>
@@ -359,18 +374,14 @@ export default function CampaignsPage() {
 
                                 <p className="cmp-sub">
                                     Template:{" "}
-                                    <strong>
-                                        {selected.templateName}
-                                    </strong>
+                                    <strong>{selected.templateName}</strong>
                                     {" · "}
                                     Created {fmt(selected.createdAt)}
                                 </p>
 
                                 <p className="cmp-sub">
                                     Launch time:{" "}
-                                    <strong>
-                                        {fmt(selected.createdAt)}
-                                    </strong>
+                                    <strong>{fmt(selected.createdAt)}</strong>
                                 </p>
                             </div>
 

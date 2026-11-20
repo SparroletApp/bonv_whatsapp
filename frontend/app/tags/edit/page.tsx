@@ -46,6 +46,20 @@ function EditCategory({
             return;
         }
 
+        const storedCompanyId = sessionStorage.getItem("companyId");
+
+        if (!storedCompanyId) {
+            setError("Company ID not found. Please login again.");
+            return;
+        }
+
+        const companyId = Number(storedCompanyId);
+
+        if (!Number.isInteger(companyId) || companyId <= 0) {
+            setError("Invalid Company ID. Please login again.");
+            return;
+        }
+
         try {
             setLoading(true);
             setError("");
@@ -53,6 +67,7 @@ function EditCategory({
             const response = await categoryService.updateCategory({
                 id: category.id,
                 categoryName: trimmedName,
+                companyId: companyId,
             });
 
             console.log("Tag updated:", response);
@@ -127,16 +142,19 @@ function EditCategory({
                     </button>
 
                 </div>
+
                 <form onSubmit={handleSubmit}>
 
                     <div className="category-modal-body">
 
                         <label htmlFor="editCategoryName">
-                           Tag Name
+                            Tag Name
                             <span className="required-star">*</span>
                         </label>
+
                         <div className="category-input-wrapper">
                             <i className="bi bi-folder2-open"></i>
+
                             <input
                                 type="text"
                                 id="editCategoryName"
@@ -150,22 +168,28 @@ function EditCategory({
                                 autoFocus
                             />
                         </div>
+
                         {error && (
                             <p className="category-error">
                                 <i className="bi bi-exclamation-circle"></i>
                                 {error}
                             </p>
                         )}
+
                         <p className="category-input-hint">
                             Update the tag name to organize your contacts.
                         </p>
+
                     </div>
+
                     <div className="category-modal-footer">
+
                         <button
                             type="button"
                             className="category-cancel-btn"
                             onClick={handleClose}
-                            disabled={loading}>
+                            disabled={loading}
+                        >
                             Cancel
                         </button>
 
@@ -186,7 +210,9 @@ function EditCategory({
                                 </>
                             )}
                         </button>
+
                     </div>
+
                 </form>
             </section>
         </div>

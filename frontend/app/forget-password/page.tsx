@@ -23,48 +23,61 @@ function ForgetPassword() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    // SEND OTP
+    const Toast = Swal.mixin({
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        background: "#ffffff",
+        color: "#263c38",
+        didOpen: (toast) => {
+            toast.onmouseenter = Swal.stopTimer;
+            toast.onmouseleave = Swal.resumeTimer;
+        }
+    });
     const handleSendOtp = async (e: React.FormEvent) => {
-        e.preventDefault();
+    e.preventDefault();
+    if (!email.trim()) {
+        Toast.fire({
+            icon: "warning",
+            title: "Please enter your email address"
+        });
+        return;
+    }
 
-        if (!email.trim()) {
-            Swal.fire("Required", "Please enter your email address", "warning");
-            return;
-        }
+    try {
+        setLoading(true);
 
-        try {
-            setLoading(true);
+        await userService.forgotPassword({
+            email: email.trim()
+        });
 
-            await userService.forgotPassword({
-                email: email.trim()
-            });
+        Toast.fire({
+            icon: "success",
+            title: "OTP sent successfully"
+        });
 
-            Swal.fire({
-                icon: "success",
-                title: "OTP Sent",
-                text: "A verification OTP has been sent to your email.",
-                confirmButtonColor: "#064e45"
-            });
+        setActiveStep(2);
 
-            setActiveStep(2);
+    } catch (error: any) {
+        Toast.fire({
+            icon: "error",
+            title: error?.response?.data?.message || "Unable to send OTP"
+        });
+    } finally {
+        setLoading(false);
+    }
+};
 
-        } catch (error: any) {
-            Swal.fire(
-                "Failed",
-                error?.response?.data?.message || "Unable to send OTP. Please try again.",
-                "error"
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // VERIFY OTP
     const handleVerifyOtp = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!/^\d{6}$/.test(otp)) {
-            Swal.fire("Invalid OTP", "Please enter a valid 6-digit OTP", "warning");
+            Toast.fire({
+                icon: "warning",
+                title: "Please enter a valid 6-digit OTP"
+            });
             return;
         }
 
@@ -76,37 +89,39 @@ function ForgetPassword() {
                 otp: otp
             });
 
-            Swal.fire({
+            Toast.fire({
                 icon: "success",
-                title: "OTP Verified",
-                text: "Your email has been verified successfully.",
-                confirmButtonColor: "#064e45"
+                title: "Email verified successfully"
             });
 
             setActiveStep(3);
 
         } catch (error: any) {
-            Swal.fire(
-                "Verification Failed",
-                error?.response?.data?.message || "Invalid or expired OTP.",
-                "error"
-            );
+            Toast.fire({
+                icon: "error",
+                title: error?.response?.data?.message || "Invalid or expired OTP"
+            });
         } finally {
             setLoading(false);
         }
     };
 
-    // RESET PASSWORD
     const handleResetPassword = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (newPassword.length < 8) {
-            Swal.fire("Invalid Password", "Password must contain at least 8 characters.", "warning");
+            Toast.fire({
+                icon: "warning",
+                title: "Password must contain at least 8 characters"
+            });
             return;
         }
 
         if (newPassword !== confirmPassword) {
-            Swal.fire("Password Mismatch", "Both passwords must match.", "warning");
+            Toast.fire({
+                icon: "warning",
+                title: "Both passwords must match"
+            });
             return;
         }
 
@@ -118,27 +133,25 @@ function ForgetPassword() {
                 newPassword: newPassword
             });
 
-            await Swal.fire({
+            await Toast.fire({
                 icon: "success",
-                title: "Password Reset Successful",
-                text: "Your password has been changed successfully. Please login.",
-                confirmButtonColor: "#064e45"
+                title: "Password reset successful"
             });
 
-            router.push("/");
+            setTimeout(() => {
+                router.push("/");
+            }, 1500);
 
         } catch (error: any) {
-            Swal.fire(
-                "Reset Failed",
-                error?.response?.data?.message || "Unable to reset password. Please try again.",
-                "error"
-            );
+            Toast.fire({
+                icon: "error",
+                title: error?.response?.data?.message || "Unable to reset password"
+            });
         } finally {
             setLoading(false);
         }
     };
 
-    // RESEND OTP
     const handleResendOtp = async () => {
         try {
             setLoading(true);
@@ -149,19 +162,16 @@ function ForgetPassword() {
 
             setOtp("");
 
-            Swal.fire({
+            Toast.fire({
                 icon: "success",
-                title: "OTP Resent",
-                text: "A new OTP has been sent to your email.",
-                confirmButtonColor: "#064e45"
+                title: "OTP resent successfully"
             });
 
         } catch (error: any) {
-            Swal.fire(
-                "Failed",
-                error?.response?.data?.message || "Unable to resend OTP.",
-                "error"
-            );
+            Toast.fire({
+                icon: "error",
+                title: error?.response?.data?.message || "Unable to resend OTP"
+            });
         } finally {
             setLoading(false);
         }
@@ -172,7 +182,6 @@ function ForgetPassword() {
 
             <div className="forget-password-container">
 
-                {/* LEFT SIDE */}
                 <div className="forget-password-left">
 
                     <div className="forget-brand">
@@ -215,8 +224,6 @@ function ForgetPassword() {
                     </div>
 
                 </div>
-
-                {/* RIGHT SIDE */}
                 <div className="forget-password-right">
 
                     <div className="forget-form-wrapper">
@@ -228,8 +235,6 @@ function ForgetPassword() {
                             <h1>Forgot Password?</h1>
 
                         </div>
-
-                        {/* STEP INDICATOR */}
                         <div className="forget-steps">
 
                             <div className={`forget-step ${activeStep >= 1 ? "active" : ""}`}>
@@ -257,12 +262,11 @@ function ForgetPassword() {
 
                         </div>
 
-                        {/* STEP 1 - EMAIL */}
                         {activeStep === 1 && (
 
                             <form onSubmit={handleSendOtp} className="forget-form">
 
-                        
+
                                 <label>Email Address</label>
 
                                 <div className="forget-input-group">
@@ -299,7 +303,6 @@ function ForgetPassword() {
 
                         )}
 
-                        {/* STEP 2 - OTP */}
                         {activeStep === 2 && (
 
                             <form onSubmit={handleVerifyOtp} className="forget-form">
@@ -370,7 +373,6 @@ function ForgetPassword() {
 
                         )}
 
-                        {/* STEP 3 - NEW PASSWORD */}
                         {activeStep === 3 && (
 
                             <form onSubmit={handleResetPassword} className="forget-form">

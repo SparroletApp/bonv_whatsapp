@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -44,17 +45,13 @@ function Contact() {
     const [editingContactId, setEditingContactId] = useState<number | null>(
         null
     );
+
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
         null
     );
 
-    const openEditPage = (contact: ContactResponseDto) => {
-        setEditingContactId(contact.id);
-    };
-
     useEffect(() => {
         fetchContacts();
-        fetchCategories();
     }, []);
 
     const filteredContacts =
@@ -64,7 +61,9 @@ function Contact() {
                 contact.categoryIds?.includes(selectedCategoryId)
             );
 
-    const totalPages = Math.ceil(filteredContacts.length / rowsPerPage);
+    const totalPages = Math.ceil(
+        filteredContacts.length / rowsPerPage
+    );
 
     const startIndex = (currentPage - 1) * rowsPerPage;
 
@@ -73,89 +72,78 @@ function Contact() {
         startIndex + rowsPerPage
     );
 
-    const fetchCategoryNames = async (
-        contactsList: ContactResponseDto[]
-    ) => {
-        try {
-            const categoryIds = [
-                ...new Set(
-                    contactsList.flatMap(
-                        (contact) => contact.categoryIds || []
-                    )
-                ),
-            ];
-
-            if (categoryIds.length === 0) {
-                setCategoryNameMap({});
-                return;
-            }
-
-            const categoryResults = await Promise.all(
-                categoryIds.map(async (id) => {
-                    try {
-                        const category =
-                            await categoryService.getCategoryById({ id });
-
-                        return {
-                            id,
-                            name: category.categoryName,
-                        };
-                    } catch (err) {
-                        console.error(
-                            `Unable to fetch category ${id}:`,
-                            err
-                        );
-
-                        return {
-                            id,
-                            name: `Category ${id}`,
-                        };
-                    }
-                })
-            );
-
-            const nameMap: Record<number, string> = {};
-
-            categoryResults.forEach((category) => {
-                nameMap[category.id] = category.name;
-            });
-
-            setCategoryNameMap(nameMap);
-        } catch (err) {
-            console.error("Category name fetch error:", err);
-        }
-    };
-
     const fetchContacts = async () => {
         try {
             setLoading(true);
             setError("");
 
-            const response = await contactService.getAllContacts();
+            const storedCompanyId = sessionStorage.getItem("companyId");
+            const loggedInCompanyId = Number(storedCompanyId);
 
-            setContacts(response);
+            if (
+                !storedCompanyId ||
+                !Number.isInteger(loggedInCompanyId) ||
+                loggedInCompanyId <= 0
+            ) {
+                setError("Company ID not found. Please login again.");
 
-            await fetchCategoryNames(response);
+                setContacts([]);
+                setCategories([]);
+                setCategoryNameMap({});
+
+                return;
+            }
+
+            const [contactResponse, categoryResponse] =
+                await Promise.all([
+                    contactService.getContactsByCompanyId({
+                        companyId: loggedInCompanyId,
+                    }),
+
+                    categoryService.getCategoriesByCompanyId({
+                        companyId: loggedInCompanyId,
+                    }),
+                ]);
+
+            setContacts(contactResponse);
+
+            setCategories(categoryResponse);
+
+            const nameMap: Record<number, string> = {};
+
+            categoryResponse.forEach((category) => {
+                nameMap[Number(category.id)] = category.categoryName;
+            });
+
+            setCategoryNameMap(nameMap);
 
             setCurrentPage(1);
+
+            setSelectedCategoryId((previous) => {
+                if (
+                    previous !== null &&
+                    !categoryResponse.some(
+                        (category) => Number(category.id) === previous
+                    )
+                ) {
+                    return null;
+                }
+
+                return previous;
+            });
+
         } catch (err) {
-            console.error("Contact fetch error:", err);
-            setError("Unable to load contacts.");
+            console.error("Contact/category fetch error:", err);
+            setError("Unable to load contacts or categories.");
         } finally {
             setLoading(false);
         }
     };
 
-    const fetchCategories = async () => {
-        try {
-            const response = await categoryService.getAllCategories();
-            setCategories(response);
-        } catch (err) {
-            console.error("Category fetch error:", err);
-        }
+
+    const openEditPage = (contact: ContactResponseDto) => {
+        setEditingContactId(contact.id);
     };
-
-
 
     const handleRowsChange = (
         event: React.ChangeEvent<HTMLSelectElement>
@@ -206,16 +194,20 @@ function Contact() {
                 previous.filter((contact) => contact.id !== id)
             );
 
-            const remainingCount = contacts.length - 1;
+            const remainingCount = filteredContacts.length - 1;
+
             const newTotalPages = Math.ceil(
                 remainingCount / rowsPerPage
             );
 
             if (currentPage > newTotalPages && newTotalPages > 0) {
                 setCurrentPage(newTotalPages);
+            } else if (newTotalPages === 0) {
+                setCurrentPage(1);
             }
 
             showToast("success", "Contact deleted successfully!");
+
         } catch (err) {
             console.error("Delete contact error:", err);
             showToast("error", "Unable to delete contact!");
@@ -273,6 +265,17 @@ function Contact() {
         try {
             setBulkUploading(true);
 
+            const storedCompanyId = sessionStorage.getItem("companyId");
+            const loggedInCompanyId = Number(storedCompanyId);
+
+            if (
+                !storedCompanyId ||
+                !Number.isInteger(loggedInCompanyId) ||
+                loggedInCompanyId <= 0
+            ) {
+                showToast("error", "Company ID not found. Please login again.");
+                return;
+            }
             const buffer = await file.arrayBuffer();
 
             const workbook = XLSX.read(buffer, {
@@ -300,7 +303,6 @@ function Contact() {
                 );
                 return;
             }
-
             const availableCategoryIds = new Set(
                 categories.map((category) => Number(category.id))
             );
@@ -320,7 +322,9 @@ function Contact() {
                 )
                     .split(",")
                     .map((id) => Number(id.trim()))
-                    .filter((id) => Number.isInteger(id) && id > 0);
+                    .filter(
+                        (id) => Number.isInteger(id) && id > 0
+                    );
 
                 if (!phone) {
                     errors.push(
@@ -328,12 +332,17 @@ function Contact() {
                     );
                     return;
                 }
-                if (name && !/^[a-zA-Z\s.'-]+$/.test(name)) {
+
+                if (
+                    name &&
+                    !/^[a-zA-Z\s.'-]+$/.test(name)
+                ) {
                     errors.push(
                         `Row ${rowNumber}: Invalid name. Only letters, spaces, dots, apostrophes and hyphens are allowed.`
                     );
                     return;
                 }
+
                 if (
                     email &&
                     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -343,34 +352,37 @@ function Contact() {
                     );
                     return;
                 }
+
                 if (!/^\+?[0-9]{7,15}$/.test(phone)) {
                     errors.push(
                         `Row ${rowNumber}: Invalid phone number.`
                     );
                     return;
                 }
+
                 if (categoryIds.length === 0) {
                     errors.push(
                         `Row ${rowNumber}: Please provide at least one valid category ID.`
                     );
                     return;
                 }
-                if (new Set(categoryIds).size !== categoryIds.length) {
+
+                if (
+                    new Set(categoryIds).size !== categoryIds.length
+                ) {
                     errors.push(
                         `Row ${rowNumber}: Duplicate category IDs found.`
                     );
                     return;
                 }
+
                 const invalidCategoryIds = categoryIds.filter(
-                    (id) =>
-                        !categories.some(
-                            (category) => Number(category.id) === id
-                        )
+                    (id) => !availableCategoryIds.has(id)
                 );
 
                 if (invalidCategoryIds.length > 0) {
                     errors.push(
-                        `Row ${rowNumber}: Invalid category IDs: ${invalidCategoryIds.join(", ")}.`
+                        `Row ${rowNumber}: Invalid company category IDs: ${invalidCategoryIds.join(", ")}.`
                     );
                     return;
                 }
@@ -395,7 +407,6 @@ function Contact() {
 
                 return;
             }
-
             const confirmation = await Swal.fire({
                 title: "Confirm Bulk Upload",
                 html: `
@@ -415,8 +426,8 @@ function Contact() {
             if (!confirmation.isConfirmed) return;
 
             let successCount = 0;
-            const uploadErrors = [...errors];
 
+            const uploadErrors = [...errors];
             for (const contact of validContacts) {
                 try {
                     await contactService.createContact({
@@ -424,9 +435,11 @@ function Contact() {
                         phone: contact.phone,
                         email: contact.email || "",
                         categoryIds: contact.categoryIds,
+                        companyId: loggedInCompanyId,
                     });
 
                     successCount++;
+
                 } catch (err) {
                     console.error(
                         `Failed to upload contact ${contact.phone}:`,
@@ -448,6 +461,7 @@ function Contact() {
                     <div style="text-align:left">
                         <p><strong>Successfully uploaded:</strong> ${successCount}</p>
                         <p><strong>Failed:</strong> ${uploadErrors.length}</p>
+
                         ${uploadErrors.length
                         ? `
                                     <hr/>
@@ -468,12 +482,15 @@ function Contact() {
                 `,
                 confirmButtonColor: "#064e45",
             });
+
         } catch (err) {
             console.error("Bulk upload error:", err);
+
             showToast(
                 "error",
                 "Unable to process Excel file."
             );
+
         } finally {
             setBulkUploading(false);
 
@@ -486,19 +503,16 @@ function Contact() {
     return (
         <>
             <section className="category-page">
-
                 <div className="category-header">
                     <div>
                         <h2>Contacts</h2>
                         <p>Manage and organize your contacts</p>
                     </div>
-
                     <div className="category-header-actions">
                         <div className="category-total-card">
                             <span>Total Contacts</span>
                             <h3>{contacts.length}</h3>
                         </div>
-
                         <button
                             type="button"
                             className="category-add-btn"
@@ -509,18 +523,14 @@ function Contact() {
                         </button>
                     </div>
                 </div>
-
                 <div className="contact-category-filter-section">
-
                     <div className="contact-category-filter-heading">
                         <div>
                             <h3>Filter by Category</h3>
                             <p>Select a category to view its contacts</p>
                         </div>
                     </div>
-
                     <div className="contact-category-filter-list">
-
                         <button
                             type="button"
                             className={`contact-filter-item ${selectedCategoryId === null ? "active" : ""
@@ -534,28 +544,29 @@ function Contact() {
                                 <i className="bi bi-people"></i>
                                 All Contacts
                             </span>
-
                             <span className="contact-filter-count">
                                 {contacts.length}
                             </span>
                         </button>
-
                         {categories.map((category) => {
-
                             const count = contacts.filter((contact) =>
-                                contact.categoryIds?.includes(Number(category.id))
+                                contact.categoryIds?.includes(
+                                    Number(category.id)
+                                )
                             ).length;
-
                             return (
                                 <button
                                     type="button"
                                     key={category.id}
-                                    className={`contact-filter-item ${selectedCategoryId === Number(category.id)
-                                        ? "active"
-                                        : ""
+                                    className={`contact-filter-item ${selectedCategoryId ===
+                                            Number(category.id)
+                                            ? "active"
+                                            : ""
                                         }`}
                                     onClick={() => {
-                                        setSelectedCategoryId(Number(category.id));
+                                        setSelectedCategoryId(
+                                            Number(category.id)
+                                        );
                                         setCurrentPage(1);
                                     }}
                                 >
@@ -570,21 +581,21 @@ function Contact() {
                                 </button>
                             );
                         })}
-
                     </div>
                 </div>
-
                 <div className="category-table-card">
 
                     <div className="category-table-heading">
                         <div>
                             <h3>Contact List</h3>
+
                             <p>
                                 {selectedCategoryId === null
                                     ? "View and manage all your contacts"
                                     : `Showing contacts in ${categories.find(
                                         (category) =>
-                                            Number(category.id) === selectedCategoryId
+                                            Number(category.id) ===
+                                            selectedCategoryId
                                     )?.categoryName || "selected category"
                                     }`}
                             </p>
@@ -617,6 +628,7 @@ function Contact() {
                                 }
                                 disabled={
                                     bulkUploading ||
+                                    loading ||
                                     categories.length === 0
                                 }
                             >
@@ -642,13 +654,10 @@ function Contact() {
                                 <i className="bi bi-arrow-clockwise"></i>
                                 Refresh
                             </button>
-
                         </div>
                     </div>
-
                     <div className="category-table-wrapper">
                         <table className="category-table">
-
                             <thead>
                                 <tr>
                                     <th>#</th>
@@ -663,6 +672,7 @@ function Contact() {
                             </thead>
 
                             <tbody>
+
                                 {loading ? (
                                     <tr>
                                         <td
@@ -704,6 +714,7 @@ function Contact() {
                                                         <div className="category-icon">
                                                             <i className="bi bi-person"></i>
                                                         </div>
+
                                                         <span>
                                                             {contact.name}
                                                         </span>
@@ -718,6 +729,7 @@ function Contact() {
 
                                                 <td>
                                                     <div className="contact-category-list">
+
                                                         {contact.categoryIds?.length ? (
                                                             contact.categoryIds.map(
                                                                 (categoryId) => (
@@ -735,6 +747,7 @@ function Contact() {
                                                         ) : (
                                                             "-"
                                                         )}
+
                                                     </div>
                                                 </td>
 
@@ -786,15 +799,18 @@ function Contact() {
                                         )
                                     )
                                 )}
+
                             </tbody>
 
                         </table>
+
                     </div>
 
                     {!loading && !error && (
                         <div className="category-pagination">
 
                             <div className="category-pagination-left">
+
                                 <span>Rows per page</span>
 
                                 <select
@@ -809,13 +825,14 @@ function Contact() {
                                 </select>
 
                                 <span className="category-pagination-info">
-                                    {contacts.length === 0
+                                    {filteredContacts.length === 0
                                         ? "0 of 0"
                                         : `${startIndex + 1}-${Math.min(
                                             startIndex + rowsPerPage,
-                                            contacts.length
-                                        )} of ${contacts.length}`}
+                                            filteredContacts.length
+                                        )} of ${filteredContacts.length}`}
                                 </span>
+
                             </div>
 
                             <div className="category-pagination-right">
@@ -828,9 +845,7 @@ function Contact() {
                                         totalPages === 0
                                     }
                                     onClick={() =>
-                                        setCurrentPage(
-                                            (page) => page - 1
-                                        )
+                                        setCurrentPage((page) => page - 1)
                                     }
                                 >
                                     <i className="bi bi-chevron-left"></i>
@@ -844,8 +859,8 @@ function Contact() {
                                         key={page}
                                         type="button"
                                         className={`category-page-number ${currentPage === page
-                                            ? "active"
-                                            : ""
+                                                ? "active"
+                                                : ""
                                             }`}
                                         onClick={() =>
                                             setCurrentPage(page)
@@ -863,19 +878,19 @@ function Contact() {
                                         totalPages === 0
                                     }
                                     onClick={() =>
-                                        setCurrentPage(
-                                            (page) => page + 1
-                                        )
+                                        setCurrentPage((page) => page + 1)
                                     }
                                 >
                                     <i className="bi bi-chevron-right"></i>
                                 </button>
 
                             </div>
+
                         </div>
                     )}
 
                 </div>
+
             </section>
 
             {editingContactId !== null && (

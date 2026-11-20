@@ -36,7 +36,20 @@ function EditContact({
         phone: "",
         email: "",
         categoryIds: [],
+        companyId: 0
     });
+
+    const getCompanyId = (): number | null => {
+        const storedCompanyId = sessionStorage.getItem("companyId");
+
+        if (!storedCompanyId) return null;
+
+        const companyId = Number(storedCompanyId);
+
+        return Number.isInteger(companyId) && companyId > 0
+            ? companyId
+            : null;
+    };
 
     const [originalData, setOriginalData] =
         useState<ContactUpdateDto | null>(null);
@@ -70,6 +83,25 @@ function EditContact({
         };
     }, []);
 
+    const loadCategories = async () => {
+        try {
+            const companyId = getCompanyId();
+
+            if (!companyId) {
+                showToast("error", "Company ID not found. Please login again.");
+                return;
+            }
+
+            const response = await categoryService.getCategoriesByCompanyId({
+                companyId,
+            });
+
+            setCategories(response);
+        } catch (error: unknown) {
+            console.error("Category loading error:", error);
+            showToast("error", errorService.getErrorMessage(error));
+        }
+    };
 
     const showToast = (
         icon: "success" | "error" | "warning",
@@ -91,9 +123,15 @@ function EditContact({
         try {
             setLoading(true);
 
+            const companyId = getCompanyId();
+
+            if (!companyId) {
+                throw new Error("Company ID not found. Please login again.");
+            }
+
             const [contact, categoryList] = await Promise.all([
                 contactService.getContactById({ id }),
-                categoryService.getAllCategories(),
+                categoryService.getCategoriesByCompanyId({ companyId }),
             ]);
 
             setCategories(categoryList);
@@ -104,7 +142,15 @@ function EditContact({
                 phone: contact.phone,
                 email: contact.email || "",
                 categoryIds: contact.categoryIds || [],
+                companyId: companyId,
             };
+
+            setFormData(contactData);
+
+            setOriginalData({
+                ...contactData,
+                categoryIds: [...contactData.categoryIds],
+            });
 
             setFormData(contactData);
 
@@ -189,9 +235,17 @@ function EditContact({
             return;
         }
 
+        const companyId = getCompanyId();
+
+        if (!companyId) {
+            showToast("error", "Company ID not found. Please login again.");
+            return;
+        }
+
         const name = (formData.name ?? "").trim();
         const phone = (formData.phone ?? "").trim();
         const email = (formData.email ?? "").trim();
+
         if (!phone) {
             showToast("warning", "Please enter phone number.");
             return;
@@ -211,6 +265,7 @@ function EditContact({
                 phone,
                 email,
                 categoryIds: formData.categoryIds,
+                companyId,
             });
 
             setSaving(false);

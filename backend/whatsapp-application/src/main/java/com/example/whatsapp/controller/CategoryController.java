@@ -1,9 +1,6 @@
 package com.example.whatsapp.controller;
 
-import com.example.whatsapp.dto.categorydto.CategoryCreateDto;
-import com.example.whatsapp.dto.categorydto.CategoryIdDto;
-import com.example.whatsapp.dto.categorydto.CategoryResponseDto;
-import com.example.whatsapp.dto.categorydto.CategoryUpdateDto;
+import com.example.whatsapp.dto.categorydto.*;
 import com.example.whatsapp.service.CategoryService;
 
 import jakarta.validation.Valid;
@@ -28,6 +25,15 @@ public class CategoryController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(categoryService.createCategory(dto));
+    }
+
+    @PostMapping("/get-by-company-id")
+    public ResponseEntity<List<CategoryResponseDto>> getCategoriesByCompanyId(
+            @Valid @RequestBody CategoryCompanyIdDto dto) {
+
+        return ResponseEntity.ok(
+                categoryService.getCategoriesByCompanyId(dto)
+        );
     }
 
     @PostMapping("/get-all")

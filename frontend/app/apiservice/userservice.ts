@@ -37,6 +37,7 @@ export interface UserResponseDto {
     id: number;
     name: string;
     email: string;
+    password: string;
     phone?: string;
     role: string;
     status?: boolean;
@@ -52,6 +53,7 @@ export interface AuthResponseDto {
     tokenType?: string;
     user?: UserResponseDto;
 }
+
 
 export interface ForgotPasswordDto {
     email: string;

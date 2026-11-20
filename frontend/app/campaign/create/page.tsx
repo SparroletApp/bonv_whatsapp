@@ -132,7 +132,7 @@ export default function CampaignCreatePage() {
                 setError("");
             }
         } catch (e) {
-            await loadTemplates().catch(() => {});
+            await loadTemplates().catch(() => { });
 
             if (!silent) {
                 setError(
@@ -231,9 +231,7 @@ export default function CampaignCreatePage() {
         }
 
         if (selected.length === 0) {
-            setError(
-                "Please select at least one contact category."
-            );
+            setError("Please select at least one contact category.");
             return;
         }
 
@@ -244,14 +242,10 @@ export default function CampaignCreatePage() {
 
         if (
             effectiveMapping.some(
-                (m) =>
-                    m.kind === "TEXT" &&
-                    !m.text.trim()
+                (m) => m.kind === "TEXT" && !m.text.trim()
             )
         ) {
-            setError(
-                "Please fill in all custom variable values."
-            );
+            setError("Please fill in all custom variable values.");
             return;
         }
 
@@ -259,6 +253,13 @@ export default function CampaignCreatePage() {
             setError(
                 `The selected ${headerType.toLowerCase()} template has no saved media. Please recreate the template with its media.`
             );
+            return;
+        }
+        const storedCompanyId = sessionStorage.getItem("companyId");
+        const companyId = Number(storedCompanyId);
+
+        if (!storedCompanyId || !Number.isInteger(companyId) || companyId <= 0) {
+            setError("Company ID not found in session. Please login again.");
             return;
         }
 
@@ -274,9 +275,11 @@ export default function CampaignCreatePage() {
                         ? `TEXT:${m.text.trim()}`
                         : m.kind
                 ),
+                companyId: companyId,
             });
 
             nav.push(CAMPAIGNS_PAGE);
+
         } catch (e) {
             setError(apiError(e));
             setLaunching(false);

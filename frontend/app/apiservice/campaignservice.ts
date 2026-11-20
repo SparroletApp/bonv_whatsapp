@@ -1,3 +1,4 @@
+
 import api from "./apiservice";
 
 export interface CampaignCreateRequest {
@@ -5,7 +6,8 @@ export interface CampaignCreateRequest {
     templateId: number;
     categoryIds: number[];
     variableMapping: string[];
-    scheduledAt?: string | null;   // "2026-11-10T18:30" (local time), null = send immediately
+    scheduledAt?: string | null;
+    companyId: number;
 }
 
 export interface CampaignResponse {
@@ -23,6 +25,11 @@ export interface CampaignResponse {
     createdAt: string;
     completedAt: string | null;
     scheduledAt: string | null;
+    companyId: number;
+}
+
+export interface CompanyIdRequest {
+    companyId: number;
 }
 
 export interface CampaignMessage {
@@ -37,11 +44,17 @@ export interface CampaignMessage {
 }
 
 const campaignService = {
+
     create: (req: CampaignCreateRequest) =>
         api.post<CampaignResponse>("/campaigns", req),
 
     list: () =>
         api.get<CampaignResponse[]>("/campaigns"),
+
+    getByCompanyId: (companyId: number) =>
+        api.post<CampaignResponse[]>("/campaigns/get-by-company", {
+            companyId
+        }),
 
     get: (id: number) =>
         api.get<CampaignResponse>(`/campaigns/${id}`),

@@ -1,3 +1,4 @@
+
 import api from "./apiservice";
 
 export interface CategoryResponseDto {
@@ -9,15 +10,21 @@ export interface CategoryResponseDto {
 
 export interface CategoryCreateDto {
     categoryName: string;
+    companyId: number;
 }
 
 export interface CategoryUpdateDto {
     id: number;
     categoryName: string;
+    companyId: number;
 }
 
 export interface CategoryIdDto {
     id: number;
+}
+
+export interface CompanyIdDto {
+    companyId: number;
 }
 
 const categoryService = {
@@ -35,6 +42,15 @@ const categoryService = {
         return await api.post<CategoryResponseDto[]>(
             "/categories/get-all",
             {}
+        );
+    },
+
+    getCategoriesByCompanyId: async (
+        data: CompanyIdDto
+    ): Promise<CategoryResponseDto[]> => {
+        return await api.post<CategoryResponseDto[]>(
+            "/categories/get-by-company-id",
+            data
         );
     },
 

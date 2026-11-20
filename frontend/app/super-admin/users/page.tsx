@@ -370,9 +370,9 @@ function UsersList() {
                                 <th>#</th>
                                 <th>USER</th>
                                 <th>EMAIL</th>
+                                <th>Password</th>
                                 <th>PHONE</th>
                                 <th>ROLE</th>
-                                <th>STATUS</th>
                                 <th>ACTIONS</th>
                             </tr>
                         </thead>
@@ -433,6 +433,7 @@ function UsersList() {
                                         </td>
 
                                         <td>{user.email}</td>
+                                        <td>{user.password}</td>
 
                                         <td>{user.phone || "-"}</td>
 
@@ -442,12 +443,7 @@ function UsersList() {
                                             </span>
                                         </td>
 
-                                        <td>
-                                            <span className={`users-status ${user.status ? "enabled" : "disabled"}`}>
-                                                <span></span>
-                                                {user.status ? "Active" : "Inactive"}
-                                            </span>
-                                        </td>
+                                       
 
                                         <td>
                                             <div className="users-action-buttons">

@@ -27,13 +27,13 @@ public class CampaignEntity {
     private String templateName;
 
     @Column(length = 500)
-    private String categoryIds;              // "1,2,3"
+    private String categoryIds;
 
     @Column(columnDefinition = "TEXT")
     private String variableMapping;          // JSON array
 
     @Column(nullable = false, length = 30)
-    private String status = "RUNNING";       // SCHEDULED, RUNNING, COMPLETED, FAILED, CANCELLED
+    private String status = "RUNNING";
 
     @Column(nullable = false)
     private int totalCount;
@@ -41,9 +41,13 @@ public class CampaignEntity {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    private LocalDateTime scheduledAt;       // null = send immediately
+    private LocalDateTime scheduledAt;
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
 
     @PrePersist
     void onCreate() { createdAt = AppTime.now(); }

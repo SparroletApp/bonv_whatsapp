@@ -40,27 +40,55 @@ function Sidebar() {
             name: "Companies",
             icon: "bi-buildings",
             path: "/super-admin/companies"
-        },
+        }
     ];
 
     const userMenuItems = [
-        { name: "Overview", icon: "bi-grid-1x2", path: "/dashboard" },
-        { name: "Tags", icon: "bi-tags", path: "/tags" },
-        { name: "Contacts", icon: "bi-people", path: "/contacts" },
-        { name: "Campaigns", icon: "bi-megaphone", path: "/campaign" },
-        { name: "Templates", icon: "bi-file-earmark-text", path: "/templates" },
-        { name: "Inbox", icon: "bi-inbox", path: "/inbox" }
+        {
+            name: "Overview",
+            icon: "bi-grid-1x2",
+            path: "/dashboard"
+        },
+        {
+            name: "Tags",
+            icon: "bi-tags",
+            path: "/tags"
+        },
+        {
+            name: "Contacts",
+            icon: "bi-people",
+            path: "/contacts"
+        },
+        {
+            name: "Campaigns",
+            icon: "bi-megaphone",
+            path: "/campaign"
+        },
+        {
+            name: "Templates",
+            icon: "bi-file-earmark-text",
+            path: "/templates"
+        },
+        {
+            name: "Inbox",
+            icon: "bi-inbox",
+            path: "/inbox"
+        }
     ];
 
-    const menuItems = role === "ADMIN"
-        ? adminMenuItems
-        : userMenuItems;
+    const menuItems =
+        role === "ADMIN"
+            ? adminMenuItems
+            : role === "MANAGER" || role === "STAFF"
+                ? userMenuItems
+                : [];
 
     const isActive = (path: string) => {
         return pathname === path || pathname.startsWith(path + "/");
     };
 
     const handleLogout = async () => {
+
         const result = await Swal.fire({
             title: "Are you sure?",
             text: "Do you really want to logout from your account?",
@@ -75,7 +103,8 @@ function Sidebar() {
         });
 
         if (result.isConfirmed) {
-            const isAdmin = sessionStorage.getItem("role") === "ADMIN";
+
+            const currentRole = sessionStorage.getItem("role") || "";
 
             sessionStorage.clear();
             localStorage.removeItem("access_token");
@@ -90,15 +119,18 @@ function Sidebar() {
                 showConfirmButton: false
             });
 
-            router.replace(
-                isAdmin ? "/super-admin/login" : "/"
-            );
+            if (currentRole.toUpperCase() === "ADMIN") {
+                router.replace("/super-admin/login");
+            } else {
+                router.replace("/");
+            }
         }
     };
 
     return (
         <aside className={`sidebar ${collapsed ? "collapsed" : "expanded"}`}>
 
+            {/* LOGO */}
             <div className={`sidebar-logo ${collapsed ? "logo-collapsed" : "logo-expanded"}`}>
 
                 <div className="bonv-brand">
@@ -128,11 +160,18 @@ function Sidebar() {
                 </button>
             </div>
 
+            {/* MENU */}
             <div className="sidebar-menu">
 
                 {!collapsed && (
                     <p className="sidebar-heading">
-                        {role === "ADMIN" ? "SUPER ADMIN" : "MENU"}
+                        {role === "ADMIN"
+                            ? "SUPER ADMIN"
+                            : role === "MANAGER"
+                                ? "MANAGER MENU"
+                                : role === "STAFF"
+                                    ? "STAFF MENU"
+                                    : "MENU"}
                     </p>
                 )}
 
@@ -166,6 +205,7 @@ function Sidebar() {
                 </nav>
             </div>
 
+            {/* LOGOUT */}
             <div className="sidebar-bottom">
 
                 <button

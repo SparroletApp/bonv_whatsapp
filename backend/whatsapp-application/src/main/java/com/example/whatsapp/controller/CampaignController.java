@@ -59,7 +59,6 @@ public class CampaignController {
 
         return ResponseEntity.ok(created);
     }
-    /** Restart sending for a campaign whose messages are still PENDING/PROCESSING (e.g. after a redeploy). */
     @PostMapping("/{id}/resume")
     public ResponseEntity<CampaignResponse> resume(@PathVariable("id") Long id) {
         CampaignResponse c = service.get(id);              // 400 "Campaign not found" if the id is wrong
@@ -68,6 +67,15 @@ public class CampaignController {
         }
         startSending(id);
         return ResponseEntity.ok(c);
+    }
+
+    @PostMapping("/get-by-company")
+    public ResponseEntity<List<CampaignResponse>> getByCompany(
+            @RequestBody CampaignCompanyIdDto  dto) {
+
+        return ResponseEntity.ok(
+                service.getByCompanyId(dto.getCompanyId())
+        );
     }
 
     @PostMapping("/{id}/cancel")
@@ -79,7 +87,6 @@ public class CampaignController {
         try {
             sender.sendAsync(campaignId);                  // runs in the background
         } catch (Exception e) {
-            // e.g. executor queue full or missing; the campaign exists, so don't lose it
             log.error("Could not start sending for campaign {}", campaignId, e);
             throw new IllegalStateException(
                     "Campaign was created but sending could not start. Open it and use Resume.");

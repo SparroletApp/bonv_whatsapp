@@ -1,11 +1,14 @@
+
 package com.example.whatsapp.service.impl;
 
-import com.example.whatsapp.dto.categorydto.CategoryCreateDto;
-import com.example.whatsapp.dto.categorydto.CategoryIdDto;
-import com.example.whatsapp.dto.categorydto.CategoryResponseDto;
-import com.example.whatsapp.dto.categorydto.CategoryUpdateDto;
+import com.example.whatsapp.dto.categorydto.*;
+
 import com.example.whatsapp.entity.CategoryEntity;
+import com.example.whatsapp.entity.Company;
+
 import com.example.whatsapp.repository.CategoryRepository;
+import com.example.whatsapp.repository.CompanyRepository;
+
 import com.example.whatsapp.service.CategoryService;
 
 import lombok.RequiredArgsConstructor;
@@ -23,21 +26,32 @@ import java.util.List;
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final CompanyRepository companyRepository;
 
     @Override
     public CategoryResponseDto createCategory(CategoryCreateDto dto) {
 
         String categoryName = dto.getCategoryName().trim();
 
-        if (categoryRepository.existsByCategoryName(categoryName)) {
+        Company company = companyRepository.findById(dto.getCompanyId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Company not found"
+                ));
+
+        if (categoryRepository.existsByCategoryNameAndCompany_Id(
+                categoryName, dto.getCompanyId())) {
+
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Category already exists"
+                    "Category already exists for this company"
             );
         }
 
         CategoryEntity category = new CategoryEntity();
+
         category.setCategoryName(categoryName);
+        category.setCompany(company);
 
         CategoryEntity savedCategory = categoryRepository.save(category);
 
@@ -78,16 +92,24 @@ public class CategoryServiceImpl implements CategoryService {
 
         String categoryName = dto.getCategoryName().trim();
 
-        categoryRepository.findByCategoryName(categoryName)
+        Company company = companyRepository.findById(dto.getCompanyId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Company not found"
+                ));
+
+        categoryRepository.findByCategoryNameAndCompany_Id(
+                        categoryName, dto.getCompanyId())
                 .filter(existing -> !existing.getId().equals(dto.getId()))
                 .ifPresent(existing -> {
                     throw new ResponseStatusException(
                             HttpStatus.CONFLICT,
-                            "Category name already exists"
+                            "Category name already exists for this company"
                     );
                 });
 
         category.setCategoryName(categoryName);
+        category.setCompany(company);
 
         CategoryEntity updatedCategory = categoryRepository.save(category);
 
@@ -106,12 +128,37 @@ public class CategoryServiceImpl implements CategoryService {
         categoryRepository.delete(category);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryResponseDto> getCategoriesByCompanyId(CategoryCompanyIdDto dto) {
+
+        if (dto.getCompanyId() == null || dto.getCompanyId() <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Valid Company ID is required"
+            );
+        }
+
+        if (!companyRepository.existsById(dto.getCompanyId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Company not found"
+            );
+        }
+
+        return categoryRepository.findByCompany_Id(dto.getCompanyId())
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
     private CategoryResponseDto mapToResponse(CategoryEntity category) {
 
         CategoryResponseDto response = new CategoryResponseDto();
 
         response.setId(category.getId());
         response.setCategoryName(category.getCategoryName());
+        response.setCompanyId(category.getCompany().getId());
         response.setCreatedAt(category.getCreatedAt());
         response.setUpdatedAt(category.getUpdatedAt());
 

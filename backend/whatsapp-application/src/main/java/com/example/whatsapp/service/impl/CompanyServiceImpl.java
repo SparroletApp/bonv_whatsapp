@@ -1,3 +1,4 @@
+
 package com.example.whatsapp.service.impl;
 
 import com.example.whatsapp.dto.companydto.CompanyIdDto;
@@ -26,18 +27,29 @@ public class CompanyServiceImpl implements CompanyService {
 
     @Override
     public CompanyResponseDto createCompany(CompanyRequestDto dto) {
-        if (dto.getCompanyName() == null || dto.getCompanyName().trim().isEmpty()) {
+        if (dto.getCompanyName() == null ||
+                dto.getCompanyName().trim().isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Company name is required");
         }
         Company company = new Company();
         company.setCompanyName(dto.getCompanyName().trim());
+        company.setMailUsername(dto.getMailUsername());
+        company.setMailPassword(dto.getMailPassword());
+        company.setWhatsappAccessToken(dto.getWhatsappAccessToken());
+        company.setWhatsappApiVersion(dto.getWhatsappApiVersion());
+        company.setWhatsappAppId(dto.getWhatsappAppId());
+        company.setWhatsappBusinessAccountId(dto.getWhatsappBusinessAccountId());
+        company.setWhatsappPhoneNumberId(dto.getWhatsappPhoneNumberId());
+        company.setWhatsappVerifyToken(dto.getWhatsappVerifyToken());
+        company.setWhatsappAppSecret(dto.getWhatsappAppSecret());
         return mapToResponse(companyRepository.save(company));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<CompanyResponseDto> getAllCompanies() {
+
         return companyRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
@@ -58,11 +70,21 @@ public class CompanyServiceImpl implements CompanyService {
         Company company = companyRepository.findById(dto.getId())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Company not found"));
-        if (dto.getCompanyName() == null || dto.getCompanyName().trim().isEmpty()) {
+        if (dto.getCompanyName() == null ||
+                dto.getCompanyName().trim().isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "Company name is required");
         }
         company.setCompanyName(dto.getCompanyName().trim());
+        company.setMailUsername(dto.getMailUsername());
+        company.setMailPassword(dto.getMailPassword());
+        company.setWhatsappAccessToken(dto.getWhatsappAccessToken());
+        company.setWhatsappApiVersion(dto.getWhatsappApiVersion());
+        company.setWhatsappAppId(dto.getWhatsappAppId());
+        company.setWhatsappBusinessAccountId(dto.getWhatsappBusinessAccountId());
+        company.setWhatsappPhoneNumberId(dto.getWhatsappPhoneNumberId());
+        company.setWhatsappVerifyToken(dto.getWhatsappVerifyToken());
+        company.setWhatsappAppSecret(dto.getWhatsappAppSecret());
         return mapToResponse(companyRepository.save(company));
     }
 
@@ -79,8 +101,18 @@ public class CompanyServiceImpl implements CompanyService {
         CompanyResponseDto dto = new CompanyResponseDto();
         dto.setId(company.getId());
         dto.setCompanyName(company.getCompanyName());
+        dto.setMailUsername(company.getMailUsername());
+        dto.setMailPassword(company.getMailPassword());
+        dto.setWhatsappAccessToken(company.getWhatsappAccessToken());
+        dto.setWhatsappApiVersion(company.getWhatsappApiVersion());
+        dto.setWhatsappAppId(company.getWhatsappAppId());
+        dto.setWhatsappBusinessAccountId(company.getWhatsappBusinessAccountId());
+        dto.setWhatsappPhoneNumberId(company.getWhatsappPhoneNumberId());
+        dto.setWhatsappVerifyToken(company.getWhatsappVerifyToken());
+        dto.setWhatsappAppSecret(company.getWhatsappAppSecret());
         dto.setCreatedAt(company.getCreatedAt());
         dto.setUpdatedAt(company.getUpdatedAt());
+
         return dto;
     }
 }
