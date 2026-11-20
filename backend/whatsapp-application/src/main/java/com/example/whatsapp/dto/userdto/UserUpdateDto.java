@@ -24,6 +24,9 @@ public class UserUpdateDto {
 
     @Size(max = 20)
     private String phone;
+    private String role;
 
     private String password;
+    private Long companyId;
+
 }

@@ -1,0 +1,712 @@
+
+.companies {
+    width: 100%;
+    min-height: 100vh;
+    padding: 30px;
+    background: #f5f8f7;
+}
+
+
+.companies-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.companies-eyebrow {
+    display: inline-block;
+    color: #078477;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.7px;
+    margin-bottom: 8px;
+}
+
+.companies-header h2 {
+    color: #263c38;
+    font-size: 25px;
+    font-weight: 750;
+    margin: 0 0 7px;
+}
+
+.companies-header p {
+    color: #82918d;
+    font-size: 13px;
+    margin: 0;
+}
+
+.company-add-btn {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 18px;
+    border: none;
+    border-radius: 8px;
+    background: #064e45;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.company-add-btn:hover {
+    background: #043c35;
+    transform: translateY(-2px);
+}
+
+.companies-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 240px));
+    gap: 17px;
+    margin-bottom: 23px;
+}
+
+.companies-summary-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 17px;
+    background: #fff;
+    border: 1px solid #e9efed;
+    border-radius: 11px;
+}
+
+.companies-summary-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 43px;
+    height: 43px;
+    flex-shrink: 0;
+    background: #e8f3f0;
+    color: #064e45;
+    border-radius: 10px;
+    font-size: 19px;
+}
+
+.companies-summary-icon.second {
+    background: #eaf2ff;
+    color: #3978d5;
+}
+
+.companies-summary-card span {
+    color: #82918d;
+    font-size: 11px;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.companies-summary-card h3 {
+    color: #263c38;
+    font-size: 23px;
+    font-weight: 750;
+    margin: 0;
+}
+
+.companies-table-card {
+    background: #fff;
+    border: 1px solid #e9efed;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.companies-table-header {
+    padding: 22px 23px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #edf1ef;
+}
+
+.companies-table-header h4 {
+    color: #263c38;
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 5px;
+}
+
+.companies-table-header p {
+    color: #96a29e;
+    font-size: 12px;
+    margin: 0;
+}
+
+.companies-refresh-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 13px;
+    background: #f5f8f7;
+    border: 1px solid #e6eeeb;
+    border-radius: 7px;
+    color: #064e45;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.companies-refresh-btn:hover {
+    background: #e8f3f0;
+}
+
+.companies-refresh-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.company-spin {
+    animation: company-spin 1s linear infinite;
+}
+
+@keyframes company-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.companies-toolbar {
+    padding: 18px 23px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.companies-search {
+    width: 340px;
+    max-width: 100%;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    background: #fafcfb;
+    border: 1px solid #e5ece9;
+    border-radius: 7px;
+}
+
+.companies-search > i {
+    color: #82918d;
+    font-size: 14px;
+}
+
+.companies-search input {
+    width: 100%;
+    height: 100%;
+    outline: none;
+    border: none;
+    background: transparent;
+    color: #263c38;
+    font-size: 12px;
+}
+
+.companies-search input::placeholder {
+    color: #a0aca8;
+}
+
+.companies-search button {
+    border: none;
+    background: transparent;
+    color: #82918d;
+    cursor: pointer;
+}
+
+.companies-count {
+    color: #82918d;
+    font-size: 12px;
+}
+
+.companies-table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.companies-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 650px;
+}
+
+.companies-table thead {
+    background: #f7faf9;
+}
+
+.companies-table th {
+    padding: 14px 20px;
+    color: #82918d;
+    font-size: 10px;
+    font-weight: 750;
+    letter-spacing: 0.7px;
+    text-align: left;
+    white-space: nowrap;
+    border-top: 1px solid #edf1ef;
+    border-bottom: 1px solid #edf1ef;
+}
+
+.companies-table td {
+    padding: 15px 20px;
+    color: #53645f;
+    font-size: 12px;
+    border-bottom: 1px solid #f0f3f2;
+}
+
+.companies-table tbody tr {
+    transition: background 0.2s;
+}
+
+.companies-table tbody tr:hover {
+    background: #fafcfb;
+}
+
+.companies-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.company-number {
+    width: 65px;
+    color: #9aa7a3 !important;
+}
+
+.company-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #263c38;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.company-name-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: #e8f3f0;
+    color: #064e45;
+    border-radius: 9px;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.company-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #82918d;
+    white-space: nowrap;
+}
+
+.company-date i {
+    color: #a0ada8;
+}
+
+.company-actions-heading {
+    text-align: center !important;
+    width: 170px;
+}
+
+.company-action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+}
+
+.company-action-btn {
+    width: 33px;
+    height: 33px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    border: 1px solid transparent;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.company-action-btn.users {
+    background: #e8f3f0;
+    color: #064e45;
+}
+
+.company-action-btn.users:hover {
+    background: #064e45;
+    color: #fff;
+}
+
+.company-action-btn.edit {
+    background: #eaf2ff;
+    color: #3978d5;
+}
+
+.company-action-btn.edit:hover {
+    background: #3978d5;
+    color: white;
+}
+
+.company-action-btn.delete {
+    background: #fff0f0;
+    color: #dc4c4c;
+}
+
+.company-action-btn.delete:hover {
+    background: #dc4c4c;
+    color: white;
+}
+
+.company-empty {
+    height: 220px;
+    text-align: center !important;
+    vertical-align: middle;
+}
+
+.company-empty-icon {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto 12px;
+    border-radius: 12px;
+    background: #e8f3f0;
+    color: #064e45;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 23px;
+}
+
+.company-empty strong,
+.company-empty span {
+    display: block;
+}
+
+.company-empty strong {
+    color: #263c38;
+    font-size: 14px;
+    margin-bottom: 7px;
+}
+
+.company-empty span {
+    color: #96a29e;
+    font-size: 12px;
+}
+
+.company-loader {
+    width: 27px;
+    height: 27px;
+    border: 3px solid #e5efeb;
+    border-top-color: #064e45;
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    animation: company-spin 0.8s linear infinite;
+}
+
+.companies-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 15px 23px;
+    border-top: 1px solid #edf1ef;
+}
+
+.companies-page-size,
+.companies-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #82918d;
+    font-size: 11px;
+}
+
+.companies-page-size select {
+    border: 1px solid #e5ece9;
+    border-radius: 6px;
+    padding: 6px 9px;
+    background: #fff;
+    color: #263c38;
+    outline: none;
+    cursor: pointer;
+}
+
+.companies-pagination-controls button {
+    width: 29px;
+    height: 29px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: white;
+    color: #064e45;
+    border: 1px solid #e5ece9;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.companies-pagination-controls button:hover:not(:disabled) {
+    background: #e8f3f0;
+}
+
+.companies-pagination-controls button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.companies-page-number {
+    color: #263c38;
+    font-weight: 650;
+}
+
+.company-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(17, 36, 32, 0.48);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(3px);
+}
+
+.company-modal {
+    width: 100%;
+    max-width: 470px;
+    background: #fff;
+    border-radius: 13px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.16);
+    animation: company-modal-show 0.2s ease;
+}
+
+@keyframes company-modal-show {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.company-modal-header {
+    padding: 21px 23px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #edf1ef;
+}
+
+.company-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+}
+
+.company-modal-icon {
+    width: 43px;
+    height: 43px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e8f3f0;
+    color: #064e45;
+    border-radius: 10px;
+    font-size: 19px;
+}
+
+.company-modal-title h3 {
+    font-size: 17px;
+    color: #263c38;
+    font-weight: 700;
+    margin: 0 0 5px;
+}
+
+.company-modal-title p {
+    color: #96a29e;
+    font-size: 11px;
+    margin: 0;
+}
+
+.company-modal-close {
+    width: 31px;
+    height: 31px;
+    border: none;
+    background: #f3f6f5;
+    color: #687a74;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.company-modal-close:hover {
+    background: #ffecec;
+    color: #dc4c4c;
+}
+
+.company-modal-body {
+    padding: 24px;
+}
+
+.company-modal-body label {
+    display: block;
+    color: #53645f;
+    font-size: 12px;
+    font-weight: 650;
+    margin-bottom: 9px;
+}
+
+.company-modal-body label span {
+    color: #dc4c4c;
+    margin-left: 4px;
+}
+
+.company-modal-body input {
+    width: 100%;
+    height: 43px;
+    border: 1px solid #dfe9e5;
+    background: #fafcfb;
+    border-radius: 7px;
+    padding: 0 13px;
+    outline: none;
+    color: #263c38;
+    font-size: 13px;
+    transition: 0.2s;
+}
+
+.company-modal-body input:focus {
+    border-color: #064e45;
+    box-shadow: 0 0 0 3px rgba(6, 78, 69, 0.08);
+    background: #fff;
+}
+
+.company-modal-body input::placeholder {
+    color: #a5b0ac;
+}
+
+.company-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 23px;
+    background: #fafcfb;
+    border-top: 1px solid #edf1ef;
+}
+
+.company-cancel-btn,
+.company-save-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 10px 17px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+}
+
+.company-cancel-btn {
+    color: #64736e;
+    background: #edf1ef;
+}
+
+.company-cancel-btn:hover {
+    background: #e3e9e6;
+}
+
+.company-save-btn {
+    background: #064e45;
+    color: #fff;
+}
+
+.company-save-btn:hover {
+    background: #043c35;
+}
+
+.company-save-btn:disabled,
+.company-cancel-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.company-button-loader {
+    width: 13px;
+    height: 13px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: company-spin 0.7s linear infinite;
+}
+
+@media (max-width: 700px) {
+    .companies {
+        padding: 18px 14px;
+    }
+
+    .companies-header {
+        align-items: flex-start;
+    }
+
+    .companies-header h2 {
+        font-size: 21px;
+    }
+
+    .company-add-btn {
+        padding: 10px 12px;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+
+    .companies-summary {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .companies-summary-card {
+        padding: 12px;
+        gap: 9px;
+    }
+
+    .companies-summary-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+
+    .companies-summary-card h3 {
+        font-size: 19px;
+    }
+
+    .companies-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .companies-search {
+        width: 100%;
+    }
+
+    .companies-pagination {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .companies-table-header {
+        padding: 17px;
+    }
+}
+
+@media (max-width: 400px) {
+    .companies-header {
+        flex-direction: column;
+    }
+
+    .companies-summary {
+        grid-template-columns: 1fr;
+    }
+}

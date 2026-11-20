@@ -192,18 +192,11 @@ function EditContact({
         const name = (formData.name ?? "").trim();
         const phone = (formData.phone ?? "").trim();
         const email = (formData.email ?? "").trim();
-
-        // Name is optional
-
-        // Phone is mandatory
         if (!phone) {
             showToast("warning", "Please enter phone number.");
             return;
         }
 
-        // Email is optional
-
-        // Categories are mandatory
         if (formData.categoryIds.length === 0) {
             showToast("warning", "Please select at least one category.");
             return;

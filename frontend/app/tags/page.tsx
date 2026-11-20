@@ -206,32 +206,23 @@ function Category() {
                             ) : (
                                 currentCategories.map((category, index) => (
                                     <tr key={category.id}>
-
-                                        {/* <td className="category-id">
-                                            {startIndex + index + 1}
-                                        </td> */}
                                         <td className="category-id-real">
                                             {category.id}
-
                                         </td>
                                         <td>
                                             <div className="category-name-cell">
                                                 <div className="category-icon">
                                                     <i className="bi bi-collection"></i>
                                                 </div>
-
                                                 <span>{category.categoryName}</span>
                                             </div>
                                         </td>
-
                                         <td>
                                             {formatDate(category.createdAt)}
                                         </td>
-
                                         <td>
                                             {formatDate(category.updatedAt || "")}
                                         </td>
-
                                         <td>
                                             <div className="category-actions">
                                                 <button
@@ -243,13 +234,11 @@ function Category() {
                                                             "broadcastId",
                                                             category.id.toString()
                                                         );
-
                                                         router.push("/tags/view");
                                                     }}
                                                 >
                                                     <i className="bi bi-eye"></i>
                                                 </button>
-
                                                 <button
                                                     type="button"
                                                     title="Edit category"
@@ -261,7 +250,6 @@ function Category() {
                                                 >
                                                     <i className="bi bi-pencil-square"></i>
                                                 </button>
-
                                                 <button
                                                     type="button"
                                                     title="Delete category"

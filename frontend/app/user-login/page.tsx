@@ -79,7 +79,7 @@ function UserLogin() {
                     <div className="login-left">
                         <div className="login-brand">
                             <div className="brand-icon">
-                               <i className="bi bi-whatsapp"></i>
+                                <i className="bi bi-whatsapp"></i>
                             </div>
                             <span>WhatsApp Automation</span>
                         </div>
@@ -165,6 +165,15 @@ function UserLogin() {
                                             <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
                                         </button>
                                     </div>
+                                </div>
+
+                                <div className="login-forgot-password">
+                                    <button
+                                        type="button"
+                                        onClick={() => router.push("/forget-password")}
+                                    >
+                                        Forgot Password?
+                                    </button>
                                 </div>
 
                                 <button

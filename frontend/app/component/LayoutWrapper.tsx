@@ -1,4 +1,3 @@
-
 "use client";
 
 import { usePathname } from "next/navigation";
@@ -12,7 +11,10 @@ export default function LayoutWrapper({
 }) {
     const pathname = usePathname();
 
-    const hideSidebar = pathname === "/";
+    const hideSidebar =
+        pathname === "/" ||
+        pathname === "/super-admin/login" ||
+        pathname === "/forget-password";
 
     return (
         <ProtectedRoute>

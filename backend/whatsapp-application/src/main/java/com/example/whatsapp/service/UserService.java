@@ -1,11 +1,6 @@
 package com.example.whatsapp.service;
 
-import com.example.whatsapp.dto.userdto.AuthResponseDto;
-import com.example.whatsapp.dto.userdto.LoginUserDto;
-import com.example.whatsapp.dto.userdto.UserCreateDto;
-import com.example.whatsapp.dto.userdto.UserResponseDto;
-import com.example.whatsapp.dto.userdto.UserIdDto;
-import com.example.whatsapp.dto.userdto.UserUpdateDto;
+import com.example.whatsapp.dto.userdto.*;
 
 import java.util.List;
 
@@ -16,4 +11,9 @@ public interface UserService {
     UserResponseDto getUserById(UserIdDto dto);
     UserResponseDto updateUser(UserUpdateDto dto);
     void deleteUser(UserIdDto dto);
+    void sendForgotPasswordOtp(ForgotPasswordDto dto);
+    void verifyForgotPasswordOtp(VerifyOtpDto dto);
+    void resetPassword(ResetPasswordDto dto);
+
+    List<UserResponseDto> getUsersByCompanyId(CompanyIdDto dto);
 }

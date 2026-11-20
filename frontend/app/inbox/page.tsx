@@ -1164,8 +1164,6 @@ const openEditContact = async () => {
                 <aside className="wa-sidebar">
 
                     {showContactList ? (
-
-                        /* ================= NEW CHAT PANEL (contact list) ================= */
                         <div className="wa-newchat">
 
                             <div className="wa-newchat-header">

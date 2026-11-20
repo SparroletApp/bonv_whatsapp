@@ -322,7 +322,6 @@ function Contact() {
                     .map((id) => Number(id.trim()))
                     .filter((id) => Number.isInteger(id) && id > 0);
 
-                // Phone is mandatory
                 if (!phone) {
                     errors.push(
                         `Row ${rowNumber}: Phone number is required.`

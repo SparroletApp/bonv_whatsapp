@@ -91,17 +91,7 @@ export default function CampaignCreatePage() {
     const mediaReady =
         !!template && (!needsMedia || !!savedMediaUrl);
 
-    /*
-     * A template with exactly one variable always uses the contact's
-     * name for {{1}}. The user is never asked to configure it.
-     */
     const autoName = template?.variableCount === 1;
-
-    /*
-     * The mapping that is actually used for preview, validation and
-     * launch. It is always derived from the selected template, so it can
-     * never be out of sync with the template's variable count.
-     */
     const effectiveMapping: VarMap[] = useMemo(() => {
         if (!template) return [];
 
@@ -389,8 +379,6 @@ export default function CampaignCreatePage() {
 
                 <div className="cc-main">
 
-                    {/* STEP 01 - CAMPAIGN INFORMATION */}
-
                     <section className="cc-card">
 
                         <div className="cc-card-header">
@@ -433,9 +421,6 @@ export default function CampaignCreatePage() {
                             </div>
                         </div>
                     </section>
-
-                    {/* STEP 02 - AUDIENCE */}
-
                     <section className="cc-card">
 
                         <div className="cc-card-header">
@@ -662,9 +647,6 @@ export default function CampaignCreatePage() {
                         </div>
 
                     </section>
-
-                    {/* STEP 03 - MESSAGE TEMPLATE */}
-
                     <section className="cc-card">
 
                         <div className="cc-card-header">
@@ -868,9 +850,6 @@ export default function CampaignCreatePage() {
 
                                     </div>
                                 )}
-
-                                {/* ONE VARIABLE: automatically the contact's name */}
-
                                 {autoName && (
                                     <div className="cc-variable-section">
 
@@ -910,8 +889,6 @@ export default function CampaignCreatePage() {
 
                                     </div>
                                 )}
-
-                                {/* MORE THAN ONE VARIABLE: user configures each */}
 
                                 {template.variableCount > 1 && (
                                     <div className="cc-variable-section">
@@ -1087,8 +1064,6 @@ export default function CampaignCreatePage() {
                     </section>
 
                 </div>
-
-                {/* CAMPAIGN SUMMARY */}
 
                 <aside className="cc-sidebar">
 
@@ -1270,8 +1245,6 @@ export default function CampaignCreatePage() {
                 </aside>
 
             </div>
-
-            {/* CREATE TEMPLATE MODAL */}
 
             {showTemplateForm && (
                 <Modal

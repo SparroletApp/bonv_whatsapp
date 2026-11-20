@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -22,9 +24,20 @@ public class UserEntity extends BaseEntity {
     @Column(length = 20)
     private String phone;
 
-    @Column(length = 30)
-    private String role = "USER";
+    @Column(nullable = false, length = 30)
+    private String role;
+    @Column(length = 255)
+    private String otp;
 
     @Column(nullable = false)
+    private Boolean otpVerified = false;
+
+    private LocalDateTime otpExpiry;
+    @Column(nullable = false)
     private Boolean status = true;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = true)
+    private Company company;
+
 }

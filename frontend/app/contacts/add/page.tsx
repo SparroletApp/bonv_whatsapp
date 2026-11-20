@@ -257,7 +257,6 @@ function AddContact() {
                     return;
                 }
 
-                // Validate email only when provided
                 if (
                     email &&
                     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -268,7 +267,6 @@ function AddContact() {
                     return;
                 }
 
-                // Validate phone number
                 if (!/^\+?[0-9]{7,15}$/.test(phone)) {
                     errors.push(
                         `Row ${rowNumber}: Invalid phone number.`
@@ -276,7 +274,6 @@ function AddContact() {
                     return;
                 }
 
-                // Categories are mandatory
                 if (categoryIds.length === 0) {
                     errors.push(
                         `Row ${rowNumber}: Please provide at least one valid category ID.`
