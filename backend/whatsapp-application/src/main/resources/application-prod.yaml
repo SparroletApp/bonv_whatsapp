@@ -60,7 +60,7 @@ whatsapp:
 #    business-account-id: ${WHATSAPP_BUSINESS_ACCOUNT_ID}
 #    app-secret: ${WHATSAPP_APP_SECRET}
 #    verify-token: ${WHATSAPP_VERIFY_TOKEN}
-#    api-version: ${WHATSAPP_API_VERSION}
+    api-version: ${WHATSAPP_API_VERSION}
     base-url: https://graph.facebook.com
 
 app:
