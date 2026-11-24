@@ -55,39 +55,70 @@ function Dashboard() {
         setCurrentTime(Date.now());
     }, []);
 
-    const load = useCallback(async () => {
-        setRefreshing(true);
+    
+const load = useCallback(async () => {
+    setRefreshing(true);
 
-        try {
-            const [c, t, i, k] = await Promise.allSettled([
-                campaignService.list(),
-                templateService.list(),
-                inboxService.conversations(),
-                categoryInsightService.list(),
-            ]);
+    try {
+        // Get company ID from session storage
+        const companyId = Number(
+            sessionStorage.getItem("companyId")
+        );
 
-            if (c.status === "fulfilled") setCampaigns(c.value);
-            if (t.status === "fulfilled") setTemplates(t.value);
-            if (i.status === "fulfilled") setConversations(i.value);
-            if (k.status === "fulfilled") setCategories(k.value);
-
-            const failed = [c, t, i, k].filter(
-                (r) => r.status === "rejected"
-            ).length;
-
-            setError(
-                failed
-                    ? `${failed} of 4 data sources could not be loaded.`
-                    : ""
-            );
-        } catch (err) {
-            console.error("Dashboard loading error:", err);
-            setError("Unable to load dashboard data.");
-        } finally {
+        if (!companyId || isNaN(companyId)) {
+            setError("Company ID not found. Please login again.");
             setLoading(false);
             setRefreshing(false);
+            return;
         }
-    }, []);
+
+        const [c, t, i, k] = await Promise.allSettled([
+            // Get campaigns belonging to this company
+            campaignService.getByCompanyId(companyId),
+
+            templateService.list(),
+            inboxService.conversations(),
+            categoryInsightService.list(),
+        ]);
+
+        if (c.status === "fulfilled") {
+            setCampaigns(c.value);
+        } else {
+            console.error("Campaign loading error:", c.reason);
+            setCampaigns([]);
+        }
+
+        if (t.status === "fulfilled") {
+            setTemplates(t.value);
+        }
+
+        if (i.status === "fulfilled") {
+            setConversations(i.value);
+        }
+
+        if (k.status === "fulfilled") {
+            setCategories(k.value);
+        }
+
+        const failed = [c, t, i, k].filter(
+            (r) => r.status === "rejected"
+        ).length;
+
+        setError(
+            failed
+                ? `${failed} of 4 data sources could not be loaded.`
+                : ""
+        );
+
+    } catch (err) {
+        console.error("Dashboard loading error:", err);
+        setError("Unable to load dashboard data.");
+    } finally {
+        setLoading(false);
+        setRefreshing(false);
+    }
+}, []);
+
 
     useEffect(() => {
         load();
