@@ -1,3 +1,4 @@
+
 package com.example.whatsapp.service;
 
 import com.example.whatsapp.client.WhatsappClient;
@@ -28,10 +29,8 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-
 import java.util.Set;
 import java.util.TreeSet;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -79,6 +78,11 @@ public class TemplateService {
     private final GarageStorageService garageStorage;
     private final CompanyRepository companyRepository;
 
+
+    // =========================================================
+    // UPLOAD TEMPLATE IMAGE
+    // =========================================================
+
     public String uploadMediaSample(
             Long companyId,
             String type,
@@ -87,31 +91,37 @@ public class TemplateService {
 
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Company not found"));
+                        new IllegalArgumentException("Company not found: " + companyId)
+                );
 
-        // Keep the remaining existing upload code here.
         if (type == null || !"IMAGE".equalsIgnoreCase(type.trim())) {
             throw new IllegalArgumentException(
                     "Only IMAGE uploads are supported"
             );
         }
+
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException(
                     "Please select an image file"
             );
         }
+
         String mimeType = file.getContentType();
+
         if (mimeType == null || !IMAGE_MIME_TYPES.contains(mimeType)) {
             throw new IllegalArgumentException(
                     "Image must be JPG or PNG"
             );
         }
+
         if (file.getSize() > MAX_IMAGE_SIZE) {
             throw new IllegalArgumentException(
                     "Image exceeds the maximum size of 5 MB"
             );
         }
+
         String filename = file.getOriginalFilename();
+
         filename = (filename == null || filename.isBlank())
                 ? "template-sample.jpg"
                 : filename.replaceAll("[^a-zA-Z0-9._-]", "_");
@@ -120,15 +130,20 @@ public class TemplateService {
                 file,
                 "template-media"
         );
+
         log.info("Image successfully saved in Garage: {}", objectKey);
 
         String publicUrl = garageStorage.getPublicUrl(objectKey);
 
         String handle;
+
         try {
+
             validatePublicMediaUrl(publicUrl);
 
+            // Use the selected company's WhatsApp credentials
             handle = client.uploadTemplateSample(
+                    company,
                     file.getBytes(),
                     mimeType,
                     filename
@@ -139,19 +154,28 @@ public class TemplateService {
                         "Meta did not return a valid media handle"
                 );
             }
+
         } catch (RuntimeException | IOException ex) {
+
             try {
                 garageStorage.deleteImage(objectKey);
             } catch (Exception cleanupEx) {
-                log.warn("Could not clean up Garage object {}", objectKey, cleanupEx);
+                log.warn(
+                        "Could not clean up Garage object {}",
+                        objectKey,
+                        cleanupEx
+                );
             }
+
             throw ex;
         }
 
         TemplateMediaSampleEntity sample = new TemplateMediaSampleEntity();
+
         sample.setMetaHandle(handle);
         sample.setObjectKey(objectKey);
         sample.setPublicUrl(publicUrl);
+
         sampleRepo.save(sample);
 
         log.info(
@@ -162,9 +186,25 @@ public class TemplateService {
         return handle;
     }
 
-    public TemplateResponse create(Long companyId, TemplateCreateRequestDto r) {
 
-        log.info("Starting WhatsApp template creation");
+    // =========================================================
+    // CREATE TEMPLATE
+    // =========================================================
+
+    public TemplateResponse create(
+            Long companyId,
+            TemplateCreateRequestDto r
+    ) {
+
+        log.info("Starting WhatsApp template creation for company: {}", companyId);
+
+        // Fetch company BEFORE calling Meta
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Company not found: " + companyId
+                        )
+                );
 
         if (r == null) {
             throw new IllegalArgumentException(
@@ -514,17 +554,18 @@ public class TemplateService {
         }
 
         log.info(
-                "Creating Meta template. Name: {}, Header: {}",
+                "Creating Meta template. Name: {}, Header: {}, Company: {}",
                 name,
-                headerType
+                headerType,
+                companyId
         );
-
 
         JsonNode metaResponse;
 
         try {
 
-            metaResponse = client.createTemplate(payload);
+            // IMPORTANT: Use company-specific credentials
+            metaResponse = client.createTemplate(company, payload);
 
             log.info(
                     "Meta template response: {}",
@@ -548,11 +589,7 @@ public class TemplateService {
             );
         }
 
-
-        Company company = companyRepository.findById(companyId)
-                .orElseThrow(() ->
-                        new RuntimeException("Company not found"));
-
+        // Company is already fetched above. Do not declare it again.
         TemplateEntity entity = new TemplateEntity();
 
         entity.setCompany(company);
@@ -625,18 +662,26 @@ public class TemplateService {
         }
 
         if (mediaHeader) {
-            // The Garage object stays: the template's headerMediaUrl points to it.
-            // Only the temporary handle -> URL mapping is removed.
+
+            // Keep the Garage object; remove only the temporary mapping.
             try {
                 sampleRepo.deleteById(mediaHandle);
             } catch (Exception ex) {
-                log.warn("Could not remove media sample mapping {}", mediaHandle, ex);
+                log.warn(
+                        "Could not remove media sample mapping {}",
+                        mediaHandle,
+                        ex
+                );
             }
         }
 
         return response;
     }
 
+
+    // =========================================================
+    // VALIDATE PUBLIC MEDIA URL
+    // =========================================================
 
     private void validatePublicMediaUrl(String mediaUrl) {
 
@@ -669,16 +714,27 @@ public class TemplateService {
     }
 
 
+    // =========================================================
+    // SYNC TEMPLATES FROM META
+    // =========================================================
+
     @Transactional
     public List<TemplateResponse> sync(Long companyId) {
 
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Company not found"));
+                        new IllegalArgumentException(
+                                "Company not found: " + companyId
+                        )
+                );
 
-        log.info("Starting template synchronization for company: {}", companyId);
+        log.info(
+                "Starting template synchronization for company: {}",
+                companyId
+        );
 
-        ArrayNode templates = client.listTemplates();
+        // IMPORTANT: Use selected company's credentials
+        ArrayNode templates = client.listTemplates(company);
 
         if (templates == null) {
             throw new RuntimeException(
@@ -695,7 +751,10 @@ public class TemplateService {
             String language = template.path("language").asText("");
 
             if (name.isBlank() || language.isBlank()) {
-                log.warn("Skipping template with missing name or language: {}", template);
+                log.warn(
+                        "Skipping template with missing name or language: {}",
+                        template
+                );
                 skipped++;
                 continue;
             }
@@ -818,17 +877,26 @@ public class TemplateService {
         return list(companyId, null);
     }
 
+
+    // =========================================================
+    // FETCH FROM META AND REMOVE STALE LOCAL TEMPLATES
+    // =========================================================
+
     @Transactional
     public List<TemplateResponse> listFromMeta(
             Long companyId,
             String status
     ) {
 
-        companyRepository.findById(companyId)
+        Company company = companyRepository.findById(companyId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Company not found"));
+                        new IllegalArgumentException(
+                                "Company not found: " + companyId
+                        )
+                );
 
-        ArrayNode templates = client.listTemplates();
+        // IMPORTANT: Use selected company's credentials
+        ArrayNode templates = client.listTemplates(company);
 
         if (templates == null) {
             throw new RuntimeException(
@@ -863,13 +931,22 @@ public class TemplateService {
             repo.deleteAll(stale);
         }
 
+        // Sync local records for this company
         sync(companyId);
 
         return list(companyId, status);
     }
 
+
+    // =========================================================
+    // LIST LOCAL TEMPLATES
+    // =========================================================
+
     @Transactional(readOnly = true)
-    public List<TemplateResponse> list(Long companyId, String status) {
+    public List<TemplateResponse> list(
+            Long companyId,
+            String status
+    ) {
 
         List<TemplateEntity> items =
                 status == null || status.isBlank()
@@ -886,6 +963,11 @@ public class TemplateService {
                 .toList();
     }
 
+
+    // =========================================================
+    // UPDATE TEMPLATE STATUS FROM WEBHOOK
+    // =========================================================
+
     @Transactional
     public void applyWebhookStatus(
             String wabaId,
@@ -899,6 +981,7 @@ public class TemplateService {
             log.warn("WABA ID is missing in template webhook");
             return;
         }
+
         Company company = companyRepository
                 .findByWhatsappBusinessAccountId(wabaId)
                 .orElse(null);
@@ -960,6 +1043,11 @@ public class TemplateService {
         }
     }
 
+
+    // =========================================================
+    // COUNT VARIABLES
+    // =========================================================
+
     public static int countVariables(String body) {
 
         if (body == null || body.isBlank()) {
@@ -980,6 +1068,11 @@ public class TemplateService {
 
         return max;
     }
+
+
+    // =========================================================
+    // VALIDATE BODY VARIABLES
+    // =========================================================
 
     private void validateBodyVariables(String body) {
 
@@ -1043,6 +1136,7 @@ public class TemplateService {
     }
 
 
+
     private static String clean(String value) {
 
         return value == null || value.isBlank()
@@ -1050,6 +1144,10 @@ public class TemplateService {
                 : value.trim();
     }
 
+
+    // =========================================================
+    // MAP ENTITY TO RESPONSE
+    // =========================================================
 
     private TemplateResponse map(TemplateEntity entity) {
 
