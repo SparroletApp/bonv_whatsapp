@@ -48,7 +48,7 @@ function UsersList() {
                 title: "Company not selected",
                 text: "Please select a company first."
             }).then(() => {
-                router.push("/companies");
+                router.push("/super-admin/companies");
             });
 
             return;

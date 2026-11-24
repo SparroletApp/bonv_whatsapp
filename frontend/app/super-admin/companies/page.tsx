@@ -122,10 +122,10 @@ function Companies() {
         }
     };
 
-    const handleUsers = (company: CompanyResponseDto) => {
-        sessionStorage.setItem("company_view_id", String(company.id));
-        router.push("/super-admin/users");
-    };
+ const handleUsers = (company: CompanyResponseDto) => {
+    localStorage.setItem("company_view_id", String(company.id));
+    router.push("/super-admin/users");
+};
 
     return (
         <section className="companies">
