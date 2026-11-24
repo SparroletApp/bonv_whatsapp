@@ -76,9 +76,9 @@ const inboxService = {
     reply: (phone: string, message: string) =>
         api.post<InboxMessage>(
             `/inbox/conversations/${encodeURIComponent(phone)}/reply`,
-            { message },
             {
-                params: { companyId: getCompanyId() },
+                companyId: getCompanyId(),
+                message: message,
             }
         ),
 
@@ -108,17 +108,17 @@ const inboxService = {
         );
     },
 
-   sendTemplate: (
-    phone: string,
-    request: Omit<InboxTemplateRequest, "companyId">
-) =>
-    api.post<InboxMessage>(
-        `/inbox/conversations/${encodeURIComponent(phone)}/send-template`,
-        {
-            ...request,
-            companyId: getCompanyId(),
-        }
-    ),
+    sendTemplate: (
+        phone: string,
+        request: Omit<InboxTemplateRequest, "companyId">
+    ) =>
+        api.post<InboxMessage>(
+            `/inbox/conversations/${encodeURIComponent(phone)}/send-template`,
+            {
+                ...request,
+                companyId: getCompanyId(),
+            }
+        ),
 
     media: (mediaId: string) =>
         api.get<Blob>(
