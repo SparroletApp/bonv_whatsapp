@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -30,9 +29,10 @@ public class WebhookController {
     private final WebhookService webhookService;
     private final ObjectMapper mapper;
 
-    @Value("${WHATSAPP_WEBHOOK_VERIFY_TOKEN:}")
-    private String webhookVerifyToken;
-
+    /**
+     * Meta webhook verification.
+     * Verify token is checked against the company table.
+     */
     @GetMapping
     public ResponseEntity<String> verify(
             @RequestParam(name = "hub.mode", required = false) String mode,
@@ -44,26 +44,44 @@ public class WebhookController {
         if (!"subscribe".equals(mode)
                 || token == null
                 || token.isBlank()
-                || webhookVerifyToken == null
-                || webhookVerifyToken.isBlank()
-                || !MessageDigest.isEqual(
-                webhookVerifyToken.getBytes(StandardCharsets.UTF_8),
-                token.getBytes(StandardCharsets.UTF_8))
                 || challenge == null) {
 
-            log.error("WhatsApp webhook verification failed");
+            log.error("Missing or invalid webhook verification parameters");
+
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .contentType(MediaType.TEXT_PLAIN)
                     .body("Verification failed");
         }
 
-        log.info("WhatsApp webhook verification successful");
+        String cleanToken = token.trim();
+
+        Company company = companyRepository
+                .findByWhatsappVerifyToken(cleanToken)
+                .orElse(null);
+
+        if (company == null) {
+
+            log.error("No company found for the supplied WhatsApp verify token");
+
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body("Invalid verify token");
+        }
+
+        log.info(
+                "Webhook verified successfully for company ID: {}, company: {}",
+                company.getId(),
+                company.getCompanyName()
+        );
 
         return ResponseEntity.ok()
                 .contentType(MediaType.TEXT_PLAIN)
                 .body(challenge);
     }
 
+    /**
+     * Meta sends incoming messages and message status updates here.
+     */
     @PostMapping
     public ResponseEntity<Void> receive(
             @RequestBody byte[] body,
@@ -73,6 +91,7 @@ public class WebhookController {
             ) String signature) {
 
         try {
+
             String rawBody = new String(body, StandardCharsets.UTF_8);
 
             log.info("WhatsApp webhook POST received");
@@ -82,7 +101,9 @@ public class WebhookController {
             Company company = findCompany(root);
 
             if (company == null) {
+
                 log.error("Company not found for webhook event");
+
                 return ResponseEntity.notFound().build();
             }
 
@@ -91,25 +112,34 @@ public class WebhookController {
                     signature,
                     company.getWhatsappAppSecret())) {
 
-                log.error("Invalid webhook signature for company: {}",
-                        company.getCompanyName());
+                log.error(
+                        "Invalid webhook signature for company: {}",
+                        company.getCompanyName()
+                );
 
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
-            log.info("Webhook accepted for company: {}",
-                    company.getCompanyName());
+            log.info(
+                    "Webhook accepted for company: {}",
+                    company.getCompanyName()
+            );
 
             webhookService.handle(rawBody, company);
 
             return ResponseEntity.ok().build();
 
         } catch (Exception e) {
+
             log.error("Webhook controller error", e);
+
             return ResponseEntity.internalServerError().build();
         }
     }
 
+    /**
+     * Identify the company using WABA ID or phone number ID.
+     */
     private Company findCompany(JsonNode root) {
 
         for (JsonNode entry : root.path("entry")) {
@@ -150,6 +180,9 @@ public class WebhookController {
         return null;
     }
 
+    /**
+     * Validate Meta X-Hub-Signature-256 header.
+     */
     private boolean validSignature(
             byte[] payload,
             String header,
@@ -159,10 +192,12 @@ public class WebhookController {
                 || !header.startsWith("sha256=")
                 || appSecret == null
                 || appSecret.isBlank()) {
+
             return false;
         }
 
         try {
+
             Mac mac = Mac.getInstance("HmacSHA256");
 
             mac.init(new SecretKeySpec(
@@ -179,7 +214,9 @@ public class WebhookController {
             );
 
         } catch (Exception e) {
+
             log.error("Signature validation failed", e);
+
             return false;
         }
     }
