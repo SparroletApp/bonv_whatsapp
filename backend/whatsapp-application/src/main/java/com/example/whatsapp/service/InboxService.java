@@ -320,6 +320,7 @@ public class InboxService {
         }
     }
 
+
     @Transactional
     public InboxMessageDto sendTemplate(
             Long companyId,
@@ -329,6 +330,9 @@ public class InboxService {
         if (phone == null || phone.isBlank()) {
             throw new IllegalArgumentException("Recipient phone number is required.");
         }
+
+        // Load the selected company's WhatsApp credentials.
+        Company company = getWhatsappCompany(companyId);
 
         if (request == null || request.getTemplateId() == null) {
             throw new IllegalArgumentException("Please select a template.");
@@ -343,6 +347,7 @@ public class InboxService {
 
         String templateName = template.getName();
         String language = template.getLanguage();
+
         String headerType = template.getHeaderType() == null
                 ? "NONE"
                 : template.getHeaderType().trim().toUpperCase();
@@ -398,7 +403,6 @@ public class InboxService {
         }
 
         // Find the contact name from the most recent inbound message.
-        // Sending an approved template does not require an open 24-hour window.
         String recipientName = repo
                 .findFirstByRecipientPhoneAndDirectionOrderByCreatedAtDesc(
                         phone, "INBOUND"
@@ -417,17 +421,21 @@ public class InboxService {
         out.setTemplateParams(mapper.valueToTree(parameters).toString());
         out.setHeaderType(headerType);
         out.setHeaderMediaUrl(headerMediaUrl);
+
         out.setMimeType(
                 "IMAGE".equals(headerType) ? "image/jpeg"
                         : "VIDEO".equals(headerType) ? "video/mp4"
                         : "DOCUMENT".equals(headerType) ? "application/pdf"
                         : null
         );
+
         out.setMessage(render(template.getBody(), parameters));
         out.setStatus("PROCESSING");
 
         try {
+            // IMPORTANT: Use the company-specific WhatsApp configuration.
             String messageId = client.sendTemplate(
+                    company,
                     phone,
                     templateName,
                     language,
@@ -443,8 +451,6 @@ public class InboxService {
         } catch (Exception ex) {
             out.setStatus("FAILED");
             out.setErrorMessage(ex.getMessage());
-
-            // Keep the failed message visible in the Inbox.
         }
 
         return toDto(repo.save(out));
