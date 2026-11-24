@@ -2,6 +2,7 @@ package com.example.whatsapp.repository;
 
 import com.example.whatsapp.entity.WhatsappEntity;
 import jakarta.transaction.Transactional;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -23,7 +24,11 @@ public interface WhatsappRepository extends JpaRepository<WhatsappEntity, Long> 
 
     List<WhatsappEntity> findByCampaignIdOrderByIdAsc(Long campaignId);
 
-    List<WhatsappEntity> findByCampaignIdAndStatusOrderByIdAsc(Long campaignId, String status);
+    @EntityGraph(attributePaths = {"company"})
+    List<WhatsappEntity> findByCampaignIdAndStatusOrderByIdAsc(
+            Long campaignId,
+            String status
+    );
 
     List<WhatsappEntity> findByRecipientPhoneOrderByCreatedAtAsc(String recipientPhone);
 

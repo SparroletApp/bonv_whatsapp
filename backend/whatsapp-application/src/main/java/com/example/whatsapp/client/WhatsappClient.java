@@ -31,6 +31,7 @@ public class WhatsappClient {
     private final ObjectMapper mapper;
 
     private final HttpClient http = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(15))
             .build();
 
