@@ -12,4 +12,12 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
     Optional<Company> findByWhatsappBusinessAccountId(
             String whatsappBusinessAccountId
     );
+
+    Optional<Company> findByWhatsappVerifyToken(
+            String whatsappVerifyToken
+    );
+
+    Optional<Company> findByWhatsappPhoneNumberId(
+            String whatsappPhoneNumberId
+    );
 }
