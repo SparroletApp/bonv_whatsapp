@@ -8,6 +8,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,35 +30,38 @@ public class WebhookController {
     private final WebhookService webhookService;
     private final ObjectMapper mapper;
 
+    @Value("${WHATSAPP_WEBHOOK_VERIFY_TOKEN:}")
+    private String webhookVerifyToken;
+
     @GetMapping
     public ResponseEntity<String> verify(
-            @RequestParam("hub.mode") String mode,
-            @RequestParam("hub.verify_token") String token,
-            @RequestParam("hub.challenge") String challenge) {
+            @RequestParam(name = "hub.mode", required = false) String mode,
+            @RequestParam(name = "hub.verify_token", required = false) String token,
+            @RequestParam(name = "hub.challenge", required = false) String challenge) {
 
         log.info("WhatsApp webhook verification requested");
 
         if (!"subscribe".equals(mode)
                 || token == null
-                || token.isBlank()) {
-            return ResponseEntity.status(403)
+                || token.isBlank()
+                || webhookVerifyToken == null
+                || webhookVerifyToken.isBlank()
+                || !MessageDigest.isEqual(
+                webhookVerifyToken.getBytes(StandardCharsets.UTF_8),
+                token.getBytes(StandardCharsets.UTF_8))
+                || challenge == null) {
+
+            log.error("WhatsApp webhook verification failed");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .contentType(MediaType.TEXT_PLAIN)
                     .body("Verification failed");
         }
 
-        Company company = companyRepository
-                .findByWhatsappVerifyToken(token)
-                .orElse(null);
+        log.info("WhatsApp webhook verification successful");
 
-        if (company == null) {
-            log.error("No company found for WhatsApp verify token");
-            return ResponseEntity.status(403)
-                    .body("Verification failed");
-        }
-
-        log.info("Webhook verified for company: {}",
-                company.getCompanyName());
-
-        return ResponseEntity.ok(challenge);
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(challenge);
     }
 
     @PostMapping
@@ -67,11 +73,7 @@ public class WebhookController {
             ) String signature) {
 
         try {
-
-            String rawBody = new String(
-                    body,
-                    StandardCharsets.UTF_8
-            );
+            String rawBody = new String(body, StandardCharsets.UTF_8);
 
             log.info("WhatsApp webhook POST received");
 
@@ -81,7 +83,7 @@ public class WebhookController {
 
             if (company == null) {
                 log.error("Company not found for webhook event");
-                return ResponseEntity.status(404).build();
+                return ResponseEntity.notFound().build();
             }
 
             if (!validSignature(
@@ -92,7 +94,7 @@ public class WebhookController {
                 log.error("Invalid webhook signature for company: {}",
                         company.getCompanyName());
 
-                return ResponseEntity.status(403).build();
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
             log.info("Webhook accepted for company: {}",
@@ -103,9 +105,7 @@ public class WebhookController {
             return ResponseEntity.ok().build();
 
         } catch (Exception e) {
-
             log.error("Webhook controller error", e);
-
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -134,8 +134,7 @@ public class WebhookController {
                         .path("phone_number_id")
                         .asText(null);
 
-                if (phoneNumberId != null
-                        && !phoneNumberId.isBlank()) {
+                if (phoneNumberId != null && !phoneNumberId.isBlank()) {
 
                     Company company = companyRepository
                             .findByWhatsappPhoneNumberId(phoneNumberId)
@@ -160,12 +159,10 @@ public class WebhookController {
                 || !header.startsWith("sha256=")
                 || appSecret == null
                 || appSecret.isBlank()) {
-
             return false;
         }
 
         try {
-
             Mac mac = Mac.getInstance("HmacSHA256");
 
             mac.init(new SecretKeySpec(
@@ -174,9 +171,7 @@ public class WebhookController {
             ));
 
             String expected = "sha256=" +
-                    HexFormat.of().formatHex(
-                            mac.doFinal(payload)
-                    );
+                    HexFormat.of().formatHex(mac.doFinal(payload));
 
             return MessageDigest.isEqual(
                     expected.getBytes(StandardCharsets.UTF_8),
@@ -184,9 +179,7 @@ public class WebhookController {
             );
 
         } catch (Exception e) {
-
             log.error("Signature validation failed", e);
-
             return false;
         }
     }
