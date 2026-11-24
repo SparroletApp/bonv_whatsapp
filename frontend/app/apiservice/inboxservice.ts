@@ -39,6 +39,7 @@ export interface InboxMessage {
 }
 
 export interface InboxTemplateRequest {
+    companyId: number;
     templateId: number;
     templateName: string;
     language: string;
@@ -107,17 +108,17 @@ const inboxService = {
         );
     },
 
-    sendTemplate: (
-        phone: string,
-        request: InboxTemplateRequest
-    ) =>
-        api.post<InboxMessage>(
-            `/inbox/conversations/${encodeURIComponent(phone)}/send-template`,
-            request,
-            {
-                params: { companyId: getCompanyId() },
-            }
-        ),
+   sendTemplate: (
+    phone: string,
+    request: Omit<InboxTemplateRequest, "companyId">
+) =>
+    api.post<InboxMessage>(
+        `/inbox/conversations/${encodeURIComponent(phone)}/send-template`,
+        {
+            ...request,
+            companyId: getCompanyId(),
+        }
+    ),
 
     media: (mediaId: string) =>
         api.get<Blob>(

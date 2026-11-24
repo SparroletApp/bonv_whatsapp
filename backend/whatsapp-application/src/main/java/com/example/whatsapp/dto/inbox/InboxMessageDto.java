@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public record InboxMessageDto(
         Long id,
         String direction,
+
         String text,
         String status,
         String templateName,
