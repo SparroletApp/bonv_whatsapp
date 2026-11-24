@@ -17,15 +17,14 @@ public class CorsConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Allowed frontend and Swagger origins
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
                 "https://bonv-frontend.onrender.com",
+                "https://bonv-whatsapp-1.onrender.com",
                 "https://connect.rayloop.com",
                 "https://connectapi.rayloop.com"
         ));
 
-        // Allowed HTTP methods
         configuration.setAllowedMethods(Arrays.asList(
                 "GET",
                 "POST",
@@ -34,8 +33,6 @@ public class CorsConfig {
                 "DELETE",
                 "OPTIONS"
         ));
-
-        // Allowed headers
         configuration.setAllowedHeaders(Arrays.asList(
                 "Authorization",
                 "Content-Type",
@@ -45,7 +42,6 @@ public class CorsConfig {
                 "x-company-id"
         ));
 
-        // Exposed headers
         configuration.setExposedHeaders(Arrays.asList(
                 "Authorization"
         ));
