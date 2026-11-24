@@ -1136,7 +1136,6 @@ public class TemplateService {
     }
 
 
-
     private static String clean(String value) {
 
         return value == null || value.isBlank()
