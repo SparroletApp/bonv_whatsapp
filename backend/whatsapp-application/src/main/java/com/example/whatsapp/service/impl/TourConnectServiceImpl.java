@@ -80,17 +80,6 @@ public class TourConnectServiceImpl implements TourConnectService {
 
     @Override
     @Transactional(readOnly = true)
-    public TourConnectResponseDto getByCompanyId(Long companyId) {
-
-        TourConnectEntity entity = repository.findByCompanyId(companyId)
-                .orElseThrow(() ->
-                        new RuntimeException("Company connection not found"));
-
-        return convertToDto(entity);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public TourConnectResponseDto getByCompanyId(CompanyIdDto dto) {
 
         if (dto == null || dto.getCompanyId() == null) {
