@@ -21,7 +21,7 @@ public class SwaggerConfig {
     public OpenAPI customOpenAPI() {
 
         Server productionServer = new Server()
-                .url("https://bonv-whatsapp-1.onrender.com/")
+                .url("https://connectapi.rayloop.com/")
                 .description("Production HTTPS Server");
 
         return new OpenAPI()
