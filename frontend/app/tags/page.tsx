@@ -30,20 +30,45 @@ function Category() {
         fetchCategories();
     }, []);
 
+
     const fetchCategories = async () => {
         try {
             setLoading(true);
             setError("");
 
-            const response = await categoryService.getAllCategories();
+            const storedCompanyId = sessionStorage.getItem("companyId");
+
+            if (!storedCompanyId) {
+                throw new Error("Company ID not found. Please login again.");
+            }
+
+            const companyId = Number(storedCompanyId);
+
+            if (!Number.isInteger(companyId) || companyId <= 0) {
+                throw new Error("Invalid Company ID. Please login again.");
+            }
+
+            const response =
+                await categoryService.getCategoriesByCompanyId({
+                    companyId,
+                });
+
             setCategories(response);
-        } catch (err) {
+            setCurrentPage(1);
+
+        } catch (err: unknown) {
             console.error("Category fetch error:", err);
-            setError("Unable to load categories.");
+
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Unable to load categories."
+            );
         } finally {
             setLoading(false);
         }
     };
+
 
     const totalPages = Math.ceil(categories.length / rowsPerPage);
 
@@ -206,32 +231,23 @@ function Category() {
                             ) : (
                                 currentCategories.map((category, index) => (
                                     <tr key={category.id}>
-
-                                        {/* <td className="category-id">
-                                            {startIndex + index + 1}
-                                        </td> */}
                                         <td className="category-id-real">
                                             {category.id}
-
                                         </td>
                                         <td>
                                             <div className="category-name-cell">
                                                 <div className="category-icon">
                                                     <i className="bi bi-collection"></i>
                                                 </div>
-
                                                 <span>{category.categoryName}</span>
                                             </div>
                                         </td>
-
                                         <td>
                                             {formatDate(category.createdAt)}
                                         </td>
-
                                         <td>
                                             {formatDate(category.updatedAt || "")}
                                         </td>
-
                                         <td>
                                             <div className="category-actions">
                                                 <button
@@ -243,13 +259,11 @@ function Category() {
                                                             "broadcastId",
                                                             category.id.toString()
                                                         );
-
                                                         router.push("/tags/view");
                                                     }}
                                                 >
                                                     <i className="bi bi-eye"></i>
                                                 </button>
-
                                                 <button
                                                     type="button"
                                                     title="Edit category"
@@ -261,7 +275,6 @@ function Category() {
                                                 >
                                                     <i className="bi bi-pencil-square"></i>
                                                 </button>
-
                                                 <button
                                                     type="button"
                                                     title="Delete category"

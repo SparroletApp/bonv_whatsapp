@@ -35,4 +35,12 @@ public class ContactEntity extends BaseEntity {
             foreignKey = @ForeignKey(name = "fk_contact_broadcast")
     )
     private BroadCastEntity broadcast;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "company_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_contact_company")
+    )
+    private Company company;
 }

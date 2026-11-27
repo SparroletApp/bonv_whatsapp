@@ -1,3 +1,4 @@
+
 package com.example.whatsapp.controller;
 
 import com.example.whatsapp.dto.userdto.*;
@@ -45,8 +46,15 @@ public class UserController {
     public ResponseEntity<UserResponseDto> getUserById(
             @Valid @RequestBody UserIdDto request) {
 
+        return ResponseEntity.ok(userService.getUserById(request));
+    }
+
+    @PostMapping("/get-by-company-id")
+    public ResponseEntity<List<UserResponseDto>> getUsersByCompanyId(
+            @Valid @RequestBody CompanyIdDto dto) {
+
         return ResponseEntity.ok(
-                userService.getUserById(request)
+                userService.getUsersByCompanyId(dto)
         );
     }
 
@@ -63,8 +71,43 @@ public class UserController {
     public ResponseEntity<String> deleteUser(
             @Valid @RequestBody UserIdDto request) {
 
-        userService.getUserById(request);
+        userService.deleteUser(request);
 
         return ResponseEntity.ok("User deleted successfully");
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(
+            @Valid @RequestBody ForgotPasswordDto request) {
+
+        userService.sendForgotPasswordOtp(request);
+
+        return ResponseEntity.ok(
+                "Password reset OTP sent successfully to your email"
+        );
+    }
+
+    // VERIFY FORGOT PASSWORD OTP
+    @PostMapping("/verify-otp")
+    public ResponseEntity<String> verifyOtp(
+            @Valid @RequestBody VerifyOtpDto request) {
+
+        userService.verifyForgotPasswordOtp(request);
+
+        return ResponseEntity.ok(
+                "OTP verified successfully"
+        );
+    }
+
+    // RESET PASSWORD
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(
+            @Valid @RequestBody ResetPasswordDto request) {
+
+        userService.resetPassword(request);
+
+        return ResponseEntity.ok(
+                "Password reset successfully"
+        );
     }
 }

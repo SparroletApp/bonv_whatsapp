@@ -3,18 +3,18 @@ package com.example.whatsapp.service.impl;
 
 import com.example.whatsapp.dto.broadcastdto.BroadcastAssignContactsDto;
 import com.example.whatsapp.dto.categorydto.CategoryIdDto;
-import com.example.whatsapp.dto.contactdto.ContactCreateDto;
-import com.example.whatsapp.dto.contactdto.ContactIdDto;
-import com.example.whatsapp.dto.contactdto.ContactResponseDto;
-import com.example.whatsapp.dto.contactdto.ContactUpdateDto;
+import com.example.whatsapp.dto.contactdto.*;
 
 import com.example.whatsapp.entity.BroadCastEntity;
 import com.example.whatsapp.entity.CategoryEntity;
+import com.example.whatsapp.entity.Company;
 import com.example.whatsapp.entity.ContactEntity;
 
 import com.example.whatsapp.repository.BroadcastRepository;
 import com.example.whatsapp.repository.CategoryRepository;
+import com.example.whatsapp.repository.CompanyRepository;
 import com.example.whatsapp.repository.ContactRepository;
+
 import com.example.whatsapp.service.ContactService;
 
 import lombok.RequiredArgsConstructor;
@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +34,7 @@ public class ContactServiceImpl implements ContactService {
     private final ContactRepository contactRepository;
     private final CategoryRepository categoryRepository;
     private final BroadcastRepository broadcastRepository;
+    private final CompanyRepository companyRepository;
 
     @Override
     public ContactResponseDto createContact(ContactCreateDto dto) {
@@ -49,6 +49,12 @@ public class ContactServiceImpl implements ContactService {
         }
 
         Long[] categoryIds = validateCategoryIds(dto.getCategoryIds());
+
+        Company company = companyRepository.findById(dto.getCompanyId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Company not found"
+                ));
 
         ContactEntity contact = new ContactEntity();
 
@@ -65,7 +71,10 @@ public class ContactServiceImpl implements ContactService {
                         ? null
                         : dto.getEmail().trim()
         );
+
         contact.setCategoryIds(categoryIds);
+
+        contact.setCompany(company);
 
         ContactEntity savedContact = contactRepository.save(contact);
 
@@ -115,6 +124,12 @@ public class ContactServiceImpl implements ContactService {
 
         Long[] categoryIds = validateCategoryIds(dto.getCategoryIds());
 
+        Company company = companyRepository.findById(dto.getCompanyId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Company not found"
+                ));
+
         contact.setName(
                 dto.getName() == null || dto.getName().isBlank()
                         ? null
@@ -128,7 +143,10 @@ public class ContactServiceImpl implements ContactService {
                         ? null
                         : dto.getEmail().trim()
         );
+
         contact.setCategoryIds(categoryIds);
+
+        contact.setCompany(company);
 
         ContactEntity updatedContact = contactRepository.save(contact);
 
@@ -179,6 +197,22 @@ public class ContactServiceImpl implements ContactService {
         }
 
         contactRepository.saveAll(contacts);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ContactResponseDto> getContactsByCompanyId(ContactCompanyIdDto dto) {
+
+        companyRepository.findById(dto.getCompanyId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Company not found"
+                ));
+
+        return contactRepository.findAllByCompany_Id(dto.getCompanyId())
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
     @Override
@@ -261,20 +295,12 @@ public class ContactServiceImpl implements ContactService {
 
         response.setCategoryIds(categoryIds);
 
-        List<CategoryEntity> categories =
-                categoryRepository.findAllById(categoryIds);
-
-        Map<Long, String> categoryNameMap = categories.stream()
-                .collect(Collectors.toMap(
-                        CategoryEntity::getId,
-                        CategoryEntity::getCategoryName
-                ));
-
-        List<String> categoryNames = categoryIds.stream()
-                .map(categoryNameMap::get)
-                .filter(Objects::nonNull)
-                .toList();
-
+        // Return company ID
+        response.setCompanyId(
+                contact.getCompany() != null
+                        ? contact.getCompany().getId()
+                        : null
+        );
 
         response.setCreatedAt(contact.getCreatedAt());
         response.setUpdatedAt(contact.getUpdatedAt());

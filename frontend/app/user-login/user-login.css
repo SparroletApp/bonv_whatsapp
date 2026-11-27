@@ -29,6 +29,29 @@
     overflow: hidden;
 }
 
+.login-forgot-password {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: -10px;
+    margin-bottom: 22px;
+}
+
+.login-forgot-password button {
+    border: none;
+    background: transparent;
+    color: #064e45;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: 0.2s ease;
+}
+
+.login-forgot-password button:hover {
+    color: #043c35;
+    text-decoration: underline;
+}
+
 .brand-icon i{
     color: #064e45;
 }

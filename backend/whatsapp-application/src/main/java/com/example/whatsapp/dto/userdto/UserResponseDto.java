@@ -10,18 +10,14 @@ import java.time.LocalDateTime;
 public class UserResponseDto {
 
     private Long id;
-
     private String name;
-
     private String email;
-
     private String phone;
-
+    private Long companyId;
+    private String companyName;
     private String role;
-
+    private String password;
     private Boolean status;
-
     private LocalDateTime createdAt;
-
     private LocalDateTime updatedAt;
 }

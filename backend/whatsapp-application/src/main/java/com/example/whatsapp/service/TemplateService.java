@@ -1,11 +1,14 @@
+
 package com.example.whatsapp.service;
 
 import com.example.whatsapp.client.WhatsappClient;
 import com.example.whatsapp.dto.whatsappdto.TemplateButtonDto;
 import com.example.whatsapp.dto.whatsappdto.TemplateCreateRequestDto;
 import com.example.whatsapp.dto.whatsappdto.TemplateResponse;
+import com.example.whatsapp.entity.Company;
 import com.example.whatsapp.entity.TemplateEntity;
 import com.example.whatsapp.entity.TemplateMediaSampleEntity;
+import com.example.whatsapp.repository.CompanyRepository;
 import com.example.whatsapp.repository.TemplateMediaSampleRepository;
 import com.example.whatsapp.repository.TemplateRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -26,10 +29,8 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-
 import java.util.Set;
 import java.util.TreeSet;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -75,33 +76,52 @@ public class TemplateService {
     private final WhatsappClient client;
     private final ObjectMapper mapper;
     private final GarageStorageService garageStorage;
+    private final CompanyRepository companyRepository;
+
+
+    // =========================================================
+    // UPLOAD TEMPLATE IMAGE
+    // =========================================================
 
     public String uploadMediaSample(
+            Long companyId,
             String type,
             MultipartFile file
     ) throws IOException {
+
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Company not found: " + companyId)
+                );
+
         if (type == null || !"IMAGE".equalsIgnoreCase(type.trim())) {
             throw new IllegalArgumentException(
                     "Only IMAGE uploads are supported"
             );
         }
+
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException(
                     "Please select an image file"
             );
         }
+
         String mimeType = file.getContentType();
+
         if (mimeType == null || !IMAGE_MIME_TYPES.contains(mimeType)) {
             throw new IllegalArgumentException(
                     "Image must be JPG or PNG"
             );
         }
+
         if (file.getSize() > MAX_IMAGE_SIZE) {
             throw new IllegalArgumentException(
                     "Image exceeds the maximum size of 5 MB"
             );
         }
+
         String filename = file.getOriginalFilename();
+
         filename = (filename == null || filename.isBlank())
                 ? "template-sample.jpg"
                 : filename.replaceAll("[^a-zA-Z0-9._-]", "_");
@@ -110,15 +130,20 @@ public class TemplateService {
                 file,
                 "template-media"
         );
+
         log.info("Image successfully saved in Garage: {}", objectKey);
 
         String publicUrl = garageStorage.getPublicUrl(objectKey);
 
         String handle;
+
         try {
+
             validatePublicMediaUrl(publicUrl);
 
+            // Use the selected company's WhatsApp credentials
             handle = client.uploadTemplateSample(
+                    company,
                     file.getBytes(),
                     mimeType,
                     filename
@@ -129,19 +154,28 @@ public class TemplateService {
                         "Meta did not return a valid media handle"
                 );
             }
+
         } catch (RuntimeException | IOException ex) {
+
             try {
                 garageStorage.deleteImage(objectKey);
             } catch (Exception cleanupEx) {
-                log.warn("Could not clean up Garage object {}", objectKey, cleanupEx);
+                log.warn(
+                        "Could not clean up Garage object {}",
+                        objectKey,
+                        cleanupEx
+                );
             }
+
             throw ex;
         }
 
         TemplateMediaSampleEntity sample = new TemplateMediaSampleEntity();
+
         sample.setMetaHandle(handle);
         sample.setObjectKey(objectKey);
         sample.setPublicUrl(publicUrl);
+
         sampleRepo.save(sample);
 
         log.info(
@@ -152,9 +186,25 @@ public class TemplateService {
         return handle;
     }
 
-    public TemplateResponse create(TemplateCreateRequestDto r) {
 
-        log.info("Starting WhatsApp template creation");
+    // =========================================================
+    // CREATE TEMPLATE
+    // =========================================================
+
+    public TemplateResponse create(
+            Long companyId,
+            TemplateCreateRequestDto r
+    ) {
+
+        log.info("Starting WhatsApp template creation for company: {}", companyId);
+
+        // Fetch company BEFORE calling Meta
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Company not found: " + companyId
+                        )
+                );
 
         if (r == null) {
             throw new IllegalArgumentException(
@@ -306,7 +356,11 @@ public class TemplateService {
             );
         }
 
-        if (repo.existsByNameAndLanguage(name, language)) {
+        if (repo.existsByNameAndLanguageAndCompany_Id(
+                name,
+                language,
+                companyId
+        )) {
             throw new IllegalArgumentException(
                     "A template with this name and language already exists"
             );
@@ -500,17 +554,18 @@ public class TemplateService {
         }
 
         log.info(
-                "Creating Meta template. Name: {}, Header: {}",
+                "Creating Meta template. Name: {}, Header: {}, Company: {}",
                 name,
-                headerType
+                headerType,
+                companyId
         );
-
 
         JsonNode metaResponse;
 
         try {
 
-            metaResponse = client.createTemplate(payload);
+            // IMPORTANT: Use company-specific credentials
+            metaResponse = client.createTemplate(company, payload);
 
             log.info(
                     "Meta template response: {}",
@@ -534,8 +589,10 @@ public class TemplateService {
             );
         }
 
-
+        // Company is already fetched above. Do not declare it again.
         TemplateEntity entity = new TemplateEntity();
+
+        entity.setCompany(company);
 
         entity.setName(name);
         entity.setLanguage(language);
@@ -605,18 +662,26 @@ public class TemplateService {
         }
 
         if (mediaHeader) {
-            // The Garage object stays: the template's headerMediaUrl points to it.
-            // Only the temporary handle -> URL mapping is removed.
+
+            // Keep the Garage object; remove only the temporary mapping.
             try {
                 sampleRepo.deleteById(mediaHandle);
             } catch (Exception ex) {
-                log.warn("Could not remove media sample mapping {}", mediaHandle, ex);
+                log.warn(
+                        "Could not remove media sample mapping {}",
+                        mediaHandle,
+                        ex
+                );
             }
         }
 
         return response;
     }
 
+
+    // =========================================================
+    // VALIDATE PUBLIC MEDIA URL
+    // =========================================================
 
     private void validatePublicMediaUrl(String mediaUrl) {
 
@@ -649,12 +714,27 @@ public class TemplateService {
     }
 
 
+    // =========================================================
+    // SYNC TEMPLATES FROM META
+    // =========================================================
+
     @Transactional
-    public List<TemplateResponse> sync() {
+    public List<TemplateResponse> sync(Long companyId) {
 
-        log.info("Starting template synchronization from Meta");
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Company not found: " + companyId
+                        )
+                );
 
-        ArrayNode templates = client.listTemplates();
+        log.info(
+                "Starting template synchronization for company: {}",
+                companyId
+        );
+
+        // IMPORTANT: Use selected company's credentials
+        ArrayNode templates = client.listTemplates(company);
 
         if (templates == null) {
             throw new RuntimeException(
@@ -671,22 +751,24 @@ public class TemplateService {
             String language = template.path("language").asText("");
 
             if (name.isBlank() || language.isBlank()) {
-
                 log.warn(
                         "Skipping template with missing name or language: {}",
                         template
                 );
-
                 skipped++;
                 continue;
             }
 
             try {
 
-                TemplateEntity entity = repo
-                        .findByNameAndLanguage(name, language)
-                        .orElseGet(TemplateEntity::new);
+                TemplateEntity entity =
+                        repo.findByNameAndLanguageAndCompany_Id(
+                                name,
+                                language,
+                                companyId
+                        ).orElseGet(TemplateEntity::new);
 
+                entity.setCompany(company);
                 entity.setName(name);
                 entity.setLanguage(language);
 
@@ -710,6 +792,7 @@ public class TemplateService {
 
                 String keepHandle = entity.getHeaderMediaHandle();
                 String keepUrl = entity.getHeaderMediaUrl();
+
                 entity.setHeaderType("NONE");
                 entity.setHeaderText(null);
                 entity.setHeaderMediaHandle(null);
@@ -735,20 +818,15 @@ public class TemplateService {
 
                             entity.setHeaderType(format);
 
-                            if (format.equals("TEXT")) {
-
+                            if ("TEXT".equals(format)) {
                                 entity.setHeaderText(
-                                        component.path("text")
-                                                .asText(null)
+                                        component.path("text").asText(null)
                                 );
-
                             } else {
-
                                 entity.setHeaderText(null);
                             }
 
                             if (MEDIA_TYPES.contains(format)) {
-
                                 entity.setHeaderMediaHandle(keepHandle);
                                 entity.setHeaderMediaUrl(keepUrl);
                             }
@@ -774,7 +852,6 @@ public class TemplateService {
                 );
 
                 repo.save(entity);
-
                 synced++;
 
             } catch (Exception ex) {
@@ -791,53 +868,79 @@ public class TemplateService {
         }
 
         log.info(
-                "Template synchronization completed. Synced: {}, skipped: {}",
+                "Template synchronization completed. Company: {}, Synced: {}, Skipped: {}",
+                companyId,
                 synced,
                 skipped
         );
 
-        return list(null);
+        return list(companyId, null);
     }
 
-    @Transactional
-    public List<TemplateResponse> listFromMeta(String status) {
 
-        ArrayNode templates = client.listTemplates();
+
+    @Transactional
+    public List<TemplateResponse> listFromMeta(
+            Long companyId,
+            String status
+    ) {
+
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Company not found: " + companyId
+                        )
+                );
+        ArrayNode templates = client.listTemplates(company);
 
         if (templates == null) {
-            throw new RuntimeException("Meta returned an empty template response");
+            throw new RuntimeException(
+                    "Meta returned an empty template response"
+            );
         }
 
         Set<String> metaIds = new HashSet<>();
 
-        for (JsonNode t : templates) {
-            String id = t.path("id").asText(null);
+        for (JsonNode template : templates) {
+
+            String id = template.path("id").asText(null);
+
             if (id != null && !id.isBlank()) {
                 metaIds.add(id);
             }
         }
 
         if (!metaIds.isEmpty()) {
-            List<TemplateEntity> stale = repo.findAll().stream()
-                    .filter(t -> t.getMetaTemplateId() == null
-                            || !metaIds.contains(t.getMetaTemplateId()))
-                    .toList();
+
+            List<TemplateEntity> stale =
+                    repo.findAllByCompany_IdOrderByCreatedAtDesc(companyId)
+                            .stream()
+                            .filter(template ->
+                                    template.getMetaTemplateId() == null
+                                            || !metaIds.contains(
+                                            template.getMetaTemplateId()
+                                    )
+                            )
+                            .toList();
 
             repo.deleteAll(stale);
         }
+        sync(companyId);
 
-        sync();
-
-        return list(status);
+        return list(companyId, status);
     }
 
     @Transactional(readOnly = true)
-    public List<TemplateResponse> list(String status) {
+    public List<TemplateResponse> list(
+            Long companyId,
+            String status
+    ) {
 
         List<TemplateEntity> items =
-                (status == null || status.isBlank())
-                        ? repo.findAllByOrderByCreatedAtDesc()
-                        : repo.findByStatusOrderByCreatedAtDesc(
+                status == null || status.isBlank()
+                        ? repo.findAllByCompany_IdOrderByCreatedAtDesc(companyId)
+                        : repo.findByCompany_IdAndStatusOrderByCreatedAtDesc(
+                        companyId,
                         status.toUpperCase()
                 );
 
@@ -850,29 +953,56 @@ public class TemplateService {
 
     @Transactional
     public void applyWebhookStatus(
+            String wabaId,
             String metaId,
             String name,
             String event,
             String reason
     ) {
 
+        if (wabaId == null || wabaId.isBlank()) {
+            log.warn("WABA ID is missing in template webhook");
+            return;
+        }
+
+        Company company = companyRepository
+                .findByWhatsappBusinessAccountId(wabaId)
+                .orElse(null);
+
+        if (company == null) {
+            log.warn("Company not found for WABA ID: {}", wabaId);
+            return;
+        }
+
+        Long companyId = company.getId();
+
         log.info(
-                "Updating template status. Meta ID: {}, Name: {}, Event: {}",
+                "Updating template status. Company ID: {}, Meta ID: {}, Name: {}, Event: {}",
+                companyId,
                 metaId,
                 name,
                 event
         );
 
-        TemplateEntity entity = metaId == null
-                ? null
-                : repo.findByMetaTemplateId(metaId).orElse(null);
+        List<TemplateEntity> targets;
 
-        List<TemplateEntity> targets =
-                entity != null
-                        ? List.of(entity)
-                        : (name == null
-                        ? List.of()
-                        : repo.findByName(name));
+        if (metaId != null && !metaId.isBlank()) {
+
+            TemplateEntity entity = repo
+                    .findByMetaTemplateIdAndCompany_Id(metaId, companyId)
+                    .orElse(null);
+
+            targets = entity != null
+                    ? List.of(entity)
+                    : List.of();
+
+        } else if (name != null && !name.isBlank()) {
+
+            targets = repo.findByNameAndCompany_Id(name, companyId);
+
+        } else {
+            targets = List.of();
+        }
 
         for (TemplateEntity template : targets) {
 
@@ -986,6 +1116,10 @@ public class TemplateService {
                 : value.trim();
     }
 
+
+    // =========================================================
+    // MAP ENTITY TO RESPONSE
+    // =========================================================
 
     private TemplateResponse map(TemplateEntity entity) {
 

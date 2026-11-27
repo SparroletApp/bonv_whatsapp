@@ -25,4 +25,10 @@ public class UserCreateDto {
 
     @Size(max = 20)
     private String phone;
+
+    @NotBlank(message = "Role is required")
+    @Size(max = 30, message = "Role cannot exceed 30 characters")
+    private String role;
+
+    private Long companyId;
 }

@@ -54,11 +54,11 @@ garage:
 
 whatsapp:
   cloud:
-    app-id: ${WHATSAPP_APP_ID}
-    access-token: ${WHATSAPP_ACCESS_TOKEN}
-    phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID}
-    business-account-id: ${WHATSAPP_BUSINESS_ACCOUNT_ID}
-    app-secret: ${WHATSAPP_APP_SECRET}
+#    app-id: ${WHATSAPP_APP_ID}
+#    access-token: ${WHATSAPP_ACCESS_TOKEN}
+#    phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID}
+#    business-account-id: ${WHATSAPP_BUSINESS_ACCOUNT_ID}
+#    app-secret: ${WHATSAPP_APP_SECRET}
     verify-token: ${WHATSAPP_VERIFY_TOKEN}
     api-version: ${WHATSAPP_API_VERSION}
     base-url: https://graph.facebook.com

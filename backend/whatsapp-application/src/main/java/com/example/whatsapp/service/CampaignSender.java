@@ -2,6 +2,7 @@ package com.example.whatsapp.service;
 
 import com.example.whatsapp.client.WhatsappClient;
 import com.example.whatsapp.entity.CampaignEntity;
+import com.example.whatsapp.entity.Company;
 import com.example.whatsapp.entity.WhatsappEntity;
 import com.example.whatsapp.repository.CampaignRepository;
 import com.example.whatsapp.repository.WhatsappRepository;
@@ -45,13 +46,23 @@ public class CampaignSender {
                         m.getTemplateParams() == null ? "[]" : m.getTemplateParams(),
                         new TypeReference<List<String>>() {});
 
+                Company company = m.getCompany();
+
+                if (company == null) {
+                    throw new IllegalStateException(
+                            "Company is missing for WhatsApp message ID: " + m.getId()
+                    );
+                }
+
                 String wamid = client.sendTemplate(
+                        company,
                         m.getRecipientPhone(),
                         m.getTemplateName(),
                         m.getLanguageCode(),
                         params,
                         m.getHeaderType(),
-                        m.getHeaderMediaUrl());
+                        m.getHeaderMediaUrl()
+                );
 
                 m.setWhatsappMessageId(wamid);
                 m.setStatus("SENT");

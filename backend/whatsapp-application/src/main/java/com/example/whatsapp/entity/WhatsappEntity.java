@@ -29,7 +29,7 @@ public class WhatsappEntity {
     private String templateName;
 
     @Column(nullable = false, length = 30)
-    private String status = "PENDING";   // PENDING, PROCESSING, SENT, DELIVERED, READ, FAILED, RECEIVED
+    private String status = "PENDING";
 
     @Column(length = 255)
     private String whatsappMessageId;
@@ -39,8 +39,13 @@ public class WhatsappEntity {
 
     private LocalDateTime sentAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
+
+
     @Column(nullable = false, length = 10)
-    private String direction = "OUTBOUND";   // OUTBOUND / INBOUND
+    private String direction = "OUTBOUND";
 
     private Long campaignId;
 

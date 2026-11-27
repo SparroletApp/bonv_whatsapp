@@ -6,4 +6,7 @@ public record CampaignResponse(Long id, String name, String templateName, String
                                long total, long pending, long sent, long delivered, long read,
                                long failed, long replied,
                                LocalDateTime createdAt, LocalDateTime completedAt,
-                               LocalDateTime scheduledAt) {}
+                               LocalDateTime scheduledAt,
+                               Long companyId
+)
+{}

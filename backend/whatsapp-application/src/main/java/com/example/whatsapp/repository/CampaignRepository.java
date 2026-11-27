@@ -13,15 +13,13 @@ import java.util.List;
 public interface CampaignRepository extends JpaRepository<CampaignEntity, Long> {
 
     List<CampaignEntity> findAllByOrderByCreatedAtDesc();
-
-    // Campaigns waiting to be sent whose time has arrived
     List<CampaignEntity> findByStatusAndScheduledAtLessThanEqual(String status, LocalDateTime now);
-
-    // Flips SCHEDULED -> RUNNING. Returns 1 only for the caller that wins,
-    // so a campaign can never be started twice.
     @Transactional
     @Modifying(clearAutomatically = true)
     @Query("update CampaignEntity c set c.status = 'RUNNING', c.startedAt = :now " +
             "where c.id = :id and c.status = 'SCHEDULED'")
     int claim(@Param("id") Long id, @Param("now") LocalDateTime now);
+
+
+    List<CampaignEntity> findAllByCompany_IdOrderByCreatedAtDesc(Long companyId);
 }

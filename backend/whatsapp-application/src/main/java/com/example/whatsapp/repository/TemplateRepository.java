@@ -1,3 +1,4 @@
+
 package com.example.whatsapp.repository;
 
 import com.example.whatsapp.entity.TemplateEntity;
@@ -8,17 +9,34 @@ import java.util.Optional;
 
 public interface TemplateRepository extends JpaRepository<TemplateEntity, Long> {
 
-    List<TemplateEntity> findAllByOrderByCreatedAtDesc();
+    List<TemplateEntity> findAllByCompany_IdOrderByCreatedAtDesc(Long companyId);
 
-    List<TemplateEntity> findByStatusOrderByCreatedAtDesc(String status);
+    List<TemplateEntity> findByCompany_IdAndStatusOrderByCreatedAtDesc(
+            Long companyId,
+            String status
+    );
 
-    boolean existsByNameAndLanguage(String name, String language);
+    boolean existsByNameAndLanguageAndCompany_Id(
+            String name,
+            String language,
+            Long companyId
+    );
 
-    Optional<TemplateEntity> findByNameAndLanguage(String name, String language);
+    Optional<TemplateEntity> findByNameAndLanguageAndCompany_Id(
+            String name,
+            String language,
+            Long companyId
+    );
 
-    Optional<TemplateEntity> findByMetaTemplateId(String metaTemplateId);
+    Optional<TemplateEntity> findByMetaTemplateIdAndCompany_Id(
+            String metaTemplateId,
+            Long companyId
+    );
 
-    List<TemplateEntity> findByName(String name);
+    List<TemplateEntity> findByNameAndCompany_Id(
+            String name,
+            Long companyId
+    );
 
     Optional<TemplateEntity> findByHeaderMediaHandle(String headerMediaHandle);
 }

@@ -15,7 +15,7 @@ public interface ContactService {
     ContactResponseDto getContactById(ContactIdDto dto);
 
     ContactResponseDto updateContact(ContactUpdateDto dto);
-
+    List<ContactResponseDto> getContactsByCompanyId(ContactCompanyIdDto dto);
     void deleteContact(ContactIdDto dto);
     void assignContactsToBroadcast(BroadcastAssignContactsDto dto);
     List<ContactResponseDto> getContactsByBroadcastId(Long broadcastId);

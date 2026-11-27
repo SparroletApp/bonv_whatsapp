@@ -9,6 +9,9 @@ import campaignService, {
 import { apiError } from "@/app/utils/apiError";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import TourLogin from "../component/tourloginmodal";
+import TourList, { Tour } from "../component/tourlist";
+import FormSubmissionList from "../component/FormSubmissionList";
 
 const STATUSES = ["ALL", "RUNNING", "COMPLETED", "FAILED"];
 const MSG_FILTERS = ["ALL", "PENDING", "SENT", "DELIVERED", "READ", "FAILED"];
@@ -16,12 +19,12 @@ const MSG_FILTERS = ["ALL", "PENDING", "SENT", "DELIVERED", "READ", "FAILED"];
 const fmt = (d: string | null) =>
     d
         ? new Date(d).toLocaleString(undefined, {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-          })
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        })
         : "-";
 
 export default function CampaignsPage() {
@@ -34,10 +37,52 @@ export default function CampaignsPage() {
     const [msgs, setMsgs] = useState<CampaignMessage[]>([]);
     const [msgFilter, setMsgFilter] = useState("ALL");
     const [resuming, setResuming] = useState(false);
+    const [showTourList, setShowTourList] = useState(false);
+    const [selectedTour, setSelectedTour] = useState<Tour | null>(null);
+    const [showTmsLogin, setShowTmsLogin] = useState(false);
+    const [tmsEmail, setTmsEmail] = useState("");
+    const [tmsPassword, setTmsPassword] = useState("");
+    const [tmsLoading, setTmsLoading] = useState(false);
+    const [tmsError, setTmsError] = useState("");
+
+    const [showFormSubmissions, setShowFormSubmissions] = useState(false);
+    const [tmsConnected, setTmsConnected] = useState(false);
+
+    useEffect(() => {
+        const checkTmsConnection = () => {
+            const connected =
+                sessionStorage.getItem("tms_connected") === "true" &&
+                !!sessionStorage.getItem("tms_access_token");
+
+            setTmsConnected(connected);
+        };
+
+        checkTmsConnection();
+    }, []);
+
+    const getCompanyId = (): number | null => {
+        const storedCompanyId = sessionStorage.getItem("companyId");
+
+        if (!storedCompanyId) return null;
+
+        const id = Number(storedCompanyId);
+
+        return Number.isInteger(id) && id > 0 ? id : null;
+    };
 
     const loadList = async () => {
         try {
-            setItems(await campaignService.list());
+            const companyId = getCompanyId();
+
+            if (!companyId) {
+                setItems([]);
+                setError("Company ID not found. Please login again.");
+                return;
+            }
+
+            const response = await campaignService.getByCompanyId(companyId);
+
+            setItems(response);
             setError("");
         } catch (e) {
             setError(apiError(e));
@@ -61,7 +106,7 @@ export default function CampaignsPage() {
             campaignService
                 .messages(selectedId)
                 .then(setMsgs)
-                .catch(() => {});
+                .catch(() => { });
         };
 
         loadMessages();
@@ -104,9 +149,7 @@ export default function CampaignsPage() {
     };
 
     const stats = useMemo(() => {
-        const sum = (
-            fn: (c: CampaignResponse) => number
-        ) =>
+        const sum = (fn: (c: CampaignResponse) => number) =>
             items.reduce(
                 (total, c) => total + (fn(c) || 0),
                 0
@@ -187,336 +230,378 @@ export default function CampaignsPage() {
     const pct = (c: CampaignResponse) =>
         c.total
             ? Math.round(
-                  ((c.total - c.pending) / c.total) * 100
-              )
+                ((c.total - c.pending) / c.total) * 100
+            )
             : 0;
 
     return (
-        <div className="cmp-page">
-            <div className="cmp-top">
-                <h1 style={{ margin: 0 }}>Campaigns</h1>
+        <>
+            <div className="cmp-page">
+                <div className="cmp-top">
+                    <h1 style={{ margin: 0 }}>Campaigns</h1>
 
-                <Link
-                    href="/campaign/create"
-                    className="cmp-btn"
-                >
-                    + Create campaign
-                </Link>
-            </div>
+                    <div className="cmp-top-actions">
+                        <button
+                            className="cmp-btn cmp-tms-btn"
+                            onClick={() => {
+                                if (tmsConnected) {
+                                    setShowTourList(true);
+                                } else {
+                                    setShowTmsLogin(true);
+                                }
+                            }}
+                        >
+                            <i className="bi bi-link-45deg"></i>
 
-            {error && (
-                <div className="cmp-alert">
-                    {error}
-                </div>
-            )}
+                            {tmsConnected ? "Select Tours" : "Connect TMS"}
+                        </button>
 
-            <div className="cmp-cards">
-                {cards.map((card) => (
-                    <div
-                        className={`cmp-card cmp-tone-${card.tone}`}
-                        key={card.label}
-                    >
-                        <span className="cmp-card-label">
-                            {card.label}
-                        </span>
-
-                        <b>{card.value}</b>
-
-                        <small>{card.hint}</small>
+                        <Link href="/campaign/create" className="cmp-btn">
+                            + Create campaign
+                        </Link>
                     </div>
-                ))}
-            </div>
+                </div>
 
-            <div className="cmp-list-head">
-                <input
-                    className="cmp-search"
-                    placeholder="Search campaign or template…"
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                />
+                {error && (
+                    <div className="cmp-alert">
+                        {error}
+                    </div>
+                )}
 
-                <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                >
-                    {STATUSES.map((s) => (
-                        <option key={s} value={s}>
-                            {s}
-                        </option>
+                <div className="cmp-cards">
+                    {cards.map((card) => (
+                        <div
+                            className={`cmp-card cmp-tone-${card.tone}`}
+                            key={card.label}
+                        >
+                            <span className="cmp-card-label">
+                                {card.label}
+                            </span>
+
+                            <b>{card.value}</b>
+
+                            <small>{card.hint}</small>
+                        </div>
                     ))}
-                </select>
-            </div>
+                </div>
 
-            <div className="cmp-table-wrap">
-                <table className="cmp-table">
-                    <thead>
-                        <tr>
-                            <th>Campaign</th>
-                            <th>Template</th>
-                            <th>Status</th>
-                            <th>Progress</th>
-                            <th>Total</th>
-                            <th>Sent</th>
-                            <th>Unread</th>
-                            <th>Read</th>
-                            <th>Replies</th>
-                            <th>Failed</th>
-                            <th>Launch time</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {loading && (
-                            <tr>
-                                <td colSpan={11} className="cmp-empty">
-                                    Loading…
-                                </td>
-                            </tr>
-                        )}
-
-                        {!loading && shown.length === 0 && (
-                            <tr>
-                                <td colSpan={11} className="cmp-empty">
-                                    No campaigns yet.{" "}
-                                    <Link href="/campaign/create">
-                                        Create your first campaign
-                                    </Link>
-                                </td>
-                            </tr>
-                        )}
-
-                        {shown.map((c) => (
-                            <tr
-                                key={c.id}
-                                className={`cmp-row ${
-                                    selectedId === c.id ? "on" : ""
-                                }`}
-                                onClick={() => open(c)}
-                            >
-                                <td>
-                                    <strong>{c.name}</strong>
-                                </td>
-
-                                <td className="cmp-mono">
-                                    {c.templateName}
-                                </td>
-
-                                <td>
-                                    <span
-                                        className={`cmp-badge cmp-${c.status.toLowerCase()}`}
-                                    >
-                                        {c.status}
-                                    </span>
-                                </td>
-
-                                <td>
-                                    <div className="cmp-mini">
-                                        <div
-                                            style={{
-                                                width: `${pct(c)}%`,
-                                            }}
-                                        />
-                                    </div>
-                                    <small>{pct(c)}%</small>
-                                </td>
-
-                                <td>{c.total}</td>
-                                <td>{c.sent}</td>
-                                <td>{c.sent - c.read}</td>
-                                <td>{c.read}</td>
-                                <td>{c.replied}</td>
-
-                                <td className={c.failed ? "cmp-err" : ""}>
-                                    {c.failed}
-                                </td>
-
-                                <td className="cmp-mono">
-                                    {fmt(c.createdAt)}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {selected && (
-                <>
-                    <div
-                        className="cmp-overlay"
-                        onClick={close}
+                <div className="cmp-list-head">
+                    <input
+                        className="cmp-search"
+                        placeholder="Search campaign or template…"
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
                     />
 
-                    <aside className="cmp-drawer">
-                        <header className="cmp-drawer-head">
-                            <div>
-                                <h2>{selected.name}</h2>
+                    <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                    >
+                        {STATUSES.map((s) => (
+                            <option key={s} value={s}>
+                                {s}
+                            </option>
+                        ))}
+                    </select>
+                </div>
 
-                                <span
-                                    className={`cmp-badge cmp-${selected.status.toLowerCase()}`}
+                <div className="cmp-table-wrap">
+                    <table className="cmp-table">
+                        <thead>
+                            <tr>
+                                <th>Campaign</th>
+                                <th>Template</th>
+                                <th>Status</th>
+                                <th>Progress</th>
+                                <th>Total</th>
+                                <th>Sent</th>
+                                <th>Unread</th>
+                                <th>Read</th>
+                                <th>Replies</th>
+                                <th>Failed</th>
+                                <th>Launch time</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {loading && (
+                                <tr>
+                                    <td colSpan={11} className="cmp-empty">
+                                        Loading…
+                                    </td>
+                                </tr>
+                            )}
+
+                            {!loading && shown.length === 0 && (
+                                <tr>
+                                    <td colSpan={11} className="cmp-empty">
+                                        No campaigns yet.{" "}
+                                        <Link href="/campaign/create">
+                                            Create your first campaign
+                                        </Link>
+                                    </td>
+                                </tr>
+                            )}
+
+                            {shown.map((c) => (
+                                <tr
+                                    key={c.id}
+                                    className={`cmp-row ${selectedId === c.id ? "on" : ""
+                                        }`}
+                                    onClick={() => open(c)}
                                 >
-                                    {selected.status}
-                                </span>
+                                    <td>
+                                        <strong>{c.name}</strong>
+                                    </td>
 
-                                <p className="cmp-sub">
-                                    Template:{" "}
-                                    <strong>
-                                        {selected.templateName}
-                                    </strong>
-                                    {" · "}
-                                    Created {fmt(selected.createdAt)}
-                                </p>
+                                    <td className="cmp-mono">
+                                        {c.templateName}
+                                    </td>
 
-                                <p className="cmp-sub">
-                                    Launch time:{" "}
-                                    <strong>
-                                        {fmt(selected.createdAt)}
-                                    </strong>
-                                </p>
-                            </div>
-
-                            <button
-                                className="cmp-close"
-                                onClick={close}
-                                aria-label="Close"
-                            >
-                                ✕
-                            </button>
-                        </header>
-
-                        <div className="cmp-drawer-body">
-                            <div className="cmp-progress">
-                                <div
-                                    style={{
-                                        width: `${pct(selected)}%`,
-                                    }}
-                                />
-                            </div>
-
-                            <p className="cmp-sub">
-                                {pct(selected)}% processed ·{" "}
-                                {selected.pending} pending
-
-                                {selected.pending > 0 &&
-                                    selected.status !== "RUNNING" &&
-                                    selected.status !== "COMPLETED" && (
-                                        <button
-                                            className="cmp-link"
-                                            disabled={resuming}
-                                            onClick={resume}
+                                    <td>
+                                        <span
+                                            className={`cmp-badge cmp-${c.status.toLowerCase()}`}
                                         >
-                                            {resuming
-                                                ? "Resuming…"
-                                                : "Resume sending"}
-                                        </button>
-                                    )}
-                            </p>
+                                            {c.status}
+                                        </span>
+                                    </td>
 
-                            <div className="cmp-mini-cards">
+                                    <td>
+                                        <div className="cmp-mini">
+                                            <div
+                                                style={{
+                                                    width: `${pct(c)}%`,
+                                                }}
+                                            />
+                                        </div>
+                                        <small>{pct(c)}%</small>
+                                    </td>
+
+                                    <td>{c.total}</td>
+                                    <td>{c.sent}</td>
+                                    <td>{c.sent - c.read}</td>
+                                    <td>{c.read}</td>
+                                    <td>{c.replied}</td>
+
+                                    <td className={c.failed ? "cmp-err" : ""}>
+                                        {c.failed}
+                                    </td>
+
+                                    <td className="cmp-mono">
+                                        {fmt(c.createdAt)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {selected && (
+                    <>
+                        <div
+                            className="cmp-overlay"
+                            onClick={close}
+                        />
+
+                        <aside className="cmp-drawer">
+                            <header className="cmp-drawer-head">
                                 <div>
-                                    <b>{selected.total}</b>
-                                    <span>Total</span>
+                                    <h2>{selected.name}</h2>
+
+                                    <span
+                                        className={`cmp-badge cmp-${selected.status.toLowerCase()}`}
+                                    >
+                                        {selected.status}
+                                    </span>
+
+                                    <p className="cmp-sub">
+                                        Template:{" "}
+                                        <strong>{selected.templateName}</strong>
+                                        {" · "}
+                                        Created {fmt(selected.createdAt)}
+                                    </p>
+
+                                    <p className="cmp-sub">
+                                        Launch time:{" "}
+                                        <strong>{fmt(selected.createdAt)}</strong>
+                                    </p>
                                 </div>
 
-                                <div>
-                                    <b>{selected.sent}</b>
-                                    <span>Sent</span>
-                                </div>
-
-                                <div>
-                                    <b>{selected.sent - selected.read}</b>
-                                    <span>Unread</span>
-                                </div>
-
-                                <div>
-                                    <b>{selected.read}</b>
-                                    <span>Read</span>
-                                </div>
-
-                                <div>
-                                    <b>{selected.replied}</b>
-                                    <span>Replies</span>
-                                </div>
-
-                                <div>
-                                    <b>{selected.failed}</b>
-                                    <span>Failed</span>
-                                </div>
-                            </div>
-
-                            <div className="cmp-list-head">
-                                <h3>Recipients</h3>
-
-                                <select
-                                    value={msgFilter}
-                                    onChange={(e) =>
-                                        setMsgFilter(e.target.value)
-                                    }
+                                <button
+                                    className="cmp-close"
+                                    onClick={close}
+                                    aria-label="Close"
                                 >
-                                    {MSG_FILTERS.map((s) => (
-                                        <option key={s} value={s}>
-                                            {s}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                                    ✕
+                                </button>
+                            </header>
 
-                            <div className="cmp-table-wrap">
-                                <table className="cmp-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Phone</th>
-                                            <th>Status</th>
-                                            <th>Sent</th>
-                                            <th>Error</th>
-                                        </tr>
-                                    </thead>
+                            <div className="cmp-drawer-body">
+                                <div className="cmp-progress">
+                                    <div
+                                        style={{
+                                            width: `${pct(selected)}%`,
+                                        }}
+                                    />
+                                </div>
 
-                                    <tbody>
-                                        {shownMsgs.length === 0 && (
-                                            <tr>
-                                                <td
-                                                    colSpan={5}
-                                                    className="cmp-empty"
-                                                >
-                                                    No messages
-                                                </td>
-                                            </tr>
+                                <p className="cmp-sub">
+                                    {pct(selected)}% processed ·{" "}
+                                    {selected.pending} pending
+
+                                    {selected.pending > 0 &&
+                                        selected.status !== "RUNNING" &&
+                                        selected.status !== "COMPLETED" && (
+                                            <button
+                                                className="cmp-link"
+                                                disabled={resuming}
+                                                onClick={resume}
+                                            >
+                                                {resuming
+                                                    ? "Resuming…"
+                                                    : "Resume sending"}
+                                            </button>
                                         )}
+                                </p>
 
-                                        {shownMsgs.map((m) => (
-                                            <tr key={m.id}>
-                                                <td>{m.recipientName}</td>
-                                                <td>{m.recipientPhone}</td>
+                                <div className="cmp-mini-cards">
+                                    <div>
+                                        <b>{selected.total}</b>
+                                        <span>Total</span>
+                                    </div>
 
-                                                <td>
-                                                    <span
-                                                        className={`cmp-badge cmp-${m.status.toLowerCase()}`}
-                                                    >
-                                                        {m.status}
-                                                    </span>
-                                                </td>
+                                    <div>
+                                        <b>{selected.sent}</b>
+                                        <span>Sent</span>
+                                    </div>
 
-                                                <td>
-                                                    {m.sentAt
-                                                        ? new Date(
-                                                              m.sentAt
-                                                          ).toLocaleTimeString()
-                                                        : "-"}
-                                                </td>
+                                    <div>
+                                        <b>{selected.sent - selected.read}</b>
+                                        <span>Unread</span>
+                                    </div>
 
-                                                <td className="cmp-err">
-                                                    {m.errorMessage || "-"}
-                                                </td>
-                                            </tr>
+                                    <div>
+                                        <b>{selected.read}</b>
+                                        <span>Read</span>
+                                    </div>
+
+                                    <div>
+                                        <b>{selected.replied}</b>
+                                        <span>Replies</span>
+                                    </div>
+
+                                    <div>
+                                        <b>{selected.failed}</b>
+                                        <span>Failed</span>
+                                    </div>
+                                </div>
+
+                                <div className="cmp-list-head">
+                                    <h3>Recipients</h3>
+
+                                    <select
+                                        value={msgFilter}
+                                        onChange={(e) =>
+                                            setMsgFilter(e.target.value)
+                                        }
+                                    >
+                                        {MSG_FILTERS.map((s) => (
+                                            <option key={s} value={s}>
+                                                {s}
+                                            </option>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </select>
+                                </div>
+
+                                <div className="cmp-table-wrap">
+                                    <table className="cmp-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Phone</th>
+                                                <th>Status</th>
+                                                <th>Sent</th>
+                                                <th>Error</th>
+                                            </tr>
+                                        </thead>
+
+                                        <tbody>
+                                            {shownMsgs.length === 0 && (
+                                                <tr>
+                                                    <td
+                                                        colSpan={5}
+                                                        className="cmp-empty"
+                                                    >
+                                                        No messages
+                                                    </td>
+                                                </tr>
+                                            )}
+
+                                            {shownMsgs.map((m) => (
+                                                <tr key={m.id}>
+                                                    <td>{m.recipientName}</td>
+                                                    <td>{m.recipientPhone}</td>
+
+                                                    <td>
+                                                        <span
+                                                            className={`cmp-badge cmp-${m.status.toLowerCase()}`}
+                                                        >
+                                                            {m.status}
+                                                        </span>
+                                                    </td>
+
+                                                    <td>
+                                                        {m.sentAt
+                                                            ? new Date(
+                                                                m.sentAt
+                                                            ).toLocaleTimeString()
+                                                            : "-"}
+                                                    </td>
+
+                                                    <td className="cmp-err">
+                                                        {m.errorMessage || "-"}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
-                    </aside>
-                </>
+                        </aside>
+                    </>
+                )}
+            </div>
+            {showTmsLogin && (
+                <TourLogin
+                    onClose={() => {
+                        setShowTmsLogin(false);
+
+                        const connected =
+                            sessionStorage.getItem("tms_connected") === "true" &&
+                            !!sessionStorage.getItem("tms_access_token");
+
+                        setTmsConnected(connected);
+                    }}
+                />
             )}
-        </div>
+
+            {showTourList && (
+                <TourList
+                    onClose={() => setShowTourList(false)}
+                    onSelect={(tour) => {
+                        setSelectedTour(tour);
+                        setShowTourList(false);
+                        setShowFormSubmissions(true);
+                    }}
+                />
+            )}
+
+            {showFormSubmissions && selectedTour && (
+                <FormSubmissionList
+                    tourCode={selectedTour.tourCode}
+                    onClose={() => setShowFormSubmissions(false)}
+                />
+            )}
+        </>
     );
 }

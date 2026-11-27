@@ -24,50 +24,53 @@ public class TemplateController {
 
     private final TemplateService service;
 
-
     @GetMapping
     public ResponseEntity<List<TemplateResponse>> list(
+            @RequestHeader("X-Company-Id") Long companyId,
             @RequestParam(required = false) String status
     ) {
-        return ResponseEntity.ok(service.listFromMeta(status));
-    }
-
-
-    @PostMapping
-    public ResponseEntity<TemplateResponse> create(
-            @Valid @RequestBody TemplateCreateRequestDto req
-    ) {
         return ResponseEntity.ok(
-                service.create(req)
+                service.listFromMeta(companyId, status)
         );
     }
 
+    @PostMapping
+    public ResponseEntity<TemplateResponse> create(
+            @RequestHeader("X-Company-Id") Long companyId,
+            @Valid @RequestBody TemplateCreateRequestDto req
+    ) {
+        return ResponseEntity.ok(
+                service.create(companyId, req)
+        );
+    }
 
     @PostMapping(
             value = "/media-sample",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
     public ResponseEntity<Map<String, String>> uploadSample(
+            @RequestHeader("X-Company-Id") Long companyId,
             @RequestParam("type") String type,
             @RequestParam("file") MultipartFile file
     ) throws IOException {
 
-        String handle = service.uploadMediaSample(type, file);
+        String handle = service.uploadMediaSample(
+                companyId,
+                type,
+                file
+        );
 
         return ResponseEntity.ok(
                 Map.of("handle", handle)
         );
     }
 
-    // ==========================================
-    // SYNC TEMPLATES FROM META
-    // ==========================================
-
     @PostMapping("/sync")
-    public ResponseEntity<List<TemplateResponse>> sync() {
-
+    public ResponseEntity<List<TemplateResponse>> sync(
+            @RequestHeader("X-Company-Id") Long companyId
+    ) {
         return ResponseEntity.ok(
-                service.sync()
+                service.sync(companyId)
         );
     }
 }

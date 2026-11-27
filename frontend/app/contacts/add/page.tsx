@@ -28,7 +28,7 @@ function AddContact() {
     const [categories, setCategories] = useState<CategoryResponseDto[]>([]);
     const router = useRouter();
 
-    const [formData, setFormData] = useState<ContactCreateDto>({
+    const [formData, setFormData] = useState<Omit<ContactCreateDto, "companyId">>({
         name: "",
         phone: "",
         email: "",
@@ -36,7 +36,6 @@ function AddContact() {
     });
 
     const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-
     const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
     const [saving, setSaving] = useState(false);
@@ -47,6 +46,21 @@ function AddContact() {
     const [excelErrors, setExcelErrors] = useState<string[]>([]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const getCompanyId = (): number | null => {
+        const storedCompanyId = sessionStorage.getItem("companyId");
+        const companyId = Number(storedCompanyId);
+
+        if (
+            !storedCompanyId ||
+            !Number.isInteger(companyId) ||
+            companyId <= 0
+        ) {
+            return null;
+        }
+
+        return companyId;
+    };
 
     useEffect(() => {
         loadCategories();
@@ -71,13 +85,29 @@ function AddContact() {
 
     const loadCategories = async () => {
         try {
-            const response = await categoryService.getAllCategories();
+            const companyId = getCompanyId();
+
+            if (!companyId) {
+                showToast(
+                    "error",
+                    "Company ID not found. Please login again."
+                );
+                return;
+            }
+
+            const response =
+                await categoryService.getCategoriesByCompanyId({
+                    companyId,
+                });
+
             setCategories(response);
+
         } catch (error: unknown) {
             console.error("Category loading error:", error);
             showToast("error", errorService.getErrorMessage(error));
         }
     };
+
 
     const showToast = (
         icon: "success" | "error" | "warning",
@@ -142,17 +172,32 @@ function AddContact() {
             return;
         }
 
+        const companyId = getCompanyId();
+
+        if (!companyId) {
+            showToast(
+                "error",
+                "Company ID not found. Please login again."
+            );
+            return;
+        }
+
         try {
             setSaving(true);
 
-            await contactService.createContact(formData);
+            await contactService.createContact({
+                ...formData,
+                companyId,
+            });
 
             showToast("success", "Contact added successfully!");
 
             resetForm();
+
         } catch (error: unknown) {
             console.error("Create contact error:", error);
             showToast("error", errorService.getErrorMessage(error));
+
         } finally {
             setSaving(false);
         }
@@ -195,10 +240,33 @@ function AddContact() {
 
         if (!file) return;
 
+        const companyId = getCompanyId();
+
+        if (!companyId) {
+            showToast(
+                "error",
+                "Company ID not found. Please login again."
+            );
+            event.target.value = "";
+            return;
+        }
+
+        if (categories.length === 0) {
+            showToast(
+                "warning",
+                "No company categories available. Please create a category first."
+            );
+            event.target.value = "";
+            return;
+        }
+
         const extension = file.name.split(".").pop()?.toLowerCase();
 
         if (!["xlsx", "xls"].includes(extension || "")) {
-            showToast("error", "Please upload an Excel file (.xlsx or .xls).");
+            showToast(
+                "error",
+                "Please upload an Excel file (.xlsx or .xls)."
+            );
             event.target.value = "";
             return;
         }
@@ -224,12 +292,19 @@ function AddContact() {
             );
 
             if (rows.length === 0) {
-                showToast("error", "No contact records found in Excel.");
+                showToast(
+                    "error",
+                    "No contact records found in Excel."
+                );
                 return;
             }
 
             const parsedContacts: ExcelContact[] = [];
             const errors: string[] = [];
+
+            const availableCategoryIds = new Set(
+                categories.map((category) => Number(category.id))
+            );
 
             rows.forEach((row, index) => {
                 const rowNumber = index + 2;
@@ -257,7 +332,6 @@ function AddContact() {
                     return;
                 }
 
-                // Validate email only when provided
                 if (
                     email &&
                     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -268,7 +342,6 @@ function AddContact() {
                     return;
                 }
 
-                // Validate phone number
                 if (!/^\+?[0-9]{7,15}$/.test(phone)) {
                     errors.push(
                         `Row ${rowNumber}: Invalid phone number.`
@@ -276,7 +349,6 @@ function AddContact() {
                     return;
                 }
 
-                // Categories are mandatory
                 if (categoryIds.length === 0) {
                     errors.push(
                         `Row ${rowNumber}: Please provide at least one valid category ID.`
@@ -292,12 +364,12 @@ function AddContact() {
                 }
 
                 const invalidCategoryIds = categoryIds.filter(
-                    (id) => !categories.some((category) => category.id === id)
+                    (id) => !availableCategoryIds.has(id)
                 );
 
                 if (invalidCategoryIds.length > 0) {
                     errors.push(
-                        `Row ${rowNumber}: Invalid category IDs: ${invalidCategoryIds.join(", ")}.`
+                        `Row ${rowNumber}: Invalid company category IDs: ${invalidCategoryIds.join(", ")}.`
                     );
                     return;
                 }
@@ -315,13 +387,17 @@ function AddContact() {
             setExcelErrors(errors);
 
             if (parsedContacts.length === 0) {
-                showToast("error", "No valid contacts found in Excel.");
+                showToast(
+                    "error",
+                    "No valid contacts found in Excel."
+                );
             } else {
                 showToast(
                     "success",
                     `${parsedContacts.length} valid contacts ready to upload.`
                 );
             }
+
         } catch (error) {
             console.error("Excel reading error:", error);
             showToast("error", "Unable to read Excel file.");
@@ -330,7 +406,20 @@ function AddContact() {
 
     const handleBulkUpload = async () => {
         if (excelContacts.length === 0) {
-            showToast("warning", "Please select a valid Excel file.");
+            showToast(
+                "warning",
+                "Please select a valid Excel file."
+            );
+            return;
+        }
+
+        const companyId = getCompanyId();
+
+        if (!companyId) {
+            showToast(
+                "error",
+                "Company ID not found. Please login again."
+            );
             return;
         }
 
@@ -355,8 +444,16 @@ function AddContact() {
         try {
             for (const contact of excelContacts) {
                 try {
-                    await contactService.createContact(contact);
+                    await contactService.createContact({
+                        name: contact.name || "",
+                        phone: contact.phone,
+                        email: contact.email || "",
+                        categoryIds: contact.categoryIds,
+                        companyId,
+                    });
+
                     successCount++;
+
                 } catch (error: unknown) {
                     failedCount++;
 
@@ -429,7 +526,6 @@ function AddContact() {
                 </button>
             </div>
 
-
             <div className="add-contact-card">
 
                 <div className="add-contact-card-heading">
@@ -484,8 +580,6 @@ function AddContact() {
                             />
                         </div>
 
-
-
                         <div
                             className="add-contact-form-group category-multi-group"
                             ref={categoryDropdownRef}
@@ -495,8 +589,9 @@ function AddContact() {
                             </label>
 
                             <div
-                                className={`category-multi-select ${showCategoryDropdown ? "active" : ""
-                                    }`}
+                                className={`category-multi-select ${
+                                    showCategoryDropdown ? "active" : ""
+                                }`}
                                 onClick={() =>
                                     setShowCategoryDropdown((previous) => !previous)
                                 }
@@ -509,7 +604,7 @@ function AddContact() {
                                     ) : (
                                         formData.categoryIds.map((id) => {
                                             const category = categories.find(
-                                                (item) => item.id === id
+                                                (item) => Number(item.id) === id
                                             );
 
                                             if (!category) return null;
@@ -518,7 +613,9 @@ function AddContact() {
                                                 <span
                                                     className="category-selected-tag"
                                                     key={id}
-                                                    onClick={(event) => event.stopPropagation()}
+                                                    onClick={(event) =>
+                                                        event.stopPropagation()
+                                                    }
                                                 >
                                                     {category.categoryName}
 
@@ -536,8 +633,9 @@ function AddContact() {
                                 </div>
 
                                 <i
-                                    className={`bi bi-chevron-down category-dropdown-arrow ${showCategoryDropdown ? "rotated" : ""
-                                        }`}
+                                    className={`bi bi-chevron-down category-dropdown-arrow ${
+                                        showCategoryDropdown ? "rotated" : ""
+                                    }`}
                                 ></i>
                             </div>
 
@@ -550,16 +648,19 @@ function AddContact() {
                                         </div>
                                     ) : (
                                         categories.map((category) => {
+                                            const categoryId = Number(category.id);
+
                                             const selected =
-                                                formData.categoryIds.includes(category.id);
+                                                formData.categoryIds.includes(categoryId);
 
                                             return (
                                                 <div
                                                     key={category.id}
-                                                    className={`category-option ${selected ? "selected" : ""
-                                                        }`}
+                                                    className={`category-option ${
+                                                        selected ? "selected" : ""
+                                                    }`}
                                                     onClick={() =>
-                                                        toggleCategory(category.id)
+                                                        toggleCategory(categoryId)
                                                     }
                                                 >
                                                     <input
@@ -614,7 +715,6 @@ function AddContact() {
 
                 </form>
             </div>
-
 
             <div className="add-contact-card">
 

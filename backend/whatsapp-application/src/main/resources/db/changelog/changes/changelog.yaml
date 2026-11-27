@@ -162,4 +162,95 @@ databaseChangeLog:
             relativeToChangelogFile: true
 
 
+  - changeSet:
+      id: create_company_table
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/create_company_table.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_user_add_company_default_false
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_user_add_company_default_false.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_user_add_otp
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_user_add_otp.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_category_add_company_id
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_category_add_company_id.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_contact_add_company_id
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_contact_add_company_id.sql
+            relativeToChangelogFile: true
+
+
+  - changeSet:
+      id: alter_campaign_add_company_id
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_campaign_add_company_id.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_company_add_whatsapp
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_company_add_whatsapp.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_whatsapp_add_company_id
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_whatsapp_add_company_id.sql
+            relativeToChangelogFile: true
+
+
+  - changeSet:
+      id: alter_templates_add_company_id
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_templates_add_company_id.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: create_tour_connections
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/create_tour_connections.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_tourconnect_add_companytourid
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_tourconnect_add_companytourid.sql
+            relativeToChangelogFile: true
+
+
 

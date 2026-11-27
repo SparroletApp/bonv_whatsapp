@@ -10,5 +10,6 @@ public record CampaignCreateRequest(
         @NotEmpty List<Long> categoryIds,
         List<String> variableMapping,
         String headerMediaUrl,
-        LocalDateTime scheduledAt
+        LocalDateTime scheduledAt,
+        Long companyId
 ) {}

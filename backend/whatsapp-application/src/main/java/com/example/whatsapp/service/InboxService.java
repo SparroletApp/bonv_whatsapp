@@ -2,7 +2,9 @@ package com.example.whatsapp.service;
 
 import com.example.whatsapp.client.WhatsappClient;
 import com.example.whatsapp.dto.inbox.*;
+import com.example.whatsapp.entity.Company;
 import com.example.whatsapp.entity.WhatsappEntity;
+import com.example.whatsapp.repository.CompanyRepository;
 import com.example.whatsapp.repository.WhatsappRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,6 +33,7 @@ public class InboxService {
     private static final long MAX_AUDIO = 16L * 1024 * 1024;
     private final TemplateRepository templateRepo;
     private final ObjectMapper mapper;
+    private final CompanyRepository companyRepo;
     private static final ZoneId INDIA_ZONE =
             ZoneId.of("Asia/Kolkata");
 
@@ -45,7 +48,7 @@ public class InboxService {
     }
 
     @Transactional(readOnly = true)
-    public List<ConversationDto> conversations() {
+    public List<ConversationDto> conversations(Long companyId) {
 
         Map<String, Long> unread = new HashMap<>();
 
@@ -93,7 +96,7 @@ public class InboxService {
     }
 
     @Transactional(readOnly = true)
-    public List<InboxMessageDto> messages(String phone) {
+    public List<InboxMessageDto> messages(Long companyId, String phone){
 
         return repo.findByRecipientPhoneOrderByCreatedAtAsc(phone)
                 .stream()
@@ -102,12 +105,11 @@ public class InboxService {
     }
 
     @Transactional
-    public void markRead(String phone) {
+    public void markRead(Long companyId, String phone) {
         repo.markConversationRead(phone);
     }
 
-    /** Shared by text and media replies. */
-    private WhatsappEntity requireOpenWindow(String phone) {
+    private WhatsappEntity requireOpenWindow(Long companyId, String phone) {
 
         WhatsappEntity lastIn = repo
                 .findFirstByRecipientPhoneAndDirectionOrderByCreatedAtDesc(
@@ -128,10 +130,47 @@ public class InboxService {
         return lastIn;
     }
 
-    @Transactional
-    public InboxMessageDto reply(String phone, String text) {
+    private Company getWhatsappCompany(Long companyId) {
 
-        WhatsappEntity lastIn = requireOpenWindow(phone);
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required.");
+        }
+
+        Company company = companyRepo.findById(companyId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Company not found.")
+                );
+
+        if (company.getWhatsappAccessToken() == null
+                || company.getWhatsappAccessToken().isBlank()) {
+            throw new IllegalStateException(
+                    "WhatsApp access token is missing for this company."
+            );
+        }
+
+        if (company.getWhatsappPhoneNumberId() == null
+                || company.getWhatsappPhoneNumberId().isBlank()) {
+            throw new IllegalStateException(
+                    "WhatsApp Phone Number ID is missing for this company."
+            );
+        }
+
+        if (company.getWhatsappApiVersion() == null
+                || company.getWhatsappApiVersion().isBlank()) {
+            throw new IllegalStateException(
+                    "WhatsApp API version is missing for this company."
+            );
+        }
+
+        return company;
+    }
+
+    @Transactional
+    public InboxMessageDto reply(Long companyId, String phone, String text) {
+
+        Company company = getWhatsappCompany(companyId);
+
+        WhatsappEntity lastIn = requireOpenWindow(companyId, phone);
 
         WhatsappEntity out = new WhatsappEntity();
 
@@ -143,7 +182,10 @@ public class InboxService {
         out.setStatus("PROCESSING");
 
         try {
-            out.setWhatsappMessageId(client.sendText(phone, text));
+            out.setWhatsappMessageId(
+                    client.sendText(company, phone, text)
+            );
+
             out.setStatus("SENT");
             out.setSentAt(currentTime());
 
@@ -156,9 +198,14 @@ public class InboxService {
     }
 
     @Transactional
-    public InboxMessageDto replyMedia(String phone, MultipartFile file, String caption) {
+    public InboxMessageDto replyMedia(
+            Long companyId,
+            String phone,
+            MultipartFile file,
+            String caption
+    ){
 
-        WhatsappEntity lastIn = requireOpenWindow(phone);
+        WhatsappEntity lastIn = requireOpenWindow(companyId, phone);
 
         String mime = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
         boolean image = mime.equals("image/jpeg") || mime.equals("image/png");
@@ -210,8 +257,11 @@ public class InboxService {
         return toDto(repo.save(out));
     }
 
-    public WhatsappClient.MediaFile media(String mediaId) {
-        return client.downloadMedia(mediaId);
+    public WhatsappClient.MediaFile media(Long companyId, String mediaId) {
+
+        Company company = getWhatsappCompany(companyId);
+
+        return client.downloadMedia(company, mediaId);
     }
 
     private byte[] toOggOpus(byte[] input) throws Exception {
@@ -270,14 +320,19 @@ public class InboxService {
         }
     }
 
+
     @Transactional
     public InboxMessageDto sendTemplate(
+            Long companyId,
             String phone,
             InboxTemplateRequestDto request
     ) {
         if (phone == null || phone.isBlank()) {
             throw new IllegalArgumentException("Recipient phone number is required.");
         }
+
+        // Load the selected company's WhatsApp credentials.
+        Company company = getWhatsappCompany(companyId);
 
         if (request == null || request.getTemplateId() == null) {
             throw new IllegalArgumentException("Please select a template.");
@@ -292,6 +347,7 @@ public class InboxService {
 
         String templateName = template.getName();
         String language = template.getLanguage();
+
         String headerType = template.getHeaderType() == null
                 ? "NONE"
                 : template.getHeaderType().trim().toUpperCase();
@@ -347,7 +403,6 @@ public class InboxService {
         }
 
         // Find the contact name from the most recent inbound message.
-        // Sending an approved template does not require an open 24-hour window.
         String recipientName = repo
                 .findFirstByRecipientPhoneAndDirectionOrderByCreatedAtDesc(
                         phone, "INBOUND"
@@ -366,17 +421,21 @@ public class InboxService {
         out.setTemplateParams(mapper.valueToTree(parameters).toString());
         out.setHeaderType(headerType);
         out.setHeaderMediaUrl(headerMediaUrl);
+
         out.setMimeType(
                 "IMAGE".equals(headerType) ? "image/jpeg"
                         : "VIDEO".equals(headerType) ? "video/mp4"
                         : "DOCUMENT".equals(headerType) ? "application/pdf"
                         : null
         );
+
         out.setMessage(render(template.getBody(), parameters));
         out.setStatus("PROCESSING");
 
         try {
+            // IMPORTANT: Use the company-specific WhatsApp configuration.
             String messageId = client.sendTemplate(
+                    company,
                     phone,
                     templateName,
                     language,
@@ -392,8 +451,6 @@ public class InboxService {
         } catch (Exception ex) {
             out.setStatus("FAILED");
             out.setErrorMessage(ex.getMessage());
-
-            // Keep the failed message visible in the Inbox.
         }
 
         return toDto(repo.save(out));

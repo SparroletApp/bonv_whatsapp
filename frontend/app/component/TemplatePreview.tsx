@@ -1,5 +1,5 @@
 
-import type { TemplateHeaderType } from "@/app/apiservice/templateservice";
+import type { TemplateCreateHeaderType } from "@/app/apiservice/templateservice";
 
 export const renderBody = (body: string, values: string[] = []) =>
     body.replace(/\{\{(\d+)\}\}/g, (_, n) =>
@@ -7,7 +7,7 @@ export const renderBody = (body: string, values: string[] = []) =>
     );
 
 interface Props {
-    headerType?: TemplateHeaderType | null;
+    headerType?:  TemplateCreateHeaderType | null;
     headerText?: string | null;
     headerMediaUrl?: string | null;
     body: string;
@@ -60,19 +60,7 @@ export default function TemplatePreview({
                     </div>
                 )}
 
-                {headerType === "VIDEO" && (
-                    <div className="wa-bubble-media wa-bubble-media-placeholder">
-                        <i className="bi bi-play-circle" />
-                        <span>Video header</span>
-                    </div>
-                )}
-
-                {headerType === "DOCUMENT" && (
-                    <div className="wa-bubble-media wa-bubble-media-placeholder">
-                        <i className="bi bi-file-earmark-pdf" />
-                        <span>Document header</span>
-                    </div>
-                )}
+              
 
                 {!headerType && headerText && (
                     <div className="wa-bubble-header">

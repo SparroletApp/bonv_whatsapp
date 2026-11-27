@@ -562,6 +562,105 @@
     padding: 13px 12px;
 }
 
+.cmp-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cmp-tms-btn {
+    background: #ffffff;
+    color: #064e45;
+    border: 1px solid #064e45;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+}
+
+.cmp-tms-btn:hover {
+    background: #e8f3f0;
+}
+
+.cmp-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.cmp-tms-modal {
+    width: 100%;
+    max-width: 440px;
+    background: white;
+    border-radius: 14px;
+    padding: 25px;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+}
+
+.cmp-tms-modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 25px;
+}
+
+.cmp-tms-modal-head h2 {
+    font-size: 21px;
+    margin: 0 0 7px;
+}
+
+.cmp-tms-modal-head p {
+    color: #82918d;
+    font-size: 13px;
+    margin: 0;
+}
+
+.cmp-tms-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cmp-tms-form label {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.cmp-tms-form input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #dce5e2;
+    border-radius: 7px;
+    outline: none;
+    font-size: 14px;
+}
+
+.cmp-tms-form input:focus {
+    border-color: #064e45;
+}
+
+.cmp-tms-submit {
+    width: 100%;
+    margin-top: 12px;
+    justify-content: center;
+}
+
+.cmp-tms-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+    .cmp-top-actions {
+        flex-wrap: wrap;
+    }
+}
+
 
 @media (max-width: 992px) {
     .cmp-page {

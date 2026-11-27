@@ -16,6 +16,7 @@ function UserLogin() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
 
+
     const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
@@ -30,15 +31,50 @@ function UserLogin() {
 
         try {
             setLoading(true);
-            sessionStorage.removeItem("access_token");
+
+            sessionStorage.clear();
+            localStorage.removeItem("access_token");
 
             const response = await userService.login({
                 email: email.trim(),
                 password,
             });
 
-            if (response?.accessToken) {
+            if (response?.accessToken && response?.user) {
+
+                const userRole = response.user.role?.toUpperCase();
+
+                if (!userRole) {
+                    throw new Error("User role not received.");
+                }
+
                 sessionStorage.setItem("access_token", response.accessToken);
+                sessionStorage.setItem("role", userRole);
+
+                sessionStorage.setItem(
+                    "companyId",
+                    String(response.user.companyId)
+                );
+
+                sessionStorage.setItem(
+                    "companyName",
+                    response.user.companyName || ""
+                );
+
+                sessionStorage.setItem(
+                    "userId",
+                    String(response.user.id)
+                );
+
+                sessionStorage.setItem(
+                    "userName",
+                    response.user.name || ""
+                );
+
+                sessionStorage.setItem(
+                    "userEmail",
+                    response.user.email || ""
+                );
 
                 await Swal.fire({
                     icon: "success",
@@ -48,12 +84,28 @@ function UserLogin() {
                     showConfirmButton: false,
                 });
 
-                router.push("/dashboard");
+                if (userRole === "ADMIN") {
+                    router.replace("/super-admin/dashboard");
+                } else if (
+                    userRole === "MANAGER" ||
+                    userRole === "STAFF"
+                ) {
+                    router.replace("/dashboard");
+                } else {
+                    sessionStorage.clear();
+
+                    Swal.fire({
+                        icon: "error",
+                        title: "Invalid Role",
+                        text: "Unauthorized user role.",
+                    });
+                }
+
             } else {
                 Swal.fire({
                     icon: "error",
                     title: "Login Failed",
-                    text: "Access token was not received from the server.",
+                    text: "Invalid login response from server.",
                 });
             }
 
@@ -63,13 +115,15 @@ function UserLogin() {
                 title: "Login Failed",
                 text:
                     error?.response?.data?.message ||
-                    error?.response?.data ||
+                    error?.message ||
                     "Invalid email or password.",
             });
         } finally {
             setLoading(false);
         }
     };
+
+
 
     return (
         <section className="user-login">
@@ -79,7 +133,7 @@ function UserLogin() {
                     <div className="login-left">
                         <div className="login-brand">
                             <div className="brand-icon">
-                               <i className="bi bi-whatsapp"></i>
+                                <i className="bi bi-whatsapp"></i>
                             </div>
                             <span>WhatsApp Automation</span>
                         </div>
@@ -165,6 +219,15 @@ function UserLogin() {
                                             <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
                                         </button>
                                     </div>
+                                </div>
+
+                                <div className="login-forgot-password">
+                                    <button
+                                        type="button"
+                                        onClick={() => router.push("/forget-password")}
+                                    >
+                                        Forgot Password?
+                                    </button>
                                 </div>
 
                                 <button

@@ -35,15 +35,28 @@ function CreateCategory({
             return;
         }
 
+        const storedCompanyId = sessionStorage.getItem("companyId");
+
+        if (!storedCompanyId) {
+            setError("Company ID not found. Please login again.");
+            return;
+        }
+
+        const companyId = Number(storedCompanyId);
+
+        if (!Number.isInteger(companyId) || companyId <= 0) {
+            setError("Invalid Company ID. Please login again.");
+            return;
+        }
+
         try {
             setLoading(true);
             setError("");
 
             const response = await categoryService.createCategory({
                 categoryName: trimmedName,
+                companyId: companyId,
             });
-
-            console.log("Tag created successfully:", response);
 
             setCategoryName("");
             setError("");
@@ -75,9 +88,10 @@ function CreateCategory({
     };
 
     const handleClose = () => {
+        if (loading) return;
+
         setCategoryName("");
         setError("");
-        setLoading(false);
         onClose();
     };
 
@@ -108,6 +122,7 @@ function CreateCategory({
                         type="button"
                         className="category-modal-close"
                         onClick={handleClose}
+                        disabled={loading}
                     >
                         <i className="bi bi-x-lg"></i>
                     </button>
@@ -119,7 +134,7 @@ function CreateCategory({
                     <div className="category-modal-body">
 
                         <label htmlFor="categoryName">
-                           Tag Name
+                            Tag Name
                             <span className="required-star">*</span>
                         </label>
 
@@ -161,6 +176,7 @@ function CreateCategory({
                             type="button"
                             className="category-cancel-btn"
                             onClick={handleClose}
+                            disabled={loading}
                         >
                             Cancel
                         </button>

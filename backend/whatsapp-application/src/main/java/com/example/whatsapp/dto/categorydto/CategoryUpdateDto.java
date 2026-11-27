@@ -18,4 +18,8 @@ public class CategoryUpdateDto {
     @NotBlank(message = "Category name is required")
     @Size(max = 150, message = "Category name cannot exceed 150 characters")
     private String categoryName;
+
+
+    @Positive(message = "Company ID must be positive")
+    private Long companyId;
 }

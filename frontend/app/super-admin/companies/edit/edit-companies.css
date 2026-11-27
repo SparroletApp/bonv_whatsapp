@@ -1,0 +1,317 @@
+
+
+.edit-company-page {
+    width: 100%;
+    min-height: 100vh;
+    padding: 28px;
+    background: #f5f8f7;
+    color: #263c38;
+}
+
+
+.edit-company-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.edit-company-header h2 {
+    margin: 0;
+    color: #064e45;
+    font-size: 25px;
+    font-weight: 700;
+}
+
+.edit-company-header p {
+    margin: 7px 0 0;
+    color: #82918d;
+    font-size: 14px;
+}
+
+.edit-company-back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 11px 17px;
+    border: 1px solid #dce8e4;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #064e45;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.edit-company-back-btn:hover {
+    background: #e8f3f0;
+    border-color: #064e45;
+}
+
+
+.edit-company-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+
+.edit-company-section {
+    padding: 24px;
+    background: #ffffff;
+    border: 1px solid #e5eeeb;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px rgba(6, 78, 69, 0.04);
+}
+
+.edit-company-section-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 20px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid #edf2f0;
+}
+
+.edit-company-section-title i {
+    width: 43px;
+    height: 43px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #e8f3f0;
+    color: #064e45;
+    font-size: 21px;
+}
+
+.edit-company-section-title h5 {
+    margin: 0;
+    color: #263c38;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.edit-company-section-title p {
+    margin: 5px 0 0;
+    color: #82918d;
+    font-size: 12px;
+}
+
+.edit-company-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+}
+
+.edit-company-field {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.edit-company-full {
+    grid-column: 1 / -1;
+}
+
+
+.edit-company-field label {
+    margin-bottom: 8px;
+    color: #344c46;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.edit-company-field label span {
+    color: #dc3545;
+}
+
+
+.edit-company-field input {
+    width: 100%;
+    height: 44px;
+    padding: 0 13px;
+    border: 1px solid #dce7e3;
+    border-radius: 7px;
+    outline: none;
+    background: #ffffff;
+    color: #263c38;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.edit-company-field input::placeholder {
+    color: #a4b1ad;
+    font-size: 12px;
+}
+
+.edit-company-field input:hover {
+    border-color: #9bbab1;
+}
+
+.edit-company-field input:focus {
+    border-color: #064e45;
+    box-shadow: 0 0 0 3px rgba(6, 78, 69, 0.10);
+}
+
+.edit-company-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 24px;
+    background: #ffffff;
+    border: 1px solid #e5eeeb;
+    border-radius: 12px;
+}
+
+.edit-company-cancel-btn {
+    min-width: 110px;
+    height: 42px;
+    padding: 0 18px;
+    border: 1px solid #dce7e3;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #52635e;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.edit-company-cancel-btn:hover {
+    background: #f2f5f4;
+    border-color: #aabbb5;
+}
+
+.edit-company-save-btn {
+    min-width: 160px;
+    height: 42px;
+    padding: 0 20px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 9px;
+    border: 1px solid #064e45;
+    border-radius: 7px;
+    background: #064e45;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.edit-company-save-btn:hover:not(:disabled) {
+    background: #043c35;
+    border-color: #043c35;
+    box-shadow: 0 4px 10px rgba(6, 78, 69, 0.16);
+}
+
+.edit-company-save-btn:disabled,
+.edit-company-cancel-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.edit-company-loading {
+    min-height: 65vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 14px;
+    background: #f5f8f7;
+    color: #064e45;
+}
+
+.edit-company-loading .spinner-border {
+    width: 35px;
+    height: 35px;
+    color: #064e45;
+}
+
+.edit-company-loading p {
+    margin: 0;
+    color: #82918d;
+    font-size: 14px;
+}
+
+.edit-company-save-btn .spinner-border {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+}
+
+
+@media (max-width: 768px) {
+
+    .edit-company-page {
+        padding: 18px;
+    }
+
+    .edit-company-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .edit-company-header h2 {
+        font-size: 22px;
+    }
+
+    .edit-company-back-btn {
+        width: 100%;
+    }
+
+    .edit-company-section {
+        padding: 18px;
+    }
+
+    .edit-company-grid {
+        grid-template-columns: 1fr;
+        gap: 17px;
+    }
+
+    .edit-company-full {
+        grid-column: auto;
+    }
+
+    .edit-company-actions {
+        padding: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .edit-company-page {
+        padding: 12px;
+    }
+
+    .edit-company-section {
+        padding: 15px;
+    }
+
+    .edit-company-section-title {
+        gap: 10px;
+    }
+
+    .edit-company-section-title i {
+        width: 38px;
+        height: 38px;
+        font-size: 18px;
+    }
+
+    .edit-company-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .edit-company-cancel-btn,
+    .edit-company-save-btn {
+        width: 100%;
+    }
+}

@@ -3,10 +3,7 @@ package com.example.whatsapp.controller;
 import com.example.whatsapp.dto.broadcastdto.BroadcastAssignContactsDto;
 import com.example.whatsapp.dto.broadcastdto.BroadcastIdRequestDto;
 import com.example.whatsapp.dto.categorydto.CategoryIdDto;
-import com.example.whatsapp.dto.contactdto.ContactCreateDto;
-import com.example.whatsapp.dto.contactdto.ContactIdDto;
-import com.example.whatsapp.dto.contactdto.ContactResponseDto;
-import com.example.whatsapp.dto.contactdto.ContactUpdateDto;
+import com.example.whatsapp.dto.contactdto.*;
 import com.example.whatsapp.service.ContactService;
 
 import jakarta.validation.Valid;
@@ -94,6 +91,15 @@ public class ContactController {
 
         return ResponseEntity.ok(
                 contactService.getContactsByCategoryId(dto)
+        );
+    }
+
+    @PostMapping("/get-by-company")
+    public ResponseEntity<List<ContactResponseDto>> getContactsByCompanyId(
+            @Valid @RequestBody ContactCompanyIdDto dto) {
+
+        return ResponseEntity.ok(
+                contactService.getContactsByCompanyId(dto)
         );
     }
 }

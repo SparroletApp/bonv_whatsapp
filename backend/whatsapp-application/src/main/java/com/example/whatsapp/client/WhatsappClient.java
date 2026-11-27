@@ -1,6 +1,8 @@
+
 package com.example.whatsapp.client;
 
 import com.example.whatsapp.config.WhatsappConfig;
+import com.example.whatsapp.entity.Company;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -29,17 +31,184 @@ public class WhatsappClient {
     private final ObjectMapper mapper;
 
     private final HttpClient http = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(15))
             .build();
 
+
     private String root() {
-        return config.getBaseUrl() + "/" + config.getApiVersion();
+        return buildRoot(
+                config.getBaseUrl(),
+                config.getApiVersion()
+        );
     }
 
-    // ==========================================
-    // SEND TEXT
-    // ==========================================
+    private String root(Company company) {
 
+        if (company == null) {
+            throw new IllegalStateException(
+                    "Company configuration is missing."
+            );
+        }
+
+        return buildRoot(
+                config.getBaseUrl(),
+                required(
+                        company.getWhatsappApiVersion(),
+                        "WhatsApp API version"
+                )
+        );
+    }
+
+    private String buildRoot(String baseUrl, String apiVersion) {
+
+        String base = required(
+                baseUrl,
+                "WhatsApp Graph API base URL"
+        );
+
+        String version = required(
+                apiVersion,
+                "WhatsApp API version"
+        );
+
+        // Remove trailing slashes.
+        base = base.replaceAll("/+$", "");
+
+        try {
+
+            URI uri = URI.create(base);
+
+            if (!uri.isAbsolute()
+                    || uri.getScheme() == null
+                    || uri.getHost() == null
+                    || !"https".equalsIgnoreCase(uri.getScheme())) {
+
+                throw new IllegalStateException(
+                        "Invalid WhatsApp Graph API base URL. "
+                                + "Expected an HTTPS URL, for example "
+                                + "https://graph.facebook.com"
+                );
+            }
+
+        } catch (IllegalArgumentException e) {
+
+            throw new IllegalStateException(
+                    "Invalid WhatsApp Graph API base URL: " + base,
+                    e
+            );
+        }
+
+        if (version.startsWith("/")) {
+            version = version.substring(1);
+        }
+
+        return base + "/" + version;
+    }
+
+    private String token(Company company) {
+
+        return normalizeToken(
+                required(
+                        company.getWhatsappAccessToken(),
+                        "WhatsApp access token"
+                )
+        );
+    }
+
+    private String phoneNumberId(Company company) {
+
+        return required(
+                company.getWhatsappPhoneNumberId(),
+                "WhatsApp Phone Number ID"
+        );
+    }
+
+    private String businessAccountId(Company company) {
+
+        return required(
+                company.getWhatsappBusinessAccountId(),
+                "WhatsApp Business Account ID"
+        );
+    }
+
+    private String appId(Company company) {
+
+        return required(
+                company.getWhatsappAppId(),
+                "WhatsApp App ID"
+        );
+    }
+
+    private String normalizeToken(String value) {
+
+        String token = value.trim();
+
+        if (token.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            token = token.substring(7).trim();
+        } else if (token.regionMatches(true, 0, "OAuth ", 0, 6)) {
+            token = token.substring(6).trim();
+        }
+
+        if (token.isBlank()) {
+            throw new IllegalStateException(
+                    "WhatsApp access token is empty."
+            );
+        }
+
+        return token;
+    }
+
+    private String required(String value, String field) {
+
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException(
+                    field + " is missing."
+            );
+        }
+
+        return value.trim();
+    }
+
+    private String messagesUrl(Company company) {
+
+        return root(company)
+                + "/" + phoneNumberId(company)
+                + "/messages";
+    }
+
+    private String mediaUrl(Company company) {
+
+        return root(company)
+                + "/" + phoneNumberId(company)
+                + "/media";
+    }
+
+    private String templatesUrl(Company company) {
+
+        return root(company)
+                + "/" + businessAccountId(company)
+                + "/message_templates";
+    }
+
+    public String sendText(
+            Company company,
+            String to,
+            String body
+    ) {
+
+        ObjectNode payload = baseMessage(to, "text");
+
+        ObjectNode text = payload.putObject("text");
+        text.put("preview_url", false);
+        text.put("body", body);
+
+        return messageId(post(
+                messagesUrl(company),
+                payload,
+                token(company)
+        ));
+    }
     public String sendText(String to, String body) {
 
         ObjectNode payload = baseMessage(to, "text");
@@ -49,21 +218,79 @@ public class WhatsappClient {
         text.put("body", body);
 
         return messageId(post(
-                root() + "/" + config.getPhoneNumberId() + "/messages",
+                root() + "/" + required(
+                        config.getPhoneNumberId(),
+                        "WhatsApp Phone Number ID"
+                ) + "/messages",
                 payload
         ));
     }
 
     public String sendTemplate(
+            Company company,
             String to,
             String name,
             String lang,
             List<String> bodyParams,
-            String headerType,    // NONE / TEXT / IMAGE / VIDEO / DOCUMENT / LOCATION
-            String headerMedia    // https URL, or an uploaded media ID
+            String headerType,
+            String headerMedia
+    ) {
+
+        ObjectNode payload = buildTemplatePayload(
+                to,
+                name,
+                lang,
+                bodyParams,
+                headerType,
+                headerMedia
+        );
+
+        return messageId(post(
+                messagesUrl(company),
+                payload,
+                token(company)
+        ));
+    }
+
+    // Legacy single-company method.
+    public String sendTemplate(
+            String to,
+            String name,
+            String lang,
+            List<String> bodyParams,
+            String headerType,
+            String headerMedia
+    ) {
+
+        ObjectNode payload = buildTemplatePayload(
+                to,
+                name,
+                lang,
+                bodyParams,
+                headerType,
+                headerMedia
+        );
+
+        return messageId(post(
+                root() + "/" + required(
+                        config.getPhoneNumberId(),
+                        "WhatsApp Phone Number ID"
+                ) + "/messages",
+                payload
+        ));
+    }
+
+    private ObjectNode buildTemplatePayload(
+            String to,
+            String name,
+            String lang,
+            List<String> bodyParams,
+            String headerType,
+            String headerMedia
     ) {
 
         ObjectNode payload = baseMessage(to, "template");
+
         ObjectNode template = payload.putObject("template");
 
         template.put("name", name);
@@ -71,33 +298,47 @@ public class WhatsappClient {
 
         ArrayNode components = template.putArray("components");
 
-        String type = headerType == null ? "NONE" : headerType.toUpperCase();
+        String type = headerType == null
+                ? "NONE"
+                : headerType.trim().toUpperCase();
 
         if (Set.of("IMAGE", "VIDEO", "DOCUMENT").contains(type)) {
 
             if (headerMedia == null || headerMedia.isBlank()) {
                 throw new IllegalStateException(
-                        type + " header requires a media URL or media ID");
+                        type + " header requires a media URL or media ID."
+                );
             }
 
-            String key = type.toLowerCase();              // image / video / document
-            boolean isUrl = headerMedia.startsWith("http");
+            String key = type.toLowerCase();
+
+            boolean isUrl = headerMedia
+                    .trim()
+                    .startsWith("http://")
+                    || headerMedia
+                    .trim()
+                    .startsWith("https://");
 
             ObjectNode header = components.addObject();
             header.put("type", "header");
 
-            ObjectNode param = header.putArray("parameters").addObject();
+            ObjectNode param = header
+                    .putArray("parameters")
+                    .addObject();
+
             param.put("type", key);
 
             ObjectNode media = param.putObject(key);
-            media.put(isUrl ? "link" : "id", headerMedia.trim());
+            media.put(
+                    isUrl ? "link" : "id",
+                    headerMedia.trim()
+            );
 
-            if (type.equals("DOCUMENT")) {
+            if ("DOCUMENT".equals(type)) {
                 media.put("filename", "document.pdf");
             }
         }
 
-        // ---------- BODY ----------
         if (bodyParams != null && !bodyParams.isEmpty()) {
 
             ObjectNode body = components.addObject();
@@ -106,9 +347,10 @@ public class WhatsappClient {
             ArrayNode parameters = body.putArray("parameters");
 
             for (String value : bodyParams) {
-                ObjectNode p = parameters.addObject();
-                p.put("type", "text");
-                p.put("text", clean(value));
+
+                ObjectNode parameter = parameters.addObject();
+                parameter.put("type", "text");
+                parameter.put("text", clean(value));
             }
         }
 
@@ -116,32 +358,69 @@ public class WhatsappClient {
             template.remove("components");
         }
 
-        return messageId(post(
-                root() + "/" + config.getPhoneNumberId() + "/messages",
-                payload
-        ));
+        return payload;
     }
 
+    public JsonNode createTemplate(
+            Company company,
+            ObjectNode payload
+    ) {
 
+        return post(
+                templatesUrl(company),
+                payload,
+                token(company)
+        );
+    }
     public JsonNode createTemplate(ObjectNode payload) {
 
         return post(
-                root() + "/" + config.getBusinessAccountId()
-                        + "/message_templates",
+                root() + "/" + required(
+                        config.getBusinessAccountId(),
+                        "WhatsApp Business Account ID"
+                ) + "/message_templates",
                 payload
         );
     }
 
-    // ==========================================
-    // LIST TEMPLATES
-    // ==========================================
 
+    public ArrayNode listTemplates(Company company) {
+
+        ArrayNode all = mapper.createArrayNode();
+
+        String url = templatesUrl(company) + "?limit=100";
+        String accessToken = token(company);
+
+        while (url != null) {
+
+            JsonNode page = get(url, accessToken);
+
+            page.path("data").forEach(all::add);
+
+            JsonNode next = page.path("paging").path("next");
+
+            url = next.isMissingNode() || next.isNull()
+                    ? null
+                    : next.asText(null);
+
+            if (url != null && url.isBlank()) {
+                url = null;
+            }
+        }
+
+        return all;
+    }
+
+    // Legacy single-company method.
     public ArrayNode listTemplates() {
 
         ArrayNode all = mapper.createArrayNode();
 
         String url = root()
-                + "/" + config.getBusinessAccountId()
+                + "/" + required(
+                config.getBusinessAccountId(),
+                "WhatsApp Business Account ID"
+        )
                 + "/message_templates?limit=100";
 
         while (url != null) {
@@ -154,23 +433,37 @@ public class WhatsappClient {
 
             url = next.isMissingNode() || next.isNull()
                     ? null
-                    : next.asText();
+                    : next.asText(null);
+
+            if (url != null && url.isBlank()) {
+                url = null;
+            }
         }
 
         return all;
     }
 
-    // ==========================================
-    // BASE MESSAGE
-    // ==========================================
-
     private ObjectNode baseMessage(String to, String type) {
+
+        if (to == null || to.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Recipient phone number is required."
+            );
+        }
+
+        String recipient = to.replaceAll("[^0-9]", "");
+
+        if (recipient.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Recipient phone number is invalid."
+            );
+        }
 
         ObjectNode payload = mapper.createObjectNode();
 
         payload.put("messaging_product", "whatsapp");
         payload.put("recipient_type", "individual");
-        payload.put("to", to.replaceAll("[^0-9]", ""));
+        payload.put("to", recipient);
         payload.put("type", type);
 
         return payload;
@@ -191,7 +484,9 @@ public class WhatsappClient {
 
         if (messages.isArray() && !messages.isEmpty()) {
 
-            String id = messages.get(0).path("id").asText(null);
+            String id = messages.get(0)
+                    .path("id")
+                    .asText(null);
 
             if (id != null && !id.isBlank()) {
                 return id;
@@ -199,15 +494,15 @@ public class WhatsappClient {
         }
 
         throw new IllegalStateException(
-                "WhatsApp API did not return a message ID"
+                "WhatsApp API did not return a message ID."
         );
     }
 
-    // ==========================================
-    // POST JSON
-    // ==========================================
-
-    private JsonNode post(String url, ObjectNode body) {
+    private JsonNode post(
+            String url,
+            ObjectNode body,
+            String accessToken
+    ) {
 
         try {
 
@@ -216,7 +511,7 @@ public class WhatsappClient {
                     .timeout(Duration.ofSeconds(30))
                     .header(
                             "Authorization",
-                            "Bearer " + config.getAccessToken()
+                            "Bearer " + normalizeToken(accessToken)
                     )
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(
@@ -232,7 +527,8 @@ public class WhatsappClient {
         } catch (IOException e) {
 
             throw new IllegalStateException(
-                    "WhatsApp API call failed: " + e.getMessage(), e
+                    "WhatsApp API call failed: " + e.getMessage(),
+                    e
             );
 
         } catch (InterruptedException e) {
@@ -240,16 +536,25 @@ public class WhatsappClient {
             Thread.currentThread().interrupt();
 
             throw new IllegalStateException(
-                    "WhatsApp API call interrupted", e
+                    "WhatsApp API call interrupted.",
+                    e
             );
         }
     }
 
-    // ==========================================
-    // GET
-    // ==========================================
+    private JsonNode post(String url, ObjectNode body) {
 
-    private JsonNode get(String url) {
+        return post(
+                url,
+                body,
+                required(
+                        config.getAccessToken(),
+                        "WhatsApp access token"
+                )
+        );
+    }
+
+    private JsonNode get(String url, String accessToken) {
 
         try {
 
@@ -258,7 +563,7 @@ public class WhatsappClient {
                     .timeout(Duration.ofSeconds(30))
                     .header(
                             "Authorization",
-                            "Bearer " + config.getAccessToken()
+                            "Bearer " + normalizeToken(accessToken)
                     )
                     .GET()
                     .build();
@@ -271,7 +576,8 @@ public class WhatsappClient {
         } catch (IOException e) {
 
             throw new IllegalStateException(
-                    "WhatsApp API call failed: " + e.getMessage(), e
+                    "WhatsApp API call failed: " + e.getMessage(),
+                    e
             );
 
         } catch (InterruptedException e) {
@@ -279,19 +585,37 @@ public class WhatsappClient {
             Thread.currentThread().interrupt();
 
             throw new IllegalStateException(
-                    "WhatsApp API call interrupted", e
+                    "WhatsApp API call interrupted.",
+                    e
             );
         }
     }
 
-    // ==========================================
-    // HANDLE META RESPONSE
-    // ==========================================
+    private JsonNode get(String url) {
+
+        return get(
+                url,
+                required(
+                        config.getAccessToken(),
+                        "WhatsApp access token"
+                )
+        );
+    }
 
     private JsonNode handle(HttpResponse<String> response)
             throws IOException {
 
-        JsonNode json = mapper.readTree(response.body());
+        JsonNode json;
+
+        try {
+            json = mapper.readTree(response.body());
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Invalid response received from WhatsApp API. HTTP "
+                            + response.statusCode(),
+                    e
+            );
+        }
 
         if (response.statusCode() < 200
                 || response.statusCode() >= 300) {
@@ -299,10 +623,14 @@ public class WhatsappClient {
             JsonNode error = json.path("error");
 
             String message = error.path("error_user_msg")
-                    .asText(error.path("message").asText(response.body()));
+                    .asText(
+                            error.path("message")
+                                    .asText(response.body())
+                    );
 
             String details = error.path("error_data")
-                    .path("details").asText("");
+                    .path("details")
+                    .asText("");
 
             if (!details.isBlank()) {
                 message += " - " + details;
@@ -314,28 +642,31 @@ public class WhatsappClient {
                 message += " (code " + code + ")";
             }
 
-            throw new IllegalStateException(message);
+            String subcode = error.path("error_subcode").asText("");
+
+            if (!subcode.isBlank()) {
+                message += " (subcode " + subcode + ")";
+            }
+
+            throw new IllegalStateException(
+                    "Meta WhatsApp API error: " + message
+            );
         }
 
         return json;
     }
 
-    // ==========================================
-    // MEDIA FILE
-    // ==========================================
-
     public record MediaFile(byte[] data, String mimeType) {
     }
 
-    // ==========================================
-    // UPLOAD NORMAL WHATSAPP MEDIA
-    // ==========================================
-
     public String uploadMedia(
+            Company company,
             byte[] data,
             String mimeType,
             String filename
     ) {
+
+        validateUpload(data, mimeType, filename);
 
         String boundary = "----wa" + UUID.randomUUID();
 
@@ -343,22 +674,24 @@ public class WhatsappClient {
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
 
-            out.write((
-                    "--" + boundary
-                            + "\r\nContent-Disposition: form-data; name=\"messaging_product\""
-                            + "\r\n\r\nwhatsapp\r\n"
-            ).getBytes(StandardCharsets.UTF_8));
+            writeFormField(
+                    out,
+                    boundary,
+                    "messaging_product",
+                    "whatsapp"
+            );
 
-            out.write((
-                    "--" + boundary
-                            + "\r\nContent-Disposition: form-data; name=\"type\""
-                            + "\r\n\r\n" + mimeType + "\r\n"
-            ).getBytes(StandardCharsets.UTF_8));
+            writeFormField(
+                    out,
+                    boundary,
+                    "type",
+                    mimeType
+            );
 
             out.write((
                     "--" + boundary
                             + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\""
-                            + filename + "\""
+                            + safeFilename(filename) + "\""
                             + "\r\nContent-Type: " + mimeType
                             + "\r\n\r\n"
             ).getBytes(StandardCharsets.UTF_8));
@@ -370,13 +703,11 @@ public class WhatsappClient {
             ).getBytes(StandardCharsets.UTF_8));
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(
-                            root() + "/" + config.getPhoneNumberId() + "/media"
-                    ))
+                    .uri(URI.create(mediaUrl(company)))
                     .timeout(Duration.ofSeconds(60))
                     .header(
                             "Authorization",
-                            "Bearer " + config.getAccessToken()
+                            "Bearer " + token(company)
                     )
                     .header(
                             "Content-Type",
@@ -396,7 +727,7 @@ public class WhatsappClient {
 
             if (id == null || id.isBlank()) {
                 throw new IllegalStateException(
-                        "WhatsApp API did not return a media ID"
+                        "WhatsApp API did not return a media ID."
                 );
             }
 
@@ -405,7 +736,8 @@ public class WhatsappClient {
         } catch (IOException e) {
 
             throw new IllegalStateException(
-                    "Media upload failed: " + e.getMessage(), e
+                    "Media upload failed: " + e.getMessage(),
+                    e
             );
 
         } catch (InterruptedException e) {
@@ -413,21 +745,160 @@ public class WhatsappClient {
             Thread.currentThread().interrupt();
 
             throw new IllegalStateException(
-                    "Media upload interrupted", e
+                    "Media upload interrupted.",
+                    e
             );
         }
     }
 
-    // ==========================================
-    // UPLOAD TEMPLATE SAMPLE MEDIA
-    // IMAGE / VIDEO / DOCUMENT
-    // ==========================================
-
-    public String uploadTemplateSample(
+    public String uploadMedia(
             byte[] data,
             String mimeType,
             String filename
     ) {
+
+        validateUpload(data, mimeType, filename);
+
+        String boundary = "----wa" + UUID.randomUUID();
+
+        try {
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+            writeFormField(
+                    out,
+                    boundary,
+                    "messaging_product",
+                    "whatsapp"
+            );
+
+            writeFormField(
+                    out,
+                    boundary,
+                    "type",
+                    mimeType
+            );
+
+            out.write((
+                    "--" + boundary
+                            + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\""
+                            + safeFilename(filename) + "\""
+                            + "\r\nContent-Type: " + mimeType
+                            + "\r\n\r\n"
+            ).getBytes(StandardCharsets.UTF_8));
+
+            out.write(data);
+
+            out.write((
+                    "\r\n--" + boundary + "--\r\n"
+            ).getBytes(StandardCharsets.UTF_8));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(
+                            root() + "/" + required(
+                                    config.getPhoneNumberId(),
+                                    "WhatsApp Phone Number ID"
+                            ) + "/media"
+                    ))
+                    .timeout(Duration.ofSeconds(60))
+                    .header(
+                            "Authorization",
+                            "Bearer " + required(
+                                    config.getAccessToken(),
+                                    "WhatsApp access token"
+                            )
+                    )
+                    .header(
+                            "Content-Type",
+                            "multipart/form-data; boundary=" + boundary
+                    )
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(
+                            out.toByteArray()
+                    ))
+                    .build();
+
+            JsonNode response = handle(http.send(
+                    request,
+                    HttpResponse.BodyHandlers.ofString()
+            ));
+
+            String id = response.path("id").asText(null);
+
+            if (id == null || id.isBlank()) {
+                throw new IllegalStateException(
+                        "WhatsApp API did not return a media ID."
+                );
+            }
+
+            return id;
+
+        } catch (IOException e) {
+
+            throw new IllegalStateException(
+                    "Media upload failed: " + e.getMessage(),
+                    e
+            );
+
+        } catch (InterruptedException e) {
+
+            Thread.currentThread().interrupt();
+
+            throw new IllegalStateException(
+                    "Media upload interrupted.",
+                    e
+            );
+        }
+    }
+
+    private void validateUpload(
+            byte[] data,
+            String mimeType,
+            String filename
+    ) {
+
+        if (data == null || data.length == 0) {
+            throw new IllegalArgumentException(
+                    "Media file is empty."
+            );
+        }
+
+        required(mimeType, "Media MIME type");
+        required(filename, "Media filename");
+    }
+
+    private String safeFilename(String filename) {
+
+        return filename
+                .replace("\\", "_")
+                .replace("/", "_")
+                .replace("\"", "_")
+                .replace("\r", "_")
+                .replace("\n", "_");
+    }
+
+    private void writeFormField(
+            ByteArrayOutputStream out,
+            String boundary,
+            String name,
+            String value
+    ) throws IOException {
+
+        out.write((
+                "--" + boundary
+                        + "\r\nContent-Disposition: form-data; name=\""
+                        + name + "\""
+                        + "\r\n\r\n" + value + "\r\n"
+        ).getBytes(StandardCharsets.UTF_8));
+    }
+
+    public String uploadTemplateSample(
+            Company company,
+            byte[] data,
+            String mimeType,
+            String filename
+    ) {
+
+        validateUpload(data, mimeType, filename);
 
         try {
 
@@ -441,10 +912,11 @@ public class WhatsappClient {
                     StandardCharsets.UTF_8
             );
 
-            // STEP 1: CREATE RESUMABLE UPLOAD SESSION
+            String companyRoot = root(company);
+            String companyToken = token(company);
 
-            String sessionUrl = root()
-                    + "/" + config.getAppId()
+            String sessionUrl = companyRoot
+                    + "/" + appId(company)
                     + "/uploads"
                     + "?file_name=" + encodedFilename
                     + "&file_length=" + data.length
@@ -455,7 +927,7 @@ public class WhatsappClient {
                     .timeout(Duration.ofSeconds(30))
                     .header(
                             "Authorization",
-                            "Bearer " + config.getAccessToken()
+                            "Bearer " + companyToken
                     )
                     .POST(HttpRequest.BodyPublishers.noBody())
                     .build();
@@ -468,20 +940,19 @@ public class WhatsappClient {
             String sessionId = sessionResponse.path("id").asText(null);
 
             if (sessionId == null || sessionId.isBlank()) {
-
                 throw new IllegalStateException(
-                        "Meta did not return an upload session ID"
+                        "Meta did not return an upload session ID."
                 );
             }
 
-            // STEP 2: UPLOAD BINARY FILE
-
             HttpRequest uploadRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(root() + "/" + sessionId))
+                    .uri(URI.create(
+                            companyRoot + "/" + sessionId
+                    ))
                     .timeout(Duration.ofSeconds(120))
                     .header(
                             "Authorization",
-                            "OAuth " + config.getAccessToken()
+                            "OAuth " + companyToken
                     )
                     .header("file_offset", "0")
                     .header(
@@ -496,14 +967,11 @@ public class WhatsappClient {
                     HttpResponse.BodyHandlers.ofString()
             ));
 
-            // STEP 3: RETURN META HEADER HANDLE
-
             String handle = uploadResponse.path("h").asText(null);
 
             if (handle == null || handle.isBlank()) {
-
                 throw new IllegalStateException(
-                        "Meta did not return a template media handle"
+                        "Meta did not return a template media handle."
                 );
             }
 
@@ -512,7 +980,8 @@ public class WhatsappClient {
         } catch (IOException e) {
 
             throw new IllegalStateException(
-                    "Template sample upload failed: " + e.getMessage(), e
+                    "Template sample upload failed: " + e.getMessage(),
+                    e
             );
 
         } catch (InterruptedException e) {
@@ -520,14 +989,140 @@ public class WhatsappClient {
             Thread.currentThread().interrupt();
 
             throw new IllegalStateException(
-                    "Template sample upload interrupted", e
+                    "Template sample upload interrupted.",
+                    e
             );
         }
     }
 
-    // ==========================================
-    // SEND IMAGE
-    // ==========================================
+    public String uploadTemplateSample(
+            byte[] data,
+            String mimeType,
+            String filename
+    ) {
+
+        validateUpload(data, mimeType, filename);
+
+        try {
+
+            String encodedFilename = URLEncoder.encode(
+                    filename,
+                    StandardCharsets.UTF_8
+            );
+
+            String encodedMimeType = URLEncoder.encode(
+                    mimeType,
+                    StandardCharsets.UTF_8
+            );
+
+            String sessionUrl = root()
+                    + "/" + required(
+                    config.getAppId(),
+                    "WhatsApp App ID"
+            )
+                    + "/uploads"
+                    + "?file_name=" + encodedFilename
+                    + "&file_length=" + data.length
+                    + "&file_type=" + encodedMimeType;
+
+            String accessToken = required(
+                    config.getAccessToken(),
+                    "WhatsApp access token"
+            );
+
+            HttpRequest sessionRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(sessionUrl))
+                    .timeout(Duration.ofSeconds(30))
+                    .header(
+                            "Authorization",
+                            "Bearer " + accessToken
+                    )
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build();
+
+            JsonNode sessionResponse = handle(http.send(
+                    sessionRequest,
+                    HttpResponse.BodyHandlers.ofString()
+            ));
+
+            String sessionId = sessionResponse.path("id").asText(null);
+
+            if (sessionId == null || sessionId.isBlank()) {
+                throw new IllegalStateException(
+                        "Meta did not return an upload session ID."
+                );
+            }
+
+            HttpRequest uploadRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(root() + "/" + sessionId))
+                    .timeout(Duration.ofSeconds(120))
+                    .header(
+                            "Authorization",
+                            "OAuth " + normalizeToken(accessToken)
+                    )
+                    .header("file_offset", "0")
+                    .header(
+                            "Content-Type",
+                            "application/octet-stream"
+                    )
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(data))
+                    .build();
+
+            JsonNode uploadResponse = handle(http.send(
+                    uploadRequest,
+                    HttpResponse.BodyHandlers.ofString()
+            ));
+
+            String handle = uploadResponse.path("h").asText(null);
+
+            if (handle == null || handle.isBlank()) {
+                throw new IllegalStateException(
+                        "Meta did not return a template media handle."
+                );
+            }
+
+            return handle;
+
+        } catch (IOException e) {
+
+            throw new IllegalStateException(
+                    "Template sample upload failed: " + e.getMessage(),
+                    e
+            );
+
+        } catch (InterruptedException e) {
+
+            Thread.currentThread().interrupt();
+
+            throw new IllegalStateException(
+                    "Template sample upload interrupted.",
+                    e
+            );
+        }
+    }
+
+    public String sendImage(
+            Company company,
+            String to,
+            String mediaId,
+            String caption
+    ) {
+
+        ObjectNode payload = baseMessage(to, "image");
+
+        ObjectNode image = payload.putObject("image");
+        image.put("id", mediaId);
+
+        if (caption != null && !caption.isBlank()) {
+            image.put("caption", caption);
+        }
+
+        return messageId(post(
+                messagesUrl(company),
+                payload,
+                token(company)
+        ));
+    }
 
     public String sendImage(
             String to,
@@ -538,7 +1133,6 @@ public class WhatsappClient {
         ObjectNode payload = baseMessage(to, "image");
 
         ObjectNode image = payload.putObject("image");
-
         image.put("id", mediaId);
 
         if (caption != null && !caption.isBlank()) {
@@ -546,14 +1140,30 @@ public class WhatsappClient {
         }
 
         return messageId(post(
-                root() + "/" + config.getPhoneNumberId() + "/messages",
+                root() + "/" + required(
+                        config.getPhoneNumberId(),
+                        "WhatsApp Phone Number ID"
+                ) + "/messages",
                 payload
         ));
     }
 
-    // ==========================================
-    // SEND AUDIO
-    // ==========================================
+    public String sendAudio(
+            Company company,
+            String to,
+            String mediaId
+    ) {
+
+        ObjectNode payload = baseMessage(to, "audio");
+
+        payload.putObject("audio").put("id", mediaId);
+
+        return messageId(post(
+                messagesUrl(company),
+                payload,
+                token(company)
+        ));
+    }
 
     public String sendAudio(String to, String mediaId) {
 
@@ -562,33 +1172,56 @@ public class WhatsappClient {
         payload.putObject("audio").put("id", mediaId);
 
         return messageId(post(
-                root() + "/" + config.getPhoneNumberId() + "/messages",
+                root() + "/" + required(
+                        config.getPhoneNumberId(),
+                        "WhatsApp Phone Number ID"
+                ) + "/messages",
                 payload
         ));
     }
 
-    // ==========================================
-    // DOWNLOAD MEDIA
-    // ==========================================
-
-    public MediaFile downloadMedia(String mediaId) {
+    public MediaFile downloadMedia(
+            Company company,
+            String mediaId
+    ) {
 
         try {
 
-            JsonNode meta = get(root() + "/" + mediaId);
+            String companyToken = token(company);
+
+            JsonNode meta = get(
+                    root(company) + "/" + required(
+                            mediaId,
+                            "WhatsApp media ID"
+                    ),
+                    companyToken
+            );
 
             String url = meta.path("url").asText(null);
 
-            if (url == null) {
-                throw new IllegalStateException("Media URL not found");
+            if (url == null || url.isBlank()) {
+                throw new IllegalStateException(
+                        "Media URL not found in Meta response."
+                );
+            }
+
+            URI mediaUri = URI.create(url);
+
+            if (!mediaUri.isAbsolute()
+                    || mediaUri.getScheme() == null
+                    || !"https".equalsIgnoreCase(mediaUri.getScheme())) {
+
+                throw new IllegalStateException(
+                        "Meta returned an invalid media download URL."
+                );
             }
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
+                    .uri(mediaUri)
                     .timeout(Duration.ofSeconds(60))
                     .header(
                             "Authorization",
-                            "Bearer " + config.getAccessToken()
+                            "Bearer " + companyToken
                     )
                     .GET()
                     .build();
@@ -599,9 +1232,9 @@ public class WhatsappClient {
             );
 
             if (response.statusCode() != 200) {
-
                 throw new IllegalStateException(
-                        "Media download failed: " + response.statusCode()
+                        "Media download failed. HTTP status: "
+                                + response.statusCode()
                 );
             }
 
@@ -614,7 +1247,8 @@ public class WhatsappClient {
         } catch (IOException e) {
 
             throw new IllegalStateException(
-                    "Media download failed: " + e.getMessage(), e
+                    "Media download failed: " + e.getMessage(),
+                    e
             );
 
         } catch (InterruptedException e) {
@@ -622,7 +1256,90 @@ public class WhatsappClient {
             Thread.currentThread().interrupt();
 
             throw new IllegalStateException(
-                    "Media download interrupted", e
+                    "Media download interrupted.",
+                    e
+            );
+        }
+    }
+
+    public MediaFile downloadMedia(String mediaId) {
+
+        try {
+
+            String accessToken = required(
+                    config.getAccessToken(),
+                    "WhatsApp access token"
+            );
+
+            JsonNode meta = get(
+                    root() + "/" + required(
+                            mediaId,
+                            "WhatsApp media ID"
+                    ),
+                    accessToken
+            );
+
+            String url = meta.path("url").asText(null);
+
+            if (url == null || url.isBlank()) {
+                throw new IllegalStateException(
+                        "Media URL not found in Meta response."
+                );
+            }
+
+            URI mediaUri = URI.create(url);
+
+            if (!mediaUri.isAbsolute()
+                    || mediaUri.getScheme() == null
+                    || !"https".equalsIgnoreCase(mediaUri.getScheme())) {
+
+                throw new IllegalStateException(
+                        "Meta returned an invalid media download URL."
+                );
+            }
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(mediaUri)
+                    .timeout(Duration.ofSeconds(60))
+                    .header(
+                            "Authorization",
+                            "Bearer " + accessToken
+                    )
+                    .GET()
+                    .build();
+
+            HttpResponse<byte[]> response = http.send(
+                    request,
+                    HttpResponse.BodyHandlers.ofByteArray()
+            );
+
+            if (response.statusCode() != 200) {
+                throw new IllegalStateException(
+                        "Media download failed. HTTP status: "
+                                + response.statusCode()
+                );
+            }
+
+            return new MediaFile(
+                    response.body(),
+                    meta.path("mime_type")
+                            .asText("application/octet-stream")
+            );
+
+        } catch (IOException e) {
+
+            throw new IllegalStateException(
+                    "Media download failed: " + e.getMessage(),
+                    e
+            );
+
+        } catch (InterruptedException e) {
+
+            Thread.currentThread().interrupt();
+
+            throw new IllegalStateException(
+                    "Media download interrupted.",
+                    e
             );
         }
     }
