@@ -3,12 +3,8 @@ import api from "./apiservice";
 
 export interface CompanyRequestDto {
     companyName: string;
-
-    // Email Configuration
     mailUsername: string;
     mailPassword: string;
-
-    // WhatsApp Configuration
     whatsappAccessToken: string;
     whatsappApiVersion: string;
     whatsappAppId: string;
@@ -25,12 +21,8 @@ export interface CompanyIdDto {
 export interface CompanyUpdateDto {
     id: number;
     companyName: string;
-
-    // Email Configuration
     mailUsername: string;
     mailPassword: string;
-
-    // WhatsApp Configuration
     whatsappAccessToken: string;
     whatsappApiVersion: string;
     whatsappAppId: string;
@@ -43,12 +35,8 @@ export interface CompanyUpdateDto {
 export interface CompanyResponseDto {
     id: number;
     companyName: string;
-
-    // Email Configuration
     mailUsername: string;
     mailPassword: string;
-
-    // WhatsApp Configuration
     whatsappAccessToken: string;
     whatsappApiVersion: string;
     whatsappAppId: string;

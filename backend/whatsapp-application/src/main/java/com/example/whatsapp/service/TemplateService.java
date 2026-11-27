@@ -878,9 +878,6 @@ public class TemplateService {
     }
 
 
-    // =========================================================
-    // FETCH FROM META AND REMOVE STALE LOCAL TEMPLATES
-    // =========================================================
 
     @Transactional
     public List<TemplateResponse> listFromMeta(
@@ -894,8 +891,6 @@ public class TemplateService {
                                 "Company not found: " + companyId
                         )
                 );
-
-        // IMPORTANT: Use selected company's credentials
         ArrayNode templates = client.listTemplates(company);
 
         if (templates == null) {
@@ -930,17 +925,10 @@ public class TemplateService {
 
             repo.deleteAll(stale);
         }
-
-        // Sync local records for this company
         sync(companyId);
 
         return list(companyId, status);
     }
-
-
-    // =========================================================
-    // LIST LOCAL TEMPLATES
-    // =========================================================
 
     @Transactional(readOnly = true)
     public List<TemplateResponse> list(
@@ -962,11 +950,6 @@ public class TemplateService {
                 .map(this::map)
                 .toList();
     }
-
-
-    // =========================================================
-    // UPDATE TEMPLATE STATUS FROM WEBHOOK
-    // =========================================================
 
     @Transactional
     public void applyWebhookStatus(
@@ -1043,11 +1026,6 @@ public class TemplateService {
         }
     }
 
-
-    // =========================================================
-    // COUNT VARIABLES
-    // =========================================================
-
     public static int countVariables(String body) {
 
         if (body == null || body.isBlank()) {
@@ -1068,11 +1046,6 @@ public class TemplateService {
 
         return max;
     }
-
-
-    // =========================================================
-    // VALIDATE BODY VARIABLES
-    // =========================================================
 
     private void validateBodyVariables(String body) {
 

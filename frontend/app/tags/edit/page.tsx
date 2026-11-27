@@ -70,7 +70,6 @@ function EditCategory({
                 companyId: companyId,
             });
 
-            console.log("Tag updated:", response);
 
             setCategoryName("");
             onClose();

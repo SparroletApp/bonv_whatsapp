@@ -129,10 +129,7 @@ function Sidebar() {
 
     return (
         <aside className={`sidebar ${collapsed ? "collapsed" : "expanded"}`}>
-
-            {/* LOGO */}
             <div className={`sidebar-logo ${collapsed ? "logo-collapsed" : "logo-expanded"}`}>
-
                 <div className="bonv-brand">
                     {collapsed ? (
                         <img
@@ -160,7 +157,6 @@ function Sidebar() {
                 </button>
             </div>
 
-            {/* MENU */}
             <div className="sidebar-menu">
 
                 {!collapsed && (
@@ -205,7 +201,6 @@ function Sidebar() {
                 </nav>
             </div>
 
-            {/* LOGOUT */}
             <div className="sidebar-bottom">
 
                 <button

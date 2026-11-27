@@ -58,8 +58,6 @@ function CreateCategory({
                 companyId: companyId,
             });
 
-            console.log("Tag created successfully:", response);
-
             setCategoryName("");
             setError("");
             onClose();

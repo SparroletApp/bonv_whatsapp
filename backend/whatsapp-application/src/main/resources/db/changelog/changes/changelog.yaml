@@ -236,5 +236,21 @@ databaseChangeLog:
             path: sql/alter_templates_add_company_id.sql
             relativeToChangelogFile: true
 
+  - changeSet:
+      id: create_tour_connections
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/create_tour_connections.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: alter_tourconnect_add_companytourid
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/alter_tourconnect_add_companytourid.sql
+            relativeToChangelogFile: true
+
 
 

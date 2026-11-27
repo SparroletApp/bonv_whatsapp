@@ -35,7 +35,6 @@ function EditCompany() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    // Fetch company ID from localStorage and load company details
     useEffect(() => {
         const loadCompany = async () => {
             const storedId = localStorage.getItem("company_edit_id");
@@ -102,7 +101,6 @@ function EditCompany() {
         loadCompany();
     }, [router]);
 
-    // Handle input changes
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement>
     ) => {
@@ -114,7 +112,6 @@ function EditCompany() {
         }));
     };
 
-    // Update company
     const handleSubmit = async (
         e: React.FormEvent<HTMLFormElement>
     ) => {
@@ -211,7 +208,6 @@ function EditCompany() {
                 className="edit-company-form"
                 onSubmit={handleSubmit}
             >
-                {/* Company Details */}
                 <div className="edit-company-section">
                     <div className="edit-company-section-title">
                         <i className="bi bi-building"></i>
@@ -239,7 +235,6 @@ function EditCompany() {
                     </div>
                 </div>
 
-                {/* Mail Configuration */}
                 <div className="edit-company-section">
                     <div className="edit-company-section-title">
                         <i className="bi bi-envelope"></i>
@@ -281,7 +276,6 @@ function EditCompany() {
                     </div>
                 </div>
 
-                {/* WhatsApp Configuration */}
                 <div className="edit-company-section">
                     <div className="edit-company-section-title">
                         <i className="bi bi-whatsapp"></i>
@@ -395,7 +389,6 @@ function EditCompany() {
                     </div>
                 </div>
 
-                {/* Form Actions */}
                 <div className="edit-company-actions">
                     <button
                         type="button"

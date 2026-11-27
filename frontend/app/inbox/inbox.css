@@ -1625,11 +1625,6 @@
 }
 
 
-
-/* =========================================
-   WHATSAPP PRO - MODERN BUSINESS CHAT UI
-   ========================================= */
-
 .wa-app {
     display: flex;
     width: 100%;
@@ -1642,10 +1637,6 @@
     font-family: Inter, Arial, sans-serif;
     color: #18332d;
 }
-
-/* =========================================
-   SIDEBAR
-   ========================================= */
 
 .wa-sidebar {
     width: 360px;
@@ -1725,8 +1716,6 @@
     color: #08765d;
 }
 
-/* SEARCH */
-
 .wa-search-area {
     padding: 16px 15px 10px;
     background: #fff;
@@ -1764,7 +1753,6 @@
     color: #a0aea8;
 }
 
-/* FILTERS */
 
 .wa-filter-area {
     display: flex;
@@ -1851,7 +1839,6 @@
     color: #08765d;
 }
 
-/* CONVERSATION LIST */
 
 .wa-conversation-list {
     flex: 1;
@@ -1999,8 +1986,6 @@
     justify-content: center;
 }
 
-/* SIDEBAR FOOTER */
-
 .wa-sidebar-footer {
     display: flex;
     align-items: center;
@@ -2048,10 +2033,6 @@
     transform: translateY(-2px);
 }
 
-/* =========================================
-   CHAT PANEL
-   ========================================= */
-
 .wa-chat-panel {
     flex: 1;
     min-width: 0;
@@ -2062,8 +2043,6 @@
     background-image: radial-gradient(#dce9e2 0.7px, transparent 0.7px);
     background-size: 20px 20px;
 }
-
-/* CHAT HEADER */
 
 .wa-chat-header {
     min-height: 76px;
@@ -2111,10 +2090,6 @@
     align-items: center;
     gap: 20px;
 }
-
-/* =========================================
-   CHAT MESSAGES
-   ========================================= */
 
 .wa-chat-messages {
     flex: 1;
@@ -2237,10 +2212,6 @@
     gap: 8px;
 }
 
-/* =========================================
-   MESSAGE COMPOSER
-   ========================================= */
-
 .wa-composer {
     min-height: 82px;
     padding: 14px 22px;
@@ -2337,10 +2308,6 @@
     background: #b9cec4;
     cursor: not-allowed;
 }
-
-/* =========================================
-   TEMPLATE DESIGN
-   ========================================= */
 
 .wa-template-header-btn {
     display: flex;
@@ -2711,8 +2678,6 @@
     cursor: not-allowed;
 }
 
-/* TEMPLATE BUTTON */
-
 .wa-template-bottom-button {
     display: inline-flex;
     align-items: center;
@@ -2744,10 +2709,6 @@
 .wa-template-bottom-button .wa-template-bottom-arrow {
     font-size: 9px;
 }
-
-/* =========================================
-   EMPTY / WELCOME SCREEN
-   ========================================= */
 
 .wa-welcome-screen {
     flex: 1;
@@ -2815,9 +2776,6 @@
     color: #9aaa9f;
 }
 
-/* =========================================
-   NEW CHAT
-   ========================================= */
 
 .wa-newchat {
     display: flex;
@@ -2922,10 +2880,6 @@
     color: #263d34;
 }
 
-/* =========================================
-   MEDIA / UPLOAD
-   ========================================= */
-
 .wa-media-audio {
     width: 240px;
     height: 40px;
@@ -3002,10 +2956,6 @@
     to { transform: rotate(360deg); }
 }
 
-/* =========================================
-   WINDOW STATUS
-   ========================================= */
-
 .wa-window-info {
     padding: 8px 16px;
     background: #e9f6ef;
@@ -3047,10 +2997,6 @@
     background: #fff0ef;
     color: #d93025;
 }
-
-/* =========================================
-   RESPONSIVE
-   ========================================= */
 
 @media (max-width: 900px) {
     .wa-sidebar {

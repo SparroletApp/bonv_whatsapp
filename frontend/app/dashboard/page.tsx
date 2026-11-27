@@ -60,7 +60,6 @@ const load = useCallback(async () => {
     setRefreshing(true);
 
     try {
-        // Get company ID from session storage
         const companyId = Number(
             sessionStorage.getItem("companyId")
         );
@@ -73,7 +72,6 @@ const load = useCallback(async () => {
         }
 
         const [c, t, i, k] = await Promise.allSettled([
-            // Get campaigns belonging to this company
             campaignService.getByCompanyId(companyId),
 
             templateService.list(),

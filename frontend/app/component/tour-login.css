@@ -1,0 +1,536 @@
+
+
+.tour-login-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(12, 30, 27, 0.68);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+    animation: tourOverlayFade 0.25s ease;
+}
+
+.tour-login-modal {
+    position: relative;
+    width: 100%;
+    max-width: 550px;
+    min-height: 550px;
+    overflow: hidden;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25);
+    animation: tourModalAppear 0.3s ease;
+}
+
+
+.tour-login-close {
+    position: absolute;
+    top: 16px;
+    right: 17px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    color: #64736f;
+    background: #f1f5f4;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tour-login-close:hover:not(:disabled) {
+    color: #ffffff;
+    background: #064e45;
+    transform: rotate(90deg);
+}
+
+.tour-login-close:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.tour-login-left {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 550px;
+    padding: 42px 38px 30px;
+    overflow: hidden;
+    color: #ffffff;
+    background: linear-gradient(
+        145deg,
+        #043c35 0%,
+        #064e45 50%,
+        #087b68 100%
+    );
+}
+
+.tour-login-left::before {
+    position: absolute;
+    top: -130px;
+    right: -120px;
+    width: 350px;
+    height: 350px;
+    content: "";
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 50%;
+}
+
+.tour-login-left::after {
+    position: absolute;
+    right: -80px;
+    bottom: -170px;
+    width: 400px;
+    height: 400px;
+    content: "";
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+}
+
+
+.tour-login-brand {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 22px;
+    font-weight: 750;
+    letter-spacing: -0.5px;
+}
+
+.tour-login-brand i {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 43px;
+    height: 43px;
+    color: #064e45;
+    background: #ffffff;
+    border-radius: 13px;
+    font-size: 23px;
+}
+
+
+.tour-login-welcome {
+    position: relative;
+    z-index: 2;
+    margin-top: auto;
+    margin-bottom: 40px;
+}
+
+.tour-login-welcome h1 {
+    max-width: 360px;
+    margin: 0 0 18px;
+    color: #ffffff;
+    font-size: 35px;
+    font-weight: 750;
+    line-height: 1.25;
+    letter-spacing: -1px;
+}
+
+.tour-login-welcome p {
+    max-width: 340px;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.tour-login-decoration {
+    position: absolute;
+    right: 35px;
+    bottom: 105px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 125px;
+    height: 125px;
+    color: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 50%;
+    transform: rotate(-15deg);
+}
+
+.tour-login-decoration i {
+    font-size: 65px;
+}
+
+.tour-login-left-footer {
+    position: relative;
+    z-index: 2;
+    padding-top: 18px;
+    color: rgba(255, 255, 255, 0.65);
+    border-top: 1px solid rgba(255, 255, 255, 0.17);
+    font-size: 12px;
+    letter-spacing: 0.5px;
+}
+
+.tour-login-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 65px 55px 45px;
+    background: #ffffff;
+}
+
+.tour-login-form-header {
+    margin-bottom: 32px;
+}
+
+.tour-login-tag {
+    display: inline-block;
+    margin-bottom: 15px;
+    padding: 7px 12px;
+    color: #064e45;
+    background: #e8f3f0;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 750;
+    letter-spacing: 1.2px;
+}
+
+.tour-login-form-header h2 {
+    margin: 0 0 10px;
+    color: #172c27;
+    font-size: 30px;
+    font-weight: 750;
+    letter-spacing: -0.8px;
+}
+
+.tour-login-form-header p {
+    margin: 0;
+    color: #82918d;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.tour-login-field {
+    margin-bottom: 22px;
+}
+
+.tour-login-field label {
+    display: block;
+    margin-bottom: 9px;
+    color: #263c38;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.tour-login-input-wrap {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 51px;
+    padding: 0 15px;
+    background: #f8faf9;
+    border: 1px solid #e2eae7;
+    border-radius: 9px;
+    transition: all 0.2s ease;
+}
+
+.tour-login-input-wrap:focus-within {
+    background: #ffffff;
+    border-color: #064e45;
+    box-shadow: 0 0 0 3px rgba(6, 78, 69, 0.09);
+}
+
+.tour-login-input-wrap > i:first-child {
+    flex-shrink: 0;
+    margin-right: 12px;
+    color: #82918d;
+    font-size: 17px;
+}
+
+.tour-login-input-wrap input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    color: #263c38;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 13px;
+}
+
+.tour-login-input-wrap input::placeholder {
+    color: #a5b0ad;
+}
+
+.tour-login-input-wrap input:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.tour-login-password-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    color: #82918d;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.tour-login-password-toggle:hover {
+    color: #064e45;
+}
+
+.tour-login-password-toggle i {
+    font-size: 17px;
+}
+
+.tour-login-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 51px;
+    margin-top: 8px;
+    padding: 12px 20px;
+    color: #ffffff;
+    background: #064e45;
+    border: none;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 650;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.tour-login-submit:hover:not(:disabled) {
+    background: #043c35;
+    box-shadow: 0 7px 18px rgba(6, 78, 69, 0.2);
+    transform: translateY(-2px);
+}
+
+.tour-login-submit:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.tour-login-submit:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.tour-login-submit > i {
+    font-size: 17px;
+    transition: transform 0.2s ease;
+}
+
+.tour-login-submit:hover:not(:disabled) > i {
+    transform: translateX(4px);
+}
+
+
+.tour-login-spinner {
+    display: inline-block;
+    width: 17px;
+    height: 17px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: tourSpinner 0.7s linear infinite;
+}
+
+.tour-login-security {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 25px;
+    color: #82918d;
+    font-size: 11px;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.tour-login-security i {
+    flex-shrink: 0;
+    color: #087b68;
+    font-size: 15px;
+}
+
+@keyframes tourOverlayFade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes tourModalAppear {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes tourSpinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 850px) {
+    .tour-login-modal {
+        max-width: 750px;
+        grid-template-columns: 0.85fr 1.15fr;
+    }
+
+    .tour-login-left {
+        padding: 35px 27px 25px;
+    }
+
+    .tour-login-welcome h1 {
+        font-size: 29px;
+    }
+
+    .tour-login-right {
+        padding: 60px 35px 35px;
+    }
+
+    .tour-login-decoration {
+        right: 20px;
+        width: 95px;
+        height: 95px;
+    }
+
+    .tour-login-decoration i {
+        font-size: 48px;
+    }
+}
+
+@media (max-width: 650px) {
+    .tour-login-overlay {
+        align-items: center;
+        padding: 15px;
+        overflow-y: auto;
+    }
+
+    .tour-login-modal {
+        display: flex;
+        flex-direction: column;
+        max-width: 450px;
+        min-height: auto;
+        max-height: calc(100vh - 30px);
+        overflow-y: auto;
+        border-radius: 16px;
+    }
+
+    .tour-login-left {
+        min-height: 175px;
+        padding: 23px 25px;
+    }
+
+    .tour-login-brand {
+        font-size: 19px;
+    }
+
+    .tour-login-brand i {
+        width: 36px;
+        height: 36px;
+        font-size: 19px;
+    }
+
+    .tour-login-welcome {
+        margin-top: 22px;
+        margin-bottom: 0;
+    }
+
+    .tour-login-welcome h1 {
+        max-width: 280px;
+        margin-bottom: 7px;
+        font-size: 23px;
+    }
+
+    .tour-login-welcome p {
+        display: none;
+    }
+
+    .tour-login-decoration {
+        right: 25px;
+        bottom: 25px;
+        width: 65px;
+        height: 65px;
+    }
+
+    .tour-login-decoration i {
+        font-size: 33px;
+    }
+
+    .tour-login-left-footer {
+        display: none;
+    }
+
+    .tour-login-right {
+        padding: 35px 25px 28px;
+    }
+
+    .tour-login-form-header {
+        margin-bottom: 25px;
+    }
+
+    .tour-login-form-header h2 {
+        font-size: 26px;
+    }
+
+    .tour-login-close {
+        top: 12px;
+        right: 12px;
+        width: 32px;
+        height: 32px;
+    }
+}
+
+@media (max-width: 380px) {
+    .tour-login-overlay {
+        padding: 10px;
+    }
+
+    .tour-login-modal {
+        max-height: calc(100vh - 20px);
+    }
+
+    .tour-login-left {
+        min-height: 150px;
+        padding: 20px;
+    }
+
+    .tour-login-welcome h1 {
+        font-size: 20px;
+    }
+
+    .tour-login-right {
+        padding: 28px 20px 23px;
+    }
+
+    .tour-login-form-header h2 {
+        font-size: 24px;
+    }
+}

@@ -383,17 +383,14 @@ const loadCategoriesAndContacts = async () => {
         const contactData =
             unwrapResponse<any[]>(contactResponse);
 
-        // Set company-specific categories
         setCategories(
             Array.isArray(categoryData) ? categoryData : []
         );
 
-        // Store company-specific contacts
         setAllContacts(
             Array.isArray(contactData) ? contactData : []
         );
 
-        // Build contact category mapping
         const categoryMap: Record<string, number[]> = {};
 
         if (Array.isArray(contactData)) {
@@ -448,10 +445,7 @@ const loadCategoriesAndContacts = async () => {
 
         setContactCategoryMap(categoryMap);
 
-        console.log("Company ID:", companyId);
-        console.log("Company categories:", categoryData);
-        console.log("Company contacts:", contactData);
-        console.log("Contact category map:", categoryMap);
+
 
     } catch (error) {
         console.error(
@@ -474,8 +468,6 @@ const openEditContact = async () => {
         const response = await contactService.getAllContacts();
         const contacts = unwrapResponse<any[]>(response);
 
-        console.log("Active conversation:", active);
-        console.log("Contacts API response:", contacts);
 
         const activePhone = normalizePhone(active.phone);
         const activeLast10 = activePhone.slice(-10);
@@ -501,12 +493,10 @@ const openEditContact = async () => {
             : null;
 
         if (!contact) {
-            console.log("Contact not matched for:", activePhone);
             setError("Contact details not found. Check the browser console for the contact API response.");
             return;
         }
 
-        console.log("Matched contact:", contact);
 
         setEditingContactId(Number(contact.id));
         setShowEditContact(true);
@@ -1371,7 +1361,6 @@ const openNewChat = async () => {
                                         { label: "All", value: "ALL", color: "#064e45" },
                                         { label: "Unread", value: "UNREAD", color: "#e5a000" },
                                         { label: "Closed", value: "CLOSED", color: "#89949a" },
-                                        // { label: "Pending", value: "PENDING", color: "#e67e22" },
                                     ].map((filter) => (
                                         <button
                                             key={filter.value}
@@ -2054,7 +2043,6 @@ const openNewChat = async () => {
                                                 </small>
                                             )}
                                         </div>
-
                                         {bodyVariableNumbers.length > 0 && (
                                             <div className="wa-template-variables">
                                                 <h4>
@@ -2103,16 +2091,13 @@ const openNewChat = async () => {
                                         )}
                                     </>
                                 )}
-
                                 {templateError && (
                                     <div className="wa-template-error">
                                         <i className="bi bi-exclamation-circle"></i>
                                         {templateError}
                                     </div>
                                 )}
-
                             </div>
-
                             <div className="wa-template-modal-footer">
                                 <button
                                     type="button"
@@ -2173,7 +2158,6 @@ const openNewChat = async () => {
                     }}
                 />
             )}
-
 
             {showCreateCategory && (
                 <CreateCategory
