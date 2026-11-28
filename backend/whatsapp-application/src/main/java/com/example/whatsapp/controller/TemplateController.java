@@ -1,8 +1,10 @@
-
 package com.example.whatsapp.controller;
 
+import com.example.whatsapp.dto.buttonruledto.ButtonRuleResponseDto;
+import com.example.whatsapp.dto.buttonruledto.ButtonRulesUpdateRequestDto;
 import com.example.whatsapp.dto.whatsappdto.TemplateCreateRequestDto;
 import com.example.whatsapp.dto.whatsappdto.TemplateResponse;
+import com.example.whatsapp.service.ButtonRuleService;
 import com.example.whatsapp.service.TemplateService;
 
 import jakarta.validation.Valid;
@@ -23,6 +25,7 @@ import java.util.Map;
 public class TemplateController {
 
     private final TemplateService service;
+    private final ButtonRuleService ruleService;
 
     @GetMapping
     public ResponseEntity<List<TemplateResponse>> list(
@@ -71,6 +74,27 @@ public class TemplateController {
     ) {
         return ResponseEntity.ok(
                 service.sync(companyId)
+        );
+    }
+
+    @GetMapping("/{id}/button-rules")
+    public ResponseEntity<List<ButtonRuleResponseDto>> getButtonRules(
+            @RequestHeader("X-Company-Id") Long companyId,
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                ruleService.get(companyId, id)
+        );
+    }
+
+    @PutMapping("/{id}/button-rules")
+    public ResponseEntity<List<ButtonRuleResponseDto>> saveButtonRules(
+            @RequestHeader("X-Company-Id") Long companyId,
+            @PathVariable Long id,
+            @Valid @RequestBody ButtonRulesUpdateRequestDto req
+    ) {
+        return ResponseEntity.ok(
+                ruleService.save(companyId, id, req)
         );
     }
 }

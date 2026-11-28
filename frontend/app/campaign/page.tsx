@@ -58,7 +58,27 @@ export default function CampaignsPage() {
         };
 
         checkTmsConnection();
+
+        window.addEventListener("focus", checkTmsConnection);
+
+        return () => {
+            window.removeEventListener("focus", checkTmsConnection);
+        };
     }, []);
+
+    const handleTmsClick = () => {
+        const connected =
+            sessionStorage.getItem("tms_connected") === "true" &&
+            !!sessionStorage.getItem("tms_access_token");
+
+        setTmsConnected(connected);
+
+        if (connected) {
+            setShowTourList(true);
+        } else {
+            setShowTmsLogin(true);
+        }
+    };
 
     const getCompanyId = (): number | null => {
         const storedCompanyId = sessionStorage.getItem("companyId");
@@ -242,20 +262,13 @@ export default function CampaignsPage() {
 
                     <div className="cmp-top-actions">
                         <button
+                            type="button"
                             className="cmp-btn cmp-tms-btn"
-                            onClick={() => {
-                                if (tmsConnected) {
-                                    setShowTourList(true);
-                                } else {
-                                    setShowTmsLogin(true);
-                                }
-                            }}
+                            onClick={handleTmsClick}
                         >
                             <i className="bi bi-link-45deg"></i>
-
                             {tmsConnected ? "Select Tours" : "Connect TMS"}
                         </button>
-
                         <Link href="/campaign/create" className="cmp-btn">
                             + Create campaign
                         </Link>
@@ -581,6 +594,10 @@ export default function CampaignsPage() {
                             !!sessionStorage.getItem("tms_access_token");
 
                         setTmsConnected(connected);
+
+                        if (connected) {
+                            setShowTourList(true);
+                        }
                     }}
                 />
             )}

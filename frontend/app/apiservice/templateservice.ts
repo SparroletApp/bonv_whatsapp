@@ -1,4 +1,3 @@
-
 import api from "./apiservice";
 
 export interface TemplateButton {
@@ -43,6 +42,24 @@ export interface TemplateResponse {
 
 export interface TemplateMediaUploadResponse {
     handle: string;
+}
+
+// ---------- Reply bot rules ----------
+
+export interface ButtonRule {
+    id: number;
+    sourceTemplateId: number;
+    sourceTemplateName: string;
+    buttonIndex: number;
+    buttonText: string;
+    targetTemplateId: number;
+    targetTemplateName: string;
+    targetTemplateStatus: string;
+}
+
+export interface ButtonRuleRequest {
+    buttonIndex: number;
+    targetTemplateId: number;
 }
 
 const getCompanyHeaders = () => {
@@ -99,6 +116,25 @@ const templateService = {
         api.post<TemplateResponse[]>(
             "/templates/sync",
             {},
+            {
+                headers: getCompanyHeaders(),
+            }
+        ),
+
+    // ---------- Reply bot rules ----------
+
+    getButtonRules: (templateId: number) =>
+        api.get<ButtonRule[]>(
+            `/templates/${templateId}/button-rules`,
+            {
+                headers: getCompanyHeaders(),
+            }
+        ),
+
+    saveButtonRules: (templateId: number, rules: ButtonRuleRequest[]) =>
+        api.put<ButtonRule[]>(
+            `/templates/${templateId}/button-rules`,
+            { rules },
             {
                 headers: getCompanyHeaders(),
             }

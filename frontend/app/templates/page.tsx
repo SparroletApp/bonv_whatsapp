@@ -7,6 +7,8 @@ import Modal from "@/app/component/Modal";
 import TemplatePreview from "@/app/component/TemplatePreview";
 import TemplateForm from "@/app/templatepage/form/page";
 import { apiError } from "@/app/utils/apiError";
+import ButtonRulesEditor from "../component/buttonruleeditor";
+
 
 const STATUSES = ["ALL", "APPROVED", "PENDING", "REJECTED", "PAUSED"] as const;
 type StatusFilter = (typeof STATUSES)[number];
@@ -37,6 +39,9 @@ export default function Template() {
     const [selected, setSelected] = useState<TemplateResponse | null>(null);
     const [showForm, setShowForm] = useState(false);
 
+    // Reply bot: template whose button rules are being edited
+    const [rulesFor, setRulesFor] = useState<TemplateResponse | null>(null);
+
     const load = () => templateService.list().then(setItems);
 
     const syncNow = async (silent = false) => {
@@ -57,7 +62,7 @@ export default function Template() {
         (async () => {
             try { await load(); } catch (e) { setError(apiError(e)); }
             setLoading(false);
-            syncNow(true);                         
+            syncNow(true);
         })();
     }, []);
 
@@ -77,6 +82,7 @@ export default function Template() {
     }, [items, q, status, category]);
 
     const buttons = selected ? parseButtons(selected.buttonsJson) : [];
+    const hasQuickReply = buttons.some((b) => b.type === "QUICK_REPLY");
 
     return (
         <div className="tpl-page">
@@ -177,7 +183,9 @@ export default function Template() {
                             <h4 className="tpl-section">Preview</h4>
                             <div className="tpl-preview-wrap">
                                 <TemplatePreview
+                                    headerType={selected.headerType}
                                     headerText={selected.headerText}
+                                    headerMediaUrl={selected.headerMediaUrl}
                                     body={selected.body}
                                     footerText={selected.footerText}
                                     values={[]}
@@ -219,10 +227,28 @@ export default function Template() {
                                     ))}
                                 </ul>
                             </>)}
+
+                            {hasQuickReply && (<>
+                                <h4 className="tpl-section">Reply bot</h4>
+                                <p className="tpl-text">
+                                    Choose which template is sent automatically when a
+                                    customer taps each Quick reply button.
+                                </p>
+                                <button
+                                    className="tpl-btn tpl-btn-primary"
+                                    onClick={() => {
+                                        setRulesFor(selected);
+                                        setSelected(null);
+                                    }}
+                                >
+                                    Set reply rules
+                                </button>
+                            </>)}
                         </div>
                     </aside>
                 </>
             )}
+
             {showForm && (
                 <Modal title="Create template" onClose={() => setShowForm(false)}>
                     <TemplateForm onCreated={(t) => {
@@ -230,6 +256,17 @@ export default function Template() {
                         setInfo(`Template “${t.name}” submitted (status: ${t.status}). Meta usually reviews it within minutes.`);
                         load();
                     }} />
+                </Modal>
+            )}
+
+            {rulesFor && (
+                <Modal title="Reply rules" onClose={() => setRulesFor(null)}>
+                    <ButtonRulesEditor
+                        template={rulesFor}
+                        templates={items}
+                        onSaved={() => setInfo(`Reply rules saved for “${rulesFor.name}”.`)}
+                        onClose={() => setRulesFor(null)}
+                    />
                 </Modal>
             )}
         </div>

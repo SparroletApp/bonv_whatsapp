@@ -4,6 +4,8 @@
 import { useEffect, useState } from "react";
 import "./formSubmissionList.css";
 import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
+import TagSelectionModal, { TagContact } from "./tagselectionModal";
 
 interface PublishedForm {
     id: number;
@@ -41,26 +43,24 @@ interface FormSubmissionListProps {
     onClose: () => void;
 }
 
-interface CampaignRecipient {
-    name: string;
-    phone: string;
-    email: string;
-}
-
 export default function FormSubmissionList({
     tourCode,
     onClose,
 }: FormSubmissionListProps) {
     const [form, setForm] = useState<PublishedForm | null>(null);
     const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
+    const [showSubmissionModal, setShowSubmissionModal] = useState(true);
     const [loading, setLoading] = useState(true);
     const [submissionsLoading, setSubmissionsLoading] = useState(false);
+
     const [error, setError] = useState("");
     const [submissionError, setSubmissionError] = useState("");
 
-    const router = useRouter();
-
     const [selectedRecipients, setSelectedRecipients] = useState<number[]>([]);
+    const [showTagModal, setShowTagModal] = useState(false);
+    const [pendingContacts, setPendingContacts] = useState<TagContact[]>([]);
+
+    const router = useRouter();
 
     const validSubmissions = submissions.filter(
         (item) => item.respondentPhone?.trim()
@@ -81,7 +81,7 @@ export default function FormSubmissionList({
     };
 
     const createCampaign = () => {
-        const recipients: CampaignRecipient[] = submissions
+        const recipients: TagContact[] = submissions
             .filter((item) => selectedRecipients.includes(item.id))
             .filter((item) => item.respondentPhone?.trim())
             .map((item) => ({
@@ -91,22 +91,27 @@ export default function FormSubmissionList({
             }));
 
         if (recipients.length === 0) {
-            setSubmissionError("Please select at least one customer with a phone number.");
+            setSubmissionError(
+                "Please select at least one customer with a phone number."
+            );
             return;
         }
 
-        sessionStorage.setItem(
-            "form_campaign_recipients",
-            JSON.stringify(recipients)
-        );
-
-        sessionStorage.setItem(
-            "form_campaign_source",
-            "FORM_SUBMISSIONS"
-        );
-
-        router.push("/campaign/create");
+        setSubmissionError("");
+        setPendingContacts(recipients);
+        setShowSubmissionModal(false);
+        setShowTagModal(true);
     };
+
+const handleContactsSaved = (
+    contactIds: number[],
+    categoryId: number
+) => {
+    setShowTagModal(false);
+    setPendingContacts([]);
+    setSelectedRecipients([]);
+};
+
 
     useEffect(() => {
         let cancelled = false;
@@ -118,6 +123,7 @@ export default function FormSubmissionList({
                 setSubmissionError("");
                 setForm(null);
                 setSubmissions([]);
+                setSelectedRecipients([]);
 
                 const token = sessionStorage.getItem("tms_access_token");
 
@@ -130,6 +136,7 @@ export default function FormSubmissionList({
                 if (!tourCode) {
                     throw new Error("Tour code is required.");
                 }
+
                 const formResponse = await fetch(
                     "https://tmsapi.rayloop.com/api/forms/get-published-by-tour-code",
                     {
@@ -139,9 +146,7 @@ export default function FormSubmissionList({
                             Accept: "application/json",
                             Authorization: `Bearer ${token}`,
                         },
-                        body: JSON.stringify({
-                            tourCode: tourCode,
-                        }),
+                        body: JSON.stringify({ tourCode }),
                     }
                 );
 
@@ -168,12 +173,14 @@ export default function FormSubmissionList({
 
                 setForm(publishedForm);
                 setLoading(false);
+
                 const packageIds = publishedForm.packageIds || [];
 
                 if (packageIds.length === 0) {
                     setSubmissions([]);
                     return;
                 }
+
                 setSubmissionsLoading(true);
 
                 const submissionResponses = await Promise.all(
@@ -187,9 +194,7 @@ export default function FormSubmissionList({
                                     Accept: "application/json",
                                     Authorization: `Bearer ${token}`,
                                 },
-                                body: JSON.stringify({
-                                    packageId: packageId,
-                                }),
+                                body: JSON.stringify({ packageId }),
                             }
                         );
 
@@ -202,11 +207,9 @@ export default function FormSubmissionList({
                             );
                         }
 
-                        if (Array.isArray(data)) {
-                            return data as FormSubmission[];
-                        }
-
-                        return [];
+                        return Array.isArray(data)
+                            ? (data as FormSubmission[])
+                            : [];
                     })
                 );
 
@@ -233,18 +236,14 @@ export default function FormSubmissionList({
                 });
 
                 setSubmissions(uniqueSubmissions);
+
             } catch (err) {
                 if (!cancelled) {
-                    const message =
+                    setError(
                         err instanceof Error
                             ? err.message
-                            : "Unable to load form details.";
-
-                    if (!form) {
-                        setError(message);
-                    } else {
-                        setSubmissionError(message);
-                    }
+                            : "Unable to load form details."
+                    );
                 }
             } finally {
                 if (!cancelled) {
@@ -280,238 +279,217 @@ export default function FormSubmissionList({
     };
 
     return (
-        <div
-            className="form-submission-overlay"
-            onClick={onClose}
-        >
-            <section
-                className="form-submission-modal"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="form-submission-header">
-                    <div>
-                        <h2>Form Submissions</h2>
-                        <p>
-                            Tour Code: <strong>{tourCode}</strong>
-                        </p>
+        <>
+            {showSubmissionModal && (
+        <div className="form-submission-overlay">
+                <section
+                    className="form-submission-modal"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="form-submission-header">
+                        <div>
+                            <h2>Form Submissions</h2>
+                            <p>
+                                Tour Code: <strong>{tourCode}</strong>
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="form-submission-close"
+                            onClick={onClose}
+                        >
+                            ×
+                        </button>
                     </div>
 
-                    <button
-                        type="button"
-                        className="form-submission-close"
-                        onClick={onClose}
-                    >
-                        ×
-                    </button>
-                </div>
-
-                <div className="form-submission-body">
-                    {loading && (
-                        <div className="form-submission-loading">
-                            <div className="form-submission-spinner" />
-                            <p>Loading published form...</p>
-                        </div>
-                    )}
-
-                    {!loading && error && (
-                        <div className="form-submission-error">
-                            <i className="bi bi-exclamation-circle" />
-                            <span>{error}</span>
-                        </div>
-                    )}
-
-                    {!loading && !error && form && (
-                        <>
-                            <div className="published-form-card">
-                                <div className="published-form-heading">
-                                    <div>
-                                        <span className="published-form-label">
-                                            PUBLISHED FORM
-                                        </span>
-
-                                        <h3>{form.formTitle}</h3>
-                                    </div>
-
-                                    <span
-                                        className={`form-status ${form.status?.toLowerCase() ===
-                                            "published"
-                                            ? "published"
-                                            : ""
-                                            }`}
-                                    >
-                                        {form.status}
-                                    </span>
-                                </div>
-
-                                <p className="published-form-description">
-                                    {form.formDescription ||
-                                        "No form description available."}
-                                </p>
-
-                                <div className="published-form-info">
-                                    <div>
-                                        <span>Form ID</span>
-                                        <strong>{form.id}</strong>
-                                    </div>
-
-                                    <div>
-                                        <span>Multiple Submissions</span>
-                                        <strong>
-                                            {form.allowMultipleSubmissions
-                                                ? "Allowed"
-                                                : "Not Allowed"}
-                                        </strong>
-                                    </div>
-
-                                    <div>
-                                        <span>Expiry Date</span>
-                                        <strong>
-                                            {formatDate(form.expiryDate)}
-                                        </strong>
-                                    </div>
-
-                                    <div>
-                                        <span>Slug</span>
-                                        <strong>{form.slug || "-"}</strong>
-                                    </div>
-                                </div>
-
-                                {form.tourPackageNames?.length > 0 && (
-                                    <div className="published-package-list">
-                                        <span>Related Packages</span>
-
-                                        <div>
-                                            {form.tourPackageNames.map(
-                                                (packageName, index) => (
-                                                    <span key={index}>
-                                                        {packageName}
-                                                    </span>
-                                                )
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
+                    <div className="form-submission-body">
+                        {loading && (
+                            <div className="form-submission-loading">
+                                <div className="form-submission-spinner" />
+                                <p>Loading published form...</p>
                             </div>
-                            <div className="submission-list-section">
-                                <div className="submission-list-heading">
-                                    <div>
-                                        <h3>Submissions</h3>
-                                        <p>
-                                            Submitted customer details
-                                        </p>
-                                    </div>
+                        )}
 
-                                    <span className="submission-count">
-                                        {submissions.length} Records
-                                    </span>
+                        {!loading && error && (
+                            <div className="form-submission-error">
+                                <i className="bi bi-exclamation-circle" />
+                                <span>{error}</span>
+                            </div>
+                        )}
+
+                        {!loading && !error && form && (
+                            <>
+                                <div className="published-form-card">
+
+
+
+
+
+
+                                    {form.tourPackageNames?.length > 0 && (
+                                        <div className="published-package-list">
+                                            <span>Related Packages</span>
+                                            <div>
+                                                {form.tourPackageNames.map(
+                                                    (packageName, index) => (
+                                                        <span key={index}>
+                                                            {packageName}
+                                                        </span>
+                                                    )
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
-                                {submissionError && (
-                                    <div className="form-submission-error">
-                                        <i className="bi bi-exclamation-circle" />
-                                        <span>{submissionError}</span>
+                                <div className="submission-list-section">
+                                    <div className="submission-list-heading">
+                                        <div>
+                                            <h3>Submissions</h3>
+                                            <p>
+                                                Submitted customer details
+                                            </p>
+                                        </div>
+
+                                        <span className="submission-count">
+                                            {submissions.length} Records
+                                        </span>
                                     </div>
-                                )}
 
-                                {submissionsLoading ? (
-                                    <div className="form-submission-loading">
-                                        <div className="form-submission-spinner" />
-                                        <p>Loading customer submissions...</p>
-                                    </div>
-                                ) : submissions.length === 0 ? (
-                                    <div className="submission-empty">
-                                        <i className="bi bi-inbox" />
+                                    {submissionError && (
+                                        <div className="form-submission-error">
+                                            <i className="bi bi-exclamation-circle" />
+                                            <span>{submissionError}</span>
+                                        </div>
+                                    )}
 
-                                        <h4>No submissions available</h4>
-
-                                        <p>
-                                            No customers have submitted this
-                                            form yet.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="submission-table-wrapper">
-                                        <table className="submission-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={
-                                                                validSubmissions.length > 0 &&
-                                                                validSubmissions.every((item) =>
-                                                                    selectedRecipients.includes(item.id)
-                                                                )
-                                                            }
-                                                            onChange={(e) =>
-                                                                toggleAllRecipients(e.target.checked)
-                                                            }
-                                                        />
-                                                    </th>
-                                                    <th>#</th>
-                                                    <th>Name</th>
-                                                    <th>Email</th>
-                                                    <th>Phone Number</th>
-                                                </tr>
-                                            </thead>
-
-                                            <tbody>
-                                                {submissions.map((submission, index) => (
-                                                    <tr key={submission.id}>
-                                                        <td>
+                                    {submissionsLoading ? (
+                                        <div className="form-submission-loading">
+                                            <div className="form-submission-spinner" />
+                                            <p>
+                                                Loading customer submissions...
+                                            </p>
+                                        </div>
+                                    ) : submissions.length === 0 ? (
+                                        <div className="submission-empty">
+                                            <i className="bi bi-inbox" />
+                                            <h4>No submissions available</h4>
+                                            <p>
+                                                No customers have submitted this
+                                                form yet.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="submission-table-wrapper">
+                                            <table className="submission-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>
                                                             <input
                                                                 type="checkbox"
-                                                                checked={selectedRecipients.includes(submission.id)}
-                                                                disabled={!submission.respondentPhone?.trim()}
-                                                                onChange={() =>
-                                                                    toggleRecipient(submission.id)
+                                                                checked={
+                                                                    validSubmissions.length > 0 &&
+                                                                    validSubmissions.every(
+                                                                        (item) =>
+                                                                            selectedRecipients.includes(
+                                                                                item.id
+                                                                            )
+                                                                    )
+                                                                }
+                                                                onChange={(e) =>
+                                                                    toggleAllRecipients(
+                                                                        e.target.checked
+                                                                    )
                                                                 }
                                                             />
-                                                        </td>
-
-                                                        <td>{index + 1}</td>
-
-                                                        <td>
-                                                            {submission.respondentName || "-"}
-                                                        </td>
-
-                                                        <td>
-                                                            {submission.respondentEmail || "-"}
-                                                        </td>
-
-                                                        <td>
-                                                            {submission.respondentPhone || "-"}
-                                                        </td>
+                                                        </th>
+                                                        <th>#</th>
+                                                        <th>Name</th>
+                                                        <th>Email</th>
+                                                        <th>Phone Number</th>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    )}
-                </div>
+                                                </thead>
 
-                <div className="form-submission-footer">
+                                                <tbody>
+                                                    {submissions.map(
+                                                        (submission, index) => (
+                                                            <tr key={submission.id}>
+                                                                <td>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedRecipients.includes(
+                                                                            submission.id
+                                                                        )}
+                                                                        disabled={
+                                                                            !submission.respondentPhone?.trim()
+                                                                        }
+                                                                        onChange={() =>
+                                                                            toggleRecipient(
+                                                                                submission.id
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                </td>
 
-                    <button
-    type="button"
-    className="create-whatsapp-campaign-btn"
-    disabled={selectedRecipients.length === 0}
-    onClick={createCampaign}
->
-    <i className="bi bi-whatsapp" />
-    Create Campaign ({selectedRecipients.length})
-</button>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                    >
-                        Close
-                    </button>
-                </div>
-            </section>
-        </div>
+                                                                <td>{index + 1}</td>
+
+                                                                <td>
+                                                                    {submission.respondentName ||
+                                                                        "-"}
+                                                                </td>
+
+                                                                <td>
+                                                                    {submission.respondentEmail ||
+                                                                        "-"}
+                                                                </td>
+
+                                                                <td>
+                                                                    {submission.respondentPhone ||
+                                                                        "-"}
+                                                                </td>
+                                                            </tr>
+                                                        )
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    <div className="form-submission-footer">
+                        <button
+                            type="button"
+                            className="create-whatsapp-campaign-btn"
+                            disabled={
+                                selectedRecipients.length === 0 ||
+                                loading ||
+                                submissionsLoading
+                            }
+                            onClick={createCampaign}
+                        >
+                            <i className="bi bi-whatsapp" />
+                            Save Contacts ({selectedRecipients.length})
+                        </button>
+
+                        <button type="button" onClick={onClose}>
+                            Close
+                        </button>
+                    </div>
+                </section>
+                    </div>
+    )}
+
+            <TagSelectionModal
+                isOpen={showTagModal}
+                contacts={pendingContacts}
+                onClose={() => setShowTagModal(false)}
+                onSave={handleContactsSaved}
+            />
+            
+        </>
     );
 }

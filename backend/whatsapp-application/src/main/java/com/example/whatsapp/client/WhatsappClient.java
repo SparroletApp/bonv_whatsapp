@@ -1,4 +1,3 @@
-
 package com.example.whatsapp.client;
 
 import com.example.whatsapp.config.WhatsappConfig;
@@ -72,7 +71,6 @@ public class WhatsappClient {
                 "WhatsApp API version"
         );
 
-        // Remove trailing slashes.
         base = base.replaceAll("/+$", "");
 
         try {
@@ -209,6 +207,7 @@ public class WhatsappClient {
                 token(company)
         ));
     }
+
     public String sendText(String to, String body) {
 
         ObjectNode payload = baseMessage(to, "text");
@@ -226,6 +225,14 @@ public class WhatsappClient {
         ));
     }
 
+    // =========================================================
+    // SEND TEMPLATE
+    // =========================================================
+
+    /**
+     * Existing signature kept for backward compatibility.
+     * Sends the template without quick-reply button payloads.
+     */
     public String sendTemplate(
             Company company,
             String to,
@@ -236,13 +243,45 @@ public class WhatsappClient {
             String headerMedia
     ) {
 
+        return sendTemplate(
+                company,
+                to,
+                name,
+                lang,
+                bodyParams,
+                headerType,
+                headerMedia,
+                null
+        );
+    }
+
+    /**
+     * Sends a template with optional quick-reply payloads.
+     *
+     * quickReplyPayloads: index = button position in the template.
+     * A null or blank entry skips that button (URL / PHONE_NUMBER buttons).
+     * When the user taps a quick-reply button, Meta returns this payload
+     * in the webhook (messages[].button.payload).
+     */
+    public String sendTemplate(
+            Company company,
+            String to,
+            String name,
+            String lang,
+            List<String> bodyParams,
+            String headerType,
+            String headerMedia,
+            List<String> quickReplyPayloads
+    ) {
+
         ObjectNode payload = buildTemplatePayload(
                 to,
                 name,
                 lang,
                 bodyParams,
                 headerType,
-                headerMedia
+                headerMedia,
+                quickReplyPayloads
         );
 
         return messageId(post(
@@ -268,7 +307,8 @@ public class WhatsappClient {
                 lang,
                 bodyParams,
                 headerType,
-                headerMedia
+                headerMedia,
+                null
         );
 
         return messageId(post(
@@ -286,7 +326,8 @@ public class WhatsappClient {
             String lang,
             List<String> bodyParams,
             String headerType,
-            String headerMedia
+            String headerMedia,
+            List<String> quickReplyPayloads
     ) {
 
         ObjectNode payload = baseMessage(to, "template");
@@ -354,6 +395,29 @@ public class WhatsappClient {
             }
         }
 
+        // Quick-reply button payloads (used by the auto-reply bot)
+        if (quickReplyPayloads != null) {
+
+            for (int i = 0; i < quickReplyPayloads.size(); i++) {
+
+                String p = quickReplyPayloads.get(i);
+
+                if (p == null || p.isBlank()) {
+                    continue;
+                }
+
+                ObjectNode button = components.addObject();
+                button.put("type", "button");
+                button.put("sub_type", "quick_reply");
+                button.put("index", String.valueOf(i));
+
+                button.putArray("parameters")
+                        .addObject()
+                        .put("type", "payload")
+                        .put("payload", p);
+            }
+        }
+
         if (components.isEmpty()) {
             template.remove("components");
         }
@@ -372,6 +436,7 @@ public class WhatsappClient {
                 token(company)
         );
     }
+
     public JsonNode createTemplate(ObjectNode payload) {
 
         return post(
