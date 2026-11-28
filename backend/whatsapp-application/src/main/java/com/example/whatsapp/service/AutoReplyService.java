@@ -28,7 +28,6 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class AutoReplyService {
 
-    // Payload format: TPL:<sourceTemplateId>:BTN:<buttonIndex>
     private static final Pattern PAYLOAD =
             Pattern.compile("^TPL:(\\d+):BTN:(\\d+)$");
 
@@ -38,12 +37,6 @@ public class AutoReplyService {
     private final WhatsappRepository whatsappRepo;
     private final ObjectMapper mapper;
 
-    /**
-     * Payload for each button position of a template.
-     * QUICK_REPLY buttons get a payload; URL / PHONE_NUMBER buttons get null.
-     * Pass the result as the last argument of WhatsappClient.sendTemplate(...).
-     * Optional: the bot also works without payloads (see findRule).
-     */
     public List<String> quickReplyPayloads(TemplateEntity template) {
 
         List<String> result = new ArrayList<>();
@@ -82,11 +75,6 @@ public class AutoReplyService {
         return result;
     }
 
-    /**
-     * Called from WebhookService when an inbound message has type "button".
-     */
-    // REQUIRES_NEW: if the auto-reply fails, only this inner transaction rolls
-    // back. The already-saved inbound message in the webhook transaction stays.
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onButtonClick(Company company, JsonNode msg) {
 
@@ -152,16 +140,6 @@ public class AutoReplyService {
         );
     }
 
-    // -----------------------------------------------------
-    // RULE LOOKUP
-    // -----------------------------------------------------
-
-    /**
-     * 1) Use the payload when the template was sent with one.
-     * 2) Otherwise use the id of the message that was answered
-     *    (context.id), find which template it was, then match the
-     *    tapped button by its text.
-     */
     private Optional<TemplateButtonRule> findRule(
             Company company,
             String payload,
