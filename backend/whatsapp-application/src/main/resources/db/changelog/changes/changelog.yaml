@@ -252,5 +252,12 @@ databaseChangeLog:
             path: sql/alter_tourconnect_add_companytourid.sql
             relativeToChangelogFile: true
 
+  - changeSet:
+      id: create_table_template_button_role
+      author: amrutha
+      changes:
+        - sqlFile:
+            path: sql/create_table_template_button_role.sql
+            relativeToChangelogFile: true
 
 

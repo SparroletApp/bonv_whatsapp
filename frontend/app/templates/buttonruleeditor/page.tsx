@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import "./template-form.css";
+import "./buttonruleeditor.css";
 import templateService, {
     ButtonRuleRequest,
     TemplateResponse,
