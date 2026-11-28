@@ -14,11 +14,11 @@ CREATE TABLE template_button_rule (
 
                                       CONSTRAINT fk_template_button_rule_source_template
                                           FOREIGN KEY (source_template_id)
-                                              REFERENCES whatsapp_template(id),
+                                              REFERENCES whatsapp_templates(id),
 
                                       CONSTRAINT fk_template_button_rule_target_template
                                           FOREIGN KEY (target_template_id)
-                                              REFERENCES whatsapp_template(id),
+                                              REFERENCES whatsapp_templates(id),
 
                                       CONSTRAINT uk_template_button_rule_source_button
                                           UNIQUE (source_template_id, button_index)
