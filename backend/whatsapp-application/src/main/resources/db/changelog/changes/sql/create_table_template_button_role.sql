@@ -10,7 +10,7 @@ CREATE TABLE template_button_rule (
 
                                       CONSTRAINT fk_template_button_rule_company
                                           FOREIGN KEY (company_id)
-                                              REFERENCES company(id),
+                                              REFERENCES companies(id),
 
                                       CONSTRAINT fk_template_button_rule_source_template
                                           FOREIGN KEY (source_template_id)
