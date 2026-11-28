@@ -2,9 +2,11 @@ package com.example.whatsapp.service;
 
 import com.example.whatsapp.client.WhatsappClient;
 import com.example.whatsapp.entity.Company;
+import com.example.whatsapp.entity.TemplateButtonRule;
 import com.example.whatsapp.entity.TemplateEntity;
 import com.example.whatsapp.entity.WhatsappEntity;
 import com.example.whatsapp.repository.TemplateButtonRuleRepository;
+import com.example.whatsapp.repository.TemplateRepository;
 import com.example.whatsapp.repository.WhatsappRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,6 +33,7 @@ public class AutoReplyService {
             Pattern.compile("^TPL:(\\d+):BTN:(\\d+)$");
 
     private final TemplateButtonRuleRepository ruleRepo;
+    private final TemplateRepository templateRepo;
     private final WhatsappClient client;
     private final WhatsappRepository whatsappRepo;
     private final ObjectMapper mapper;
@@ -38,6 +42,7 @@ public class AutoReplyService {
      * Payload for each button position of a template.
      * QUICK_REPLY buttons get a payload; URL / PHONE_NUMBER buttons get null.
      * Pass the result as the last argument of WhatsappClient.sendTemplate(...).
+     * Optional: the bot also works without payloads (see findRule).
      */
     public List<String> quickReplyPayloads(TemplateEntity template) {
 
@@ -87,67 +92,138 @@ public class AutoReplyService {
 
         String from = msg.path("from").asText();
 
-        String payload = msg.path("button").path("payload").asText("");
+        JsonNode button = msg.path("button");
+        String payload = button.path("payload").asText("");
+        String buttonText = button.path("text").asText("");
+        String originalWamid = msg.path("context").path("id").asText("");
 
-        Matcher matcher = PAYLOAD.matcher(payload);
+        log.info(
+                "Button tap received. text='{}', payload='{}', replyTo='{}'",
+                buttonText,
+                payload,
+                originalWamid
+        );
 
-        if (!matcher.matches()) {
-            log.info("Button click has no bot payload, ignoring: {}", payload);
+        Optional<TemplateButtonRule> found =
+                findRule(company, payload, buttonText, originalWamid);
+
+        if (found.isEmpty()) {
+            log.info("No reply rule matches this button tap");
             return;
         }
 
-        Long sourceTemplateId = Long.parseLong(matcher.group(1));
-        int buttonIndex = Integer.parseInt(matcher.group(2));
+        TemplateButtonRule rule = found.get();
 
-        ruleRepo.findBySourceTemplate_IdAndButtonIndexAndCompany_Id(
-                        sourceTemplateId,
-                        buttonIndex,
+        TemplateEntity target = rule.getTargetTemplate();
+
+        if (!"APPROVED".equals(target.getStatus())) {
+            log.warn(
+                    "Target template {} is {}, not sending",
+                    target.getName(),
+                    target.getStatus()
+            );
+            return;
+        }
+
+        String headerType = target.getHeaderType();
+
+        String headerMedia = "IMAGE".equals(headerType)
+                ? target.getHeaderMediaUrl()
+                : null;
+
+        String wamid = client.sendTemplate(
+                company,
+                from,
+                target.getName(),
+                target.getLanguage(),
+                List.of(),                    // no variables for now
+                headerType,
+                headerMedia,
+                quickReplyPayloads(target)
+        );
+
+        saveOutbound(company, from, target, headerType, headerMedia, wamid);
+
+        log.info(
+                "Auto-reply sent. Template {} button {} -> {}",
+                rule.getSourceTemplate().getName(),
+                rule.getButtonIndex(),
+                target.getName()
+        );
+    }
+
+    // -----------------------------------------------------
+    // RULE LOOKUP
+    // -----------------------------------------------------
+
+    /**
+     * 1) Use the payload when the template was sent with one.
+     * 2) Otherwise use the id of the message that was answered
+     *    (context.id), find which template it was, then match the
+     *    tapped button by its text.
+     */
+    private Optional<TemplateButtonRule> findRule(
+            Company company,
+            String payload,
+            String buttonText,
+            String originalWamid
+    ) {
+
+        Matcher matcher = PAYLOAD.matcher(payload);
+
+        if (matcher.matches()) {
+
+            return ruleRepo.findBySourceTemplate_IdAndButtonIndexAndCompany_Id(
+                    Long.parseLong(matcher.group(1)),
+                    Integer.parseInt(matcher.group(2)),
+                    company.getId()
+            );
+        }
+
+        if (originalWamid.isBlank() || buttonText.isBlank()) {
+            log.info("Tap has no payload and no reply context, cannot match");
+            return Optional.empty();
+        }
+
+        WhatsappEntity original = whatsappRepo
+                .findByWhatsappMessageId(originalWamid)
+                .orElse(null);
+
+        if (original == null || original.getTemplateName() == null) {
+            log.info(
+                    "Original message {} not found or is not a template",
+                    originalWamid
+            );
+            return Optional.empty();
+        }
+
+        TemplateEntity source = templateRepo
+                .findByNameAndCompany_Id(
+                        original.getTemplateName(),
                         company.getId()
                 )
-                .ifPresentOrElse(rule -> {
+                .stream()
+                .filter(t -> original.getLanguageCode() == null
+                        || original.getLanguageCode().equals(t.getLanguage()))
+                .findFirst()
+                .orElse(null);
 
-                    TemplateEntity target = rule.getTargetTemplate();
+        if (source == null) {
+            log.info(
+                    "Template '{}' not found for this company",
+                    original.getTemplateName()
+            );
+            return Optional.empty();
+        }
 
-                    if (!"APPROVED".equals(target.getStatus())) {
-                        log.warn(
-                                "Target template {} is {}, not sending",
-                                target.getName(),
-                                target.getStatus()
-                        );
-                        return;
-                    }
-
-                    String headerType = target.getHeaderType();
-
-                    String headerMedia = "IMAGE".equals(headerType)
-                            ? target.getHeaderMediaUrl()
-                            : null;
-
-                    String wamid = client.sendTemplate(
-                            company,
-                            from,
-                            target.getName(),
-                            target.getLanguage(),
-                            List.of(),                    // no variables for now
-                            headerType,
-                            headerMedia,
-                            quickReplyPayloads(target)
-                    );
-
-                    saveOutbound(company, from, target, headerType, headerMedia, wamid);
-
-                    log.info(
-                            "Auto-reply sent. Template {} button {} -> {}",
-                            sourceTemplateId,
-                            buttonIndex,
-                            target.getName()
-                    );
-
-                }, () -> log.info(
-                        "No rule for template {} button {}",
-                        sourceTemplateId,
-                        buttonIndex
-                ));
+        return ruleRepo
+                .findBySourceTemplate_IdAndCompany_IdOrderByButtonIndex(
+                        source.getId(),
+                        company.getId()
+                )
+                .stream()
+                .filter(r -> buttonText.equalsIgnoreCase(r.getButtonText()))
+                .findFirst();
     }
 
     private void saveOutbound(
