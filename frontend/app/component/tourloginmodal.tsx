@@ -15,8 +15,8 @@ interface TmsLoginResponse {
     message: string;
     token: string;
     user: {
-        companyId: number;
-        companyName: string;
+        companyId: number | null;
+        companyName: string | null;
         createdAt: string;
         email: string;
         id: number;
@@ -42,13 +42,16 @@ export default function TourLogin({ onClose }: TourLoginProps) {
             Swal.fire({
                 icon: "warning",
                 title: "Required Fields",
-                text: "Please enter email and password.",
+                text: "Please enter your email and password.",
+                confirmButtonColor: "#064e45",
             });
             return;
         }
 
         try {
             setLoading(true);
+
+            // WhatsAppPro company ID
             const appCompanyId = Number(
                 sessionStorage.getItem("companyId")
             );
@@ -58,64 +61,110 @@ export default function TourLogin({ onClose }: TourLoginProps) {
                 appCompanyId <= 0
             ) {
                 throw new Error(
-                    "Application company ID not found in session storage. Please login again."
+                    "WhatsAppPro company ID not found. Please login again."
                 );
             }
+
+            // TMS login
             const response = await axios.post<TmsLoginResponse>(
                 "https://tmsapi.rayloop.com/api/user/login",
                 {
                     email: email.trim(),
-                    password: password,
+                    password,
                 },
                 {
                     headers: {
                         "Content-Type": "application/json",
                     },
+                    timeout: 30000,
                 }
             );
 
             const data = response.data;
-            const companyTourId = Number(data.user?.companyId);
 
-            if (
-                !Number.isInteger(companyTourId) ||
-                companyTourId <= 0
-            ) {
+            if (!data.token || !data.user) {
                 throw new Error(
-                    "TMS company ID is missing from login response."
+                    "Invalid login response received from TMS."
                 );
             }
 
+            if (!data.user.status) {
+                throw new Error(
+                    "Your TMS account is inactive. Please contact the administrator."
+                );
+            }
+
+            // Save TMS credentials separately.
+            // Do not overwrite WhatsAppPro companyId or access_token.
             sessionStorage.setItem(
                 "tms_access_token",
                 data.token
             );
 
             sessionStorage.setItem(
-                "tmsCompanyId",
-                String(companyTourId)
-            );
-
-            sessionStorage.setItem(
                 "tms_user",
                 JSON.stringify(data.user)
             );
-            await tourConnectService.create({
-                companyId: appCompanyId,
-                companyTourId: companyTourId,
-            });
 
-            sessionStorage.setItem("tms_connected", "true");
+            sessionStorage.setItem(
+                "tms_connected",
+                "false"
+            );
+
+            // TMS company ID can be null for ADMIN.
+            const companyTourId = data.user.companyId;
+
+            if (
+                companyTourId !== null &&
+                Number.isInteger(Number(companyTourId)) &&
+                Number(companyTourId) > 0
+            ) {
+                // Save TMS company ID separately.
+                sessionStorage.setItem(
+                    "tmsCompanyId",
+                    String(companyTourId)
+                );
+
+                // Create WhatsAppPro <-> TMS company mapping.
+                await tourConnectService.create({
+                    companyId: appCompanyId,
+                    companyTourId: Number(companyTourId),
+                });
+
+                sessionStorage.setItem(
+                    "tms_connected",
+                    "true"
+                );
+
+                await Swal.fire({
+                    icon: "success",
+                    title: "Connected Successfully",
+                    text: `${data.user.companyName || "TMS company"} has been connected successfully.`,
+                    timer: 1800,
+                    showConfirmButton: false,
+                });
+
+                onClose();
+                return;
+            }
+
+            // ADMIN account without an assigned company.
+            // Login succeeded, but no company mapping can be created yet.
+            sessionStorage.removeItem("tmsCompanyId");
 
             await Swal.fire({
-                icon: "success",
-                title: "Connected Successfully",
-                text: `${data.user.companyName} has been connected successfully.`,
-                timer: 1800,
-                showConfirmButton: false,
+                icon: "info",
+                title: "TMS Login Successful",
+                html: `
+                    <p>Your TMS account was authenticated successfully.</p>
+                    <p><strong>Account:</strong> ${data.user.name}</p>
+                    <p><strong>Role:</strong> ${data.user.role}</p>
+                    <p>Your account does not have a TMS company assigned.</p>
+                    <p>Please assign a company or select a company to continue.</p>
+                `,
+                confirmButtonText: "OK",
+                confirmButtonColor: "#064e45",
             });
-
-            onClose();
 
         } catch (error: unknown) {
             let message = "Something went wrong. Please try again.";
@@ -124,12 +173,13 @@ export default function TourLogin({ onClose }: TourLoginProps) {
                 message =
                     error.response?.data?.message ||
                     error.response?.data?.error ||
+                    error.message ||
                     message;
             } else if (error instanceof Error) {
                 message = error.message;
             }
 
-            Swal.fire({
+            await Swal.fire({
                 icon: "error",
                 title: "Login Failed",
                 text: message,
@@ -144,7 +194,9 @@ export default function TourLogin({ onClose }: TourLoginProps) {
     return (
         <div
             className="tour-login-overlay"
-            onClick={onClose}
+            onClick={() => {
+                if (!loading) onClose();
+            }}
         >
             <div
                 className="tour-login-modal"
@@ -158,8 +210,6 @@ export default function TourLogin({ onClose }: TourLoginProps) {
                 >
                     <i className="bi bi-x-lg"></i>
                 </button>
-
-                
 
                 <div className="tour-login-right">
                     <div className="tour-login-form-header">
@@ -222,6 +272,7 @@ export default function TourLogin({ onClose }: TourLoginProps) {
                                     onClick={() =>
                                         setShowPassword(!showPassword)
                                     }
+                                    disabled={loading}
                                 >
                                     <i
                                         className={

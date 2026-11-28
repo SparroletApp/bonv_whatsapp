@@ -1,4 +1,3 @@
-
 package com.example.whatsapp.service;
 
 import com.example.whatsapp.client.WhatsappClient;
@@ -9,6 +8,7 @@ import com.example.whatsapp.entity.Company;
 import com.example.whatsapp.entity.TemplateEntity;
 import com.example.whatsapp.entity.TemplateMediaSampleEntity;
 import com.example.whatsapp.repository.CompanyRepository;
+import com.example.whatsapp.repository.TemplateButtonRuleRepository;
 import com.example.whatsapp.repository.TemplateMediaSampleRepository;
 import com.example.whatsapp.repository.TemplateRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -77,6 +77,7 @@ public class TemplateService {
     private final ObjectMapper mapper;
     private final GarageStorageService garageStorage;
     private final CompanyRepository companyRepository;
+    private final TemplateButtonRuleRepository ruleRepo;
 
 
     // =========================================================
@@ -923,7 +924,13 @@ public class TemplateService {
                             )
                             .toList();
 
-            repo.deleteAll(stale);
+            if (!stale.isEmpty()) {
+
+                // Remove reply-bot rules first, otherwise the foreign key blocks the delete
+                ruleRepo.deleteByAnyTemplateIn(stale);
+
+                repo.deleteAll(stale);
+            }
         }
         sync(companyId);
 

@@ -1,4 +1,3 @@
-
 package com.example.whatsapp.service;
 
 import com.example.whatsapp.entity.Company;
@@ -32,6 +31,7 @@ public class WebhookService {
 
     private final WhatsappRepository repo;
     private final TemplateService templateService;
+    private final AutoReplyService autoReplyService;
     private final ObjectMapper mapper;
 
     @Transactional
@@ -239,6 +239,24 @@ public class WebhookService {
                     company.getCompanyName(),
                     from
             );
+
+            // Reply bot: a template quick-reply button was tapped
+            if ("button".equals(type)) {
+
+                try {
+
+                    autoReplyService.onButtonClick(company, msg);
+
+                } catch (Exception e) {
+
+                    // Never let a failed auto-reply break webhook processing
+                    log.error(
+                            "Auto-reply failed for message {}",
+                            wamid,
+                            e
+                    );
+                }
+            }
         }
     }
 

@@ -179,11 +179,6 @@
     overflow-wrap: anywhere;
 }
 
-.published-package-list {
-    margin-top: 17px;
-    padding-top: 15px;
-    border-top: 1px solid #e5ece8;
-}
 
 .published-package-list div {
     display: flex;
