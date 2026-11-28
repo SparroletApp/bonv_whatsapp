@@ -7,7 +7,8 @@ import Modal from "@/app/component/Modal";
 import TemplatePreview from "@/app/component/TemplatePreview";
 import TemplateForm from "@/app/templatepage/form/page";
 import { apiError } from "@/app/utils/apiError";
-import ButtonRulesEditor from "./buttonruleeditor/page";
+import ButtonRulesEditor from "../component/buttonruleeditor";
+
 
 const STATUSES = ["ALL", "APPROVED", "PENDING", "REJECTED", "PAUSED"] as const;
 type StatusFilter = (typeof STATUSES)[number];

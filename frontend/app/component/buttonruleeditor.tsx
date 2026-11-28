@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
-import "./buttonruleeditor.css";
+import "../templatepage/form/template-form.css";
 import templateService, {
     ButtonRuleRequest,
     TemplateResponse,

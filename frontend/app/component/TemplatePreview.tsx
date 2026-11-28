@@ -59,7 +59,6 @@ export default function TemplatePreview({
                         )}
                     </div>
                 )}
-
               
 
                 {!headerType && headerText && (
